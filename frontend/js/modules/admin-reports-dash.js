@@ -2,9 +2,6 @@
 // MÓDULO ADMINISTRATIVO: USUÁRIOS, RELATÓRIOS E DASHBOARD
 // =========================================================
 
-/**
- * Renderiza a área de perfil e gestão de contas baseada no nível de acesso.
- */
 window.renderProfileArea = function() {
     const container = document.getElementById('profileContent');
     if (!container) return;
@@ -20,10 +17,7 @@ window.renderProfileArea = function() {
                         <div><label style="font-size:0.8rem">Usuário</label><input type="text" id="newUsername" placeholder="Ex: Joao"></div>
                         <div><label style="font-size:0.8rem">Senha</label><input type="text" id="newPassword" placeholder="***"></div>
                         <div><label style="font-size:0.8rem">Função</label>
-                            <select id="newRole">
-                                <option value="user">Usuário</option>
-                                <option value="admin">Administrador</option>
-                            </select>
+                            <select id="newRole"><option value="user">Usuário</option><option value="admin">Administrador</option></select>
                         </div>
                         <div><label style="font-size:0.8rem">Setor/Subtipo</label>
                             <select id="newSector">
@@ -101,9 +95,6 @@ window.renderProfileArea = function() {
     }
 };
 
-/**
- * Motor de busca e filtragem para geração de relatórios.
- */
 window.generateAdvancedReport = function() {
     const t = document.getElementById('repType').value;
     const s = document.getElementById('repDateStart').value;
@@ -124,7 +115,7 @@ window.generateAdvancedReport = function() {
         if (!d) return false;
         const ds = d.slice(0, 10);
         if (ds < s || ds > e) return false;
-        if (term) { return JSON.stringify(i).toUpperCase().includes(term); }
+        if (term) return JSON.stringify(i).toUpperCase().includes(term);
         return true;
     });
 
@@ -151,13 +142,9 @@ window.generateAdvancedReport = function() {
     document.getElementById('repFooter').style.display = 'block';
 };
 
-/**
- * Inicializa a estrutura visual do Dashboard.
- */
 window.renderDashboard = function() {
     let dashView = document.getElementById('view-dashboard');
     if (!dashView) return;
-
     if (!document.getElementById('slot-0')) {
         dashView.innerHTML = `
             <div class="dashboard-controls">
@@ -169,10 +156,8 @@ window.renderDashboard = function() {
                     <div><label>Placa:</label><input type="text" id="dashPlate" placeholder="ABC-1234" class="form-control"></div>
                     <div><label>Setor:</label>
                         <select id="dashSector" class="form-control">
-                            <option value="">Todos</option>
-                            <option value="ALM">Almoxarifado</option>
-                            <option value="GAVA">Gava</option>
-                            <option value="RECEBIMENTO">Recebimento</option>
+                            <option value="">Todos</option><option value="ALM">Almoxarifado</option>
+                            <option value="GAVA">Gava</option><option value="RECEBIMENTO">Recebimento</option>
                         </select>
                     </div>
                     <button class="btn btn-save" onclick="window.saveDashboardLayout()"><i class="fas fa-save"></i> Salvar Layout</button>
@@ -190,9 +175,149 @@ window.renderDashboard = function() {
     if (typeof window.initDashboard === 'function') window.initDashboard();
 };
 
-// Evento de inicialização final do sistema
+window.renderCadastros = function() {
+    const type = document.getElementById('cadFilterType').value;
+    const term = document.getElementById('cadSearch').value.toUpperCase();
+    const head = document.getElementById('cadTableHead');
+    const body = document.getElementById('cadTableBody');
+    if(!head || !body) return;
+
+    let data = [];
+    if(type === 'fornecedor') {
+        data = window.suppliersData;
+        head.innerHTML = '<tr><th>ID</th><th>Nome</th><th>Ações</th></tr>';
+    } else if(type === 'transportadora') {
+        data = window.carriersData;
+        head.innerHTML = '<tr><th>ID</th><th>Nome</th><th>Ações</th></tr>';
+    } else if(type === 'motorista') {
+        data = window.driversData;
+        head.innerHTML = '<tr><th>ID</th><th>Nome</th><th>Documento</th><th>Ações</th></tr>';
+    } else if(type === 'placa') {
+        data = window.platesData;
+        head.innerHTML = '<tr><th>ID</th><th>Placa</th><th>Ações</th></tr>';
+    } else if(type === 'produto') {
+        data = window.productsData;
+        head.innerHTML = '<tr><th>SKU</th><th>Produto</th><th>Ações</th></tr>';
+    }
+
+    const filtered = data.filter(item => JSON.stringify(item).toUpperCase().includes(term));
+    body.innerHTML = filtered.map(item => `
+        <tr>
+            <td>${item.id || item.sku || item.numero || '---'}</td>
+            <td>${item.nome || item.numero}</td>
+            ${type === 'motorista' ? `<td>${item.doc || '---'}</td>` : ''}
+            <td><button class="btn-icon-remove" onclick="window.deleteCad('${type}','${item.id || item.sku || item.numero}')"><i class="fas fa-trash"></i></button></td>
+        </tr>
+    `).join('');
+};
+
+window.renderProductsView = function() {
+    const body = document.getElementById('prodViewBody');
+    const term = document.getElementById('prodViewSearch')?.value.toUpperCase() || '';
+    if(!body) return;
+
+    const filtered = window.productsData.filter(p => p.nome.toUpperCase().includes(term));
+    body.innerHTML = filtered.map(p => `
+        <tr>
+            <td><b style="color:var(--primary)">${p.sku || '---'}</b></td>
+            <td>${p.nome}</td>
+            <td>${p.cargasCount || 0}</td>
+            <td>${p.lastSupplier || '---'}</td>
+            <td>
+                <button class="btn btn-save btn-small" onclick="window.openEditProduct('${p.id || p.nome}')"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon-remove" onclick="window.deleteCad('produto', '${p.id || p.nome}')"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+};
+
+window.openEditProduct = function(id) {
+    const prod = window.productsData.find(p => (p.id === id || p.nome === id));
+    if(!prod) return;
+    const newSku = prompt(`Editando Produto: ${prod.nome}\n\nDigite o novo Código (SKU):`, prod.sku || "");
+    if (newSku !== null) {
+        prod.sku = newSku.toUpperCase();
+        window.saveAll();
+        window.renderProductsView();
+    }
+};
+
+window.renderRequests = function() {
+    const list = document.getElementById('reqList');
+    const badge = document.getElementById('badgeNotif');
+    if (!list) return;
+    const pending = window.requests.filter(r => r.status === 'PENDENTE');
+    if (badge) badge.innerText = pending.length;
+    if (pending.length === 0) {
+        list.innerHTML = '<p style="padding:20px; color:#999; text-align:center;">Nenhuma requisição pendente.</p>';
+        return;
+    }
+    list.innerHTML = pending.map(req => `
+        <div class="notification-item" style="border-left: 4px solid #f59e0b; margin-bottom:10px; padding:12px; background:var(--bg-card); border-radius:8px; box-shadow:var(--shadow-sm);">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <b style="font-size:0.8rem; color:var(--primary);">${req.type.toUpperCase()}</b>
+                <small style="color:#888;">${req.timestamp ? req.timestamp.slice(11, 16) : '--:--'}</small>
+            </div>
+            <p style="margin:5px 0; font-size:0.9rem;">Solicitado por: <b>${req.requester}</b></p>
+            <button class="btn btn-save btn-small" style="width:100%" onclick="window.openUnifiedApproval('${req.id}')">Analisar e Aprovar</button>
+        </div>
+    `).join('');
+};
+
+window.openUnifiedApproval = function(id) {
+    const req = window.requests.find(r => r.id === id);
+    if (!req) return;
+    const modal = document.getElementById('modalUnifiedApproval');
+    const container = document.getElementById('approvalContainer');
+    if(!modal || !container) return;
+    document.getElementById('appReqId').value = id;
+    let html = '<div style="display:grid; gap:15px;">';
+    if(req.data.fornecedor?.isNew) html += `<div><label>FORNECEDOR:</label><input type="text" id="appForn" value="${req.data.fornecedor.nome}" class="form-input-styled input-warning"></div>`;
+    if(req.data.transportadora?.active && req.data.transportadora?.isNew) html += `<div><label>TRANSPORTADORA:</label><input type="text" id="appTransp" value="${req.data.transportadora.nome}" class="form-input-styled input-warning"></div>`;
+    if(req.data.motorista?.isNew) html += `<div><label>MOTORISTA:</label><input type="text" id="appMot" value="${req.data.motorista.nome}" class="form-input-styled input-warning"></div>`;
+    if(req.data.placa?.isNew) html += `<div><label>PLACA:</label><input type="text" id="appPlaca" value="${req.data.placa.numero}" class="form-input-styled input-warning"></div>`;
+    html += '</div>';
+    container.innerHTML = html;
+    modal.style.display = 'flex';
+};
+
+window.confirmUnifiedApproval = function() {
+    const id = document.getElementById('appReqId').value;
+    const reqIndex = window.requests.findIndex(r => r.id === id);
+    if (reqIndex === -1) return;
+    const req = window.requests[reqIndex];
+    if(req.data.fornecedor?.isNew) {
+        const val = document.getElementById('appForn').value.toUpperCase();
+        window.suppliersData.push({ id: 'SUP' + Date.now(), nome: val });
+    }
+    if(req.data.motorista?.isNew) {
+        const val = document.getElementById('appMot').value.toUpperCase();
+        window.driversData.push({ id: 'DRV' + Date.now(), nome: val, carrierIds: [] });
+    }
+    if(req.data.placa?.isNew) {
+        const val = document.getElementById('appPlaca').value.toUpperCase();
+        window.platesData.push({ id: 'PLK' + Date.now(), numero: val });
+    }
+    window.requests[reqIndex].status = 'APROVADO';
+    const truck = window.patioData.find(t => t.linkedRequestId === id);
+    if(truck) { truck.isProvisory = false; truck.localSpec = 'APROVADO'; }
+    window.saveAll();
+    alert("Requisição aprovada!");
+    document.getElementById('modalUnifiedApproval').style.display = 'none';
+    window.renderRequests(); window.renderPatio();
+};
+
+window.deleteCad = function(type, id) {
+    if(!confirm("Excluir este cadastro?")) return;
+    if(type === 'fornecedor') window.suppliersData = window.suppliersData.filter(x => x.id !== id);
+    else if(type === 'motorista') window.driversData = window.driversData.filter(x => x.id !== id);
+    else if(type === 'placa') window.platesData = window.platesData.filter(x => x.id !== id);
+    else if(type === 'produto') window.productsData = window.productsData.filter(x => (x.id !== id && x.sku !== id));
+    window.saveAll(); window.renderCadastros(); window.renderProductsView();
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.initRoleBasedUI === 'function') window.initRoleBasedUI();
     if (typeof window.loadDataFromServer === 'function') window.loadDataFromServer();
-    setInterval(() => { if (typeof window.checkForNotifications === 'function') window.checkForNotifications(); }, 4000);
+    setInterval(() => { if (typeof window.renderRequests === 'function') window.renderRequests(); }, 4000);
 });

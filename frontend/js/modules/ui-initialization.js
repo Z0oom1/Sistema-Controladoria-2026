@@ -162,3 +162,14 @@ window.logout = function() {
     sessionStorage.removeItem('loggedInUser'); 
     window.location.href = 'login.html'; 
 };
+
+window.closeContextMenu = function() {
+    const menus = ['ctxMenu', 'ctxMenuMP', 'ctxMenuTruck', 'ctxMenuCarr', 'ctxMenuCad'];
+    menus.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+    });
+};
+
+// Garante que o clique fora feche os menus
+document.addEventListener('click', window.closeContextMenu);
