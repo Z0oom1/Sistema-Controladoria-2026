@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Wilson Control</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/login.css">
+    <link rel="stylesheet" href="../css/estilo_geral.css">
+    <link rel="shortcut icon" href="../Imgs/logo.png" type="image/x-icon">
+    <script src="../js/config.js"></script>
+    <script>
+        const socketScript = document.createElement('script');
+        socketScript.src = `${API_BASE_URL}/socket.io/socket.io.js`;
+        document.head.appendChild(socketScript);
+    </script>
+    <style>
+        /* Ajuste: barra no topo */
+        body {
+            padding-top: 38px;
+            /* Espaço para barra */
+            overflow: hidden;
+        }
+
+        #titlebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 99999;
+        }
+    </style>
+</head>
+
+<body onclick="closeContextMenu()">
+
+    <header id="titlebar">
+        <div class="window-controls">
+            <div class="control-btn close-btn" id="closeBtn" title="Fechar"><svg viewBox="0 0 10 10">
+                    <path d="M1,1 L9,9 M9,1 L1,9" />
+                </svg></div>
+            <div class="control-btn min-btn" id="minBtn" title="Minimizar"><svg viewBox="0 0 10 2">
+                    <path d="M0,1 L10,1" />
+                </svg></div>
+            <div class="control-btn max-btn" id="maxBtn" title="Maximizar"><svg viewBox="0 0 10 10">
+                    <path d="M0,10 L10,0 M1,1 L9,9" />
+                </svg></div>
+        </div>
+        <div class="app-title">CONTROLADORIA AW - LOGIN</div>
+    </header>
+
+    <div id="loading-screen" class="loading-screen hidden">
+        <div class="loader-wrapper">
+            <div class="truck-wrapper">
+                <div class="truck">
+                    <div class="truck-container"></div>
+                    <div class="glases"></div>
+                    <div class="bonet"></div>
+                    <div class="base"></div>
+                    <div class="base-aux"></div>
+                    <div class="wheel-back"></div>
+                    <div class="wheel-front"></div>
+                    <div class="smoke"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal">
+        <img src="../Imgs/logo-dark.png" alt="Logo Wilson" class="logo-img" style="width: 170px; margin-bottom: 10px;">
+
+        <h2 style="font-size: 1rem; color: #555;">Login</h2>
+        <p>Acesso Restrito</p>
+
+        <input type="text" id="loginUser" placeholder="Usuário (Ex: Balanca)">
+        <input type="password" id="loginPass" placeholder="Senha">
+        <button onclick="fazerLogin()">ENTRAR</button>
+
+        <div class="links">
+            <a onclick="abrirRegistro()">Solicitar Acesso</a>
+        </div>
+    </div>
+
+    <div id="modalRegistro" class="overlay">
+        <div class="modal-content">
+            <h3 style="margin-bottom:15px; color:#212121;">Solicitar Novo Acesso</h3>
+            <form id="formRegistro">
+                <input type="text" id="regNome" placeholder="Nome Completo" required>
+                <input type="text" id="regDisplay" placeholder="Nome de Assinatura (opcional)">
+                <input type="text" id="regUser" placeholder="Usuário Desejado" required>
+                <input type="password" id="regPass" placeholder="Senha (será usada pelo encarregado)" required>
+                <label style="font-size:0.9rem; margin-top:6px">Tipo de Conta</label>
+                <select id="regType">
+                    <option value="Funcionario">Funcionário</option>
+                    <option value="Encarregado">Encarregado</option>
+                </select>
+                <label style="font-size:0.9rem; margin-top:6px">Setor</label>
+                <select id="regSetor">
+                    <option value="recebimento">Recebimento</option>
+                    <option value="conferencia">Conferencia</option>
+                </select>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" onclick="fecharRegistro()"
+                        style="background:#ccc; color:#333;">Cancelar</button>
+                    <button type="submit">Solicitar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="fab-login" onclick="abrirSwitcher()" title="Contas Rápidas">
+        <i class="fas fa-users"></i>
+    </div>
+
+    <div id="modalSwitcher" class="overlay">
+        <div class="modal-content" style="width: 350px;">
+            <h3 style="margin-bottom:15px; color:#212121;">Selecionar Conta Teste</h3>
+            <div id="listaContas"></div>
+            <button onclick="document.getElementById('modalSwitcher').style.display='none'"
+                style="margin-top:15px; background:#ccc; color:#333; width:100%; padding:10px; border:none; border-radius:5px; cursor:pointer;">Fechar</button>
+        </div>
+    </div>
+
+    <script src="../js/login.js"></script>
+    
+    <script>
+        // Lógica de Loading
+        function showLoading() { document.getElementById("loading-screen").classList.remove("hidden"); }
+        function hideLoading() { document.getElementById("loading-screen").classList.add("hidden"); }
+        window.onload = () => { showLoading(); setTimeout(hideLoading, 1500); };
+
+        function closeContextMenu() {
+            // Stub caso seja chamado pelo body
+        }
+
+        // LÓGICA DA BARRA DE TÍTULO (ELECTRON)
+        if (window.require) {
+            const { ipcRenderer } = require('electron');
+
+            document.getElementById('minBtn').addEventListener('click', () => {
+                ipcRenderer.send('minimize-app');
+            });
+
+            document.getElementById('maxBtn').addEventListener('click', () => {
+                ipcRenderer.send('maximize-app');
+            });
+
+            document.getElementById('closeBtn').addEventListener('click', () => {
+                ipcRenderer.send('close-app');
+            });
+        }
+    </script>
+</body>
+
+</html>
