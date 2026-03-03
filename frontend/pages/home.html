@@ -192,7 +192,7 @@
                             style="width:100%; margin-top:10px;">
                     </div>
                     <div class="mc-list-items" id="mapList" style="flex:1; overflow-y:auto;"></div>
-                    <div style="padding:10px;"><button onclick="createNewMap()" class="btn btn-save"
+                    <div style="padding:10px;"><button onclick="modalTruckOpen()" class="btn btn-save"
                             style="width:100%; justify-content:center;">+ Novo Mapa Manual</button></div>
                 </div>
 
@@ -719,7 +719,7 @@
             <div style="text-align:right;">
                 <button class="btn btn-edit"
                     onclick="document.getElementById('modalCadForm').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" onclick="saveOfficialCadastro()">Salvar Oficial</button>
+                <button class="btn btn-save" onclick="saveOfficialCadastro()">Salvar Cadastro</button>
             </div>
         </div>
     </div>
@@ -868,7 +868,8 @@
                     <label>Fornecedor</label>
                     <div style="position:relative;">
                         <input type="text" id="mwForn" class="form-input-styled" list="dlForn" placeholder="Busque o fornecedor..." oninput="filterWeighingChain('fornecedor')" autocomplete="off">
-                        </div>
+                        <datalist id="dlForn"></datalist>
+                    </div>
                 </div>
 
                 <div class="form-full">
@@ -882,6 +883,7 @@
                     <label>Placa</label>
                     <div style="position:relative;">
                         <input type="text" id="mwPlaca" class="form-input-styled" list="dlPlaca" placeholder="ABC-1234" maxlength="8" oninput="filterWeighingChain('placa')" autocomplete="off">
+                        <datalist id="dlPlaca"></datalist>
                     </div>
                 </div>
 
@@ -889,6 +891,7 @@
                     <label>Motorista (Opcional)</label>
                     <div style="position:relative;">
                         <input type="text" id="mwMot" class="form-input-styled" list="dlMot" placeholder="Nome..." oninput="filterWeighingChain('motorista')" autocomplete="off">
+                        <datalist id="dlMot"></datalist>
                     </div>
                 </div>
             </div>
@@ -951,6 +954,65 @@
             <ul id="multiNFList" class="product-list" style="max-height: 300px;"></ul>
             <div style="text-align:right; margin-top:15px;">
                 <button class="btn btn-save" onclick="document.getElementById('modalMultiNF').style.display='none'">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Carregamento (Adicionado para correção) -->
+    <div id="modalCarregamento" class="modal-overlay" style="z-index: 7000;">
+        <div class="modal-box" style="width: 500px;">
+            <h3><i class="fas fa-dolly"></i> Novo Carregamento</h3>
+            <div class="form-group">
+                <label>Motorista</label>
+                <input type="text" id="carrMotorista" class="form-input-styled" placeholder="Nome do motorista">
+            </div>
+            <div class="form-group">
+                <label>Placa Cavalo</label>
+                <input type="text" id="carrCavalo" class="form-input-styled" placeholder="ABC-1234">
+            </div>
+            <div class="form-group">
+                <label>Carreta(s)</label>
+                <div id="carretaContainer">
+                    <input type="text" class="carrCarretaInput form-input-styled" placeholder="Placa da carreta">
+                </div>
+                <button class="btn btn-edit btn-small" style="margin-top:5px; width:100%;" onclick="addCarretaField()">+ Adicionar Carreta</button>
+            </div>
+            <div style="text-align:right; margin-top:20px;">
+                <button class="btn btn-edit" onclick="document.getElementById('modalCarregamento').style.display='none'">Cancelar</button>
+                <button class="btn btn-save" onclick="saveCarregamento()">Salvar Carregamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Carregamento -->
+    <div id="modalEditCarr" class="modal-overlay" style="z-index: 7001;">
+        <div class="modal-box">
+            <h3>Editar Carregamento</h3>
+            <input type="hidden" id="editCarrId">
+            <div class="form-group">
+                <label>Motorista</label>
+                <input type="text" id="editCarrMot" class="form-input-styled">
+            </div>
+            <div class="form-group">
+                <label>Cavalo</label>
+                <input type="text" id="editCarrCav" class="form-input-styled">
+            </div>
+            <div style="text-align:right; margin-top:20px;">
+                <button class="btn btn-edit" onclick="document.getElementById('modalEditCarr').style.display='none'">Cancelar</button>
+                <button class="btn btn-save" onclick="saveEditCarr()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nota Carregamento -->
+    <div id="modalNoteCarr" class="modal-overlay" style="z-index: 7002;">
+        <div class="modal-box">
+            <h3>Observação Carregamento</h3>
+            <input type="hidden" id="noteCarrId">
+            <textarea id="noteCarrText" class="form-input-styled" rows="4"></textarea>
+            <div style="text-align:right; margin-top:20px;">
+                <button class="btn btn-edit" onclick="document.getElementById('modalNoteCarr').style.display='none'">Cancelar</button>
+                <button class="btn btn-save" onclick="saveNoteCarr()">Salvar</button>
             </div>
         </div>
     </div>
