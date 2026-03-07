@@ -157,6 +157,7 @@ document.getElementById('inPlaca')?.addEventListener('input', (e) => {
  */
 window.modalTruckOpen = function() {
     window.tmpItems = [];
+    window.appState.set('entryState', { selectedSupplierId: null, selectedCarrierId: null, selectedDriverId: null, selectedPlateId: null });
     document.getElementById('tmpList').innerHTML = '';
     document.getElementById('inForn').value = '';
     document.getElementById('inPlaca').value = '';
@@ -167,6 +168,16 @@ window.modalTruckOpen = function() {
     document.getElementById('entryWarningBox').style.display = 'none';
     document.getElementById('btnSaveTruck').style.display = 'inline-block';
     document.getElementById('btnReqTruck').style.display = 'none';
+
+    // Popular datalists com dados cadastrados
+    if (typeof window.populateDatalist === 'function') {
+        window.populateDatalist('dlForn', window.suppliersData);
+        window.populateDatalist('dlMot', window.driversData);
+        window.populateDatalist('dlPlaca', window.platesData, 'numero');
+        window.populateDatalist('dlTransp', window.carriersData, 'apelido');
+        window.populateDatalist('prodListSuggestions', window.productsData);
+    }
+
     document.getElementById('modalTruck').style.display = 'flex';
 };
 
@@ -271,22 +282,89 @@ window.submitComplexRequest = function() {
 
     window.requests.push(requestObj);
     
-    // Cria o veículo provisório no pátio (Estado de espera por aprovação)
+    // Determina o setor correto com base no destino selecionado
+    const dest = document.getElementById('addDestino').value;
+    const secMap = {
+        'DOCA': { n: 'DOCA (ALM)', c: 'ALM' },
+        'GAVA': { n: 'GAVA', c: 'GAVA' },
+        'MANUTENCAO': { n: 'MANUTENÇÃO', c: 'OUT' },
+        'INFRA': { n: 'INFRAESTRUTURA', c: 'OUT' },
+        'PESAGEM': { n: 'SALA DE PESAGEM', c: 'OUT' },
+        'LAB': { n: 'LABORATÓRIO', c: 'OUT' },
+        'SST': { n: 'SST', c: 'OUT' },
+        'CD': { n: 'CD', c: 'OUT' },
+        'OUT': { n: 'OUTROS', c: 'OUT' },
+        'COMPRAS': { n: 'COMPRAS', c: 'OUT' }
+    };
+    const sec = secMap[dest] || { n: 'OUTROS', c: 'OUT' };
+    const truckId = 'PROV' + Date.now();
+    const todayStr = window.getBrazilTime().split('T')[0];
+    const balan = document.getElementById('chkBalan').checked;
+    const laudo = document.getElementById('chkLaudo').checked;
+    const seq = window.patioData.filter(t => (t.chegada || '').startsWith(todayStr)).length + 1;
+
+    // Cria o veículo provisório no pátio com setor correto
     window.patioData.push({
-        id: 'PROV' + Date.now(),
+        id: truckId,
         empresa: transp || forn,
         placa: placa,
         status: 'FILA',
-        local: 'OUT',
-        localSpec: 'AGUARDANDO REQ',
+        local: sec.c,
+        localSpec: sec.n,
+        sequencia: seq,
+        comLaudo: laudo,
         isProvisory: true,
         chegada: window.getBrazilTime(),
-        cargas: [{ produtos: window.tmpItems.map(i => ({ nome: i.prod, nf: i.nf })) }],
+        saida: null,
+        releasedBy: null,
+        cargas: [{ numero: '1', produtos: window.tmpItems.map(i => ({ nome: i.prod, nf: i.nf })) }],
         linkedRequestId: reqId
     });
 
+    // Cria o Mapa Cego associado
+    const mapRows = window.tmpItems.map((item, idx) => ({
+        id: truckId + '_' + idx,
+        desc: item.prod,
+        qty: '',
+        qty_nf: '',
+        nf: item.nf,
+        forn: forn,
+        owners: {}
+    }));
+    for (let i = mapRows.length; i < 8; i++) {
+        mapRows.push({ id: truckId + '_x_' + i, desc: '', qty: '', qty_nf: '', nf: '', forn: '', owners: {} });
+    }
+    window.mapData.push({
+        id: truckId,
+        date: todayStr,
+        rows: mapRows,
+        placa: placa,
+        setor: sec.n,
+        launched: false,
+        signatures: {},
+        forceUnlock: false,
+        divergence: null
+    });
+
+    // Adiciona à pesagem se marcado
+    if (balan) {
+        window.mpData.push({
+            id: truckId,
+            date: todayStr,
+            produto: window.tmpItems[0].prod,
+            empresa: transp || forn,
+            placa: placa,
+            local: sec.n,
+            chegada: window.getBrazilTime(),
+            entrada: null,
+            tara: 0, bruto: 0, liq: 0, pesoNF: 0, difKg: 0, difPerc: 0,
+            nf: window.tmpItems[0].nf,
+            notes: 'Cadastro Pendente (REQ)'
+        });
+    }
+
     window.saveAll();
-    alert("SOLICITAÇÃO ENVIADA: O veículo foi colocado na fila mas aguarda aprovação do cadastro pelo encarregado.");
+    alert(`Veículo #${seq} registrado provisoriamente. Aguarda aprovação do encarregado.`);
     document.getElementById('modalTruck').style.display = 'none';
     window.renderPatio();
     window.tmpItems = [];

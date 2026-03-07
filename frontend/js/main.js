@@ -8,5 +8,6 @@ import './modules/ui-initialization.js';
 import './modules/patio-logistics.js';
 import './modules/maps-weighing.js';
 import './modules/admin-reports-dash.js';
+import './modules/missing-functions.js';
 
 console.log("Wilson System: Módulos carregados com sucesso.");

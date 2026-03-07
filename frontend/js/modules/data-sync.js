@@ -32,56 +32,15 @@ class Debouncer {
     }
 }
 
-const syncDebouncer = new Debouncer(2000); // 2s debounce para sync
+const syncDebouncer = new Debouncer(300); // 300ms debounce para sync
+
+// Cache removido - dados sempre frescos para garantir sincronia em tempo real
 
 /**
- * Cache de sincronização com controle de TTL
- */
-class SyncCache {
-    constructor(ttl = 30000) { // 30s default
-        this.cache = new Map();
-        this.ttl = ttl;
-    }
-
-    set(key, value) {
-        this.cache.set(key, {
-            value,
-            timestamp: Date.now()
-        });
-    }
-
-    get(key) {
-        const item = this.cache.get(key);
-        if (!item) return null;
-
-        if (Date.now() - item.timestamp > this.ttl) {
-            this.cache.delete(key);
-            return null;
-        }
-
-        return item.value;
-    }
-
-    clear() {
-        this.cache.clear();
-    }
-}
-
-const syncCache = new SyncCache();
-
-/**
- * Carrega todos os dados do servidor com cache
+ * Carrega todos os dados do servidor.
  * Se falhar, tenta restaurar os dados do LocalStorage.
  */
 window.loadDataFromServer = async function() {
-    // Verificar cache primeiro
-    const cached = syncCache.get('full_sync');
-    if (cached) {
-        console.log('Usando dados em cache');
-        applyDataToState(cached);
-        return;
-    }
-
     try {
         const response = await fetch(`${window.API_URL}/api/sync?t=${Date.now()}`, { 
             cache: "no-store",
@@ -90,9 +49,6 @@ window.loadDataFromServer = async function() {
 
         if (!response.ok) throw new Error("Offline");
         const data = await response.json();
-
-        // Armazenar em cache
-        syncCache.set('full_sync', data);
 
         // Aplicar dados ao estado
         applyDataToState(data);
@@ -188,8 +144,7 @@ window.saveAll = function() {
         window.saveToServer('aw_plates', window.platesData);
         window.saveToServer('aw_products', window.productsData);
 
-        // Limpar cache após salvar
-        syncCache.clear();
+        // Cache removido - dados sempre frescos
     });
 };
 
@@ -198,8 +153,8 @@ window.saveAll = function() {
  * Com tratamento de erro melhorado
  */
 window.saveToServer = function(key, data) {
-    // Evitar enviar dados vazios
-    if (!data || (Array.isArray(data) && data.length === 0)) {
+    // Permite enviar arrays vazios (exclusão de registros é válida)
+    if (data === undefined || data === null) {
         return;
     }
 
@@ -306,7 +261,6 @@ window.restoreData = function(i) {
             if (d.mapas) localStorage.setItem('mapas_cegos_v3', JSON.stringify(d.mapas));
             if (d.mp) localStorage.setItem('aw_materia_prima', JSON.stringify(d.mp));
             if (d.carr) localStorage.setItem('aw_carregamento', JSON.stringify(d.carr));
-            syncCache.clear();
             window.location.reload();
         }
     };
@@ -324,7 +278,6 @@ window.clearAllData = function() {
         })
             .then(response => {
                 if (response.ok) {
-                    syncCache.clear();
                     alert('Sistema resetado com sucesso!');
                 } else {
                     alert('Erro ao tentar resetar o servidor.');

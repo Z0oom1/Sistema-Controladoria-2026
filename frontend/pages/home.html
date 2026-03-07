@@ -14,28 +14,12 @@
     <link rel="stylesheet" href="../css/estilo_geral.css">
     <link rel="shortcut icon" href="../Imgs/logo.png" type="image/x-icon">
     
-    <script>
-        var script = document.createElement('script');
-        // Se estiver rodando como arquivo (Electron Produção) busca na porta 2006
-        // Se estiver rodando http (Vite ou Server), busca relativo (Proxy resolve)
-        if (window.location.protocol === 'file:') {
-            script.src = "http://localhost:2006/socket.io/socket.io.js";
-        } else {
-            script.src = "/socket.io/socket.io.js";
-        }
-        
-        script.onload = function() {
-            console.log("Bibliote Socket.IO carregada.");
-            initRealTimeSystem(); // Inicia a escuta assim que carregar
-        };
-        
-        document.head.appendChild(script);
-    </script>
+    <!-- Socket.IO carregado no final do body para evitar duplicação -->
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
-<body onclick="closeContextMenu()">
+<body onclick="window.closeContextMenu()">
 
     <header id="titlebar">
         <div class="window-controls">
@@ -52,12 +36,12 @@
         <div class="app-title">CONTROLADORIA AW - HOME PAGE</div>
     </header>
     <div class="mobile-header-bar">
-        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+        <button class="mobile-menu-btn" onclick="window.toggleMobileMenu()">
             <i class="fas fa-bars"></i>
         </button>
         <div style="font-weight:bold;">CONTROLADORIA AW</div>
 
-        <button class="mobile-menu-btn" onclick="logout()" title="Sair">
+        <button class="mobile-menu-btn" onclick="window.logout()" title="Sair">
             <i class="fas fa-power-off"></i>
         </button>
     </div>
@@ -98,23 +82,23 @@
             <span>CONTROLADORIA</span>
         </div>
         <div class="menu-items">
-            <a class="menu-item active" id="menuPatio" onclick="navTo('patio', this)"><i class="fas fa-truck"></i>
+            <a class="menu-item active" id="menuPatio" onclick="window.navTo('patio', this)"><i class="fas fa-truck"></i>
                 Controle de Pátio</a>
-            <a class="menu-item" onclick="navTo('mapas', this)"><i class="fas fa-clipboard-check"></i> Mapas Cegos</a>
-            <a class="menu-item" id="menuMateriaPrima" onclick="navTo('materia-prima', this)"><i
+            <a class="menu-item" onclick="window.navTo('mapas', this)"><i class="fas fa-clipboard-check"></i> Mapas Cegos</a>
+            <a class="menu-item" id="menuMateriaPrima" onclick="window.navTo('materia-prima', this)"><i
                     class="fas fa-weight-hanging"></i>Pesagem</a>
-            <a class="menu-item" id="menuCarregamento" onclick="navTo('carregamento', this)"><i
+            <a class="menu-item" id="menuCarregamento" onclick="window.navTo('carregamento', this)"><i
                     class="fas fa-dolly"></i> Carregamento</a>
-            <a class="menu-item" onclick="navTo('relatorios', this)"><i class="fas fa-chart-pie"></i> Relatórios</a>
-            <a id="menuDashboard" class="menu-item" onclick="navTo('dashboard', this)"><i class="fas fa-chart-line"></i>
+            <a class="menu-item" onclick="window.navTo('relatorios', this)"><i class="fas fa-chart-pie"></i> Relatórios</a>
+            <a id="menuDashboard" class="menu-item" onclick="window.navTo('dashboard', this)"><i class="fas fa-chart-line"></i>
                 Dashboard</a>
-            <a id="menuCadastros" class="menu-item" onclick="navTo('cadastros', this)"><i class="fas fa-address-book"></i> Cadastros</a>
-            <a class="menu-item" onclick="navTo('produtos', this)"><i class="fas fa-boxes"></i> Produtos</a>
-            <a class="menu-item" id="menuNotif" onclick="navTo('notificacoes', this)"><i class="fas fa-bell"></i>
+            <a id="menuCadastros" class="menu-item" onclick="window.navTo('cadastros', this)"><i class="fas fa-address-book"></i> Cadastros</a>
+            <a class="menu-item" onclick="window.navTo('produtos', this)"><i class="fas fa-boxes"></i> Produtos</a>
+            <a class="menu-item" id="menuNotif" onclick="window.navTo('notificacoes', this)"><i class="fas fa-bell"></i>
                 Notificações <span class="notification-badge" id="badgeNotif">0</span></a>
-            <a class="menu-item" onclick="navTo('perfil', this)"><i class="fas fa-user-circle"></i> Perfil / Admin</a>
+            <a class="menu-item" onclick="window.navTo('perfil', this)"><i class="fas fa-user-circle"></i> Perfil / Admin</a>
             <div style="margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1)">
-                <a class="menu-item" onclick="navTo('configuracoes', this)"><i class="fas fa-cog"></i> Configurações</a>
+                <a class="menu-item" onclick="window.navTo('configuracoes', this)"><i class="fas fa-cog"></i> Configurações</a>
             </div>
         </div>
         <div class="user-footer">
@@ -143,7 +127,7 @@
                     Offline
                 </div>
                 <div id="serverTime" style="font-size:0.9rem; color:var(--text-muted);"></div>
-                <button onclick="logout()" class="btn btn-edit"><i class="fas fa-power-off"></i> Sair</button>
+                <button onclick="window.logout()" class="btn btn-edit"><i class="fas fa-power-off"></i> Sair</button>
             </div>
         </header>
 
@@ -157,7 +141,7 @@
                         Caminhões Ativos: <b id="totalTrucksBadge" style="color:var(--primary); font-size:1.1rem;">0</b>
                     </div>
                 </div>
-                <input type="date" id="patioDateFilter" onchange="renderPatio()"
+                <input type="date" id="patioDateFilter" onchange="window.renderPatio()"
                     style="width:auto; border:1px solid #ccc;">
             </div>
 
@@ -179,7 +163,7 @@
                     <div class="col-body" id="list-SAIU"></div>
                 </div>
             </div>
-            <div id="fabAddTruck" class="fab" onclick="modalTruckOpen()">+</div>
+            <div id="fabAddTruck" class="fab" onclick="window.modalTruckOpen()">+</div>
         </div>
 
         <div id="view-mapas" class="view-section">
@@ -188,11 +172,11 @@
                     <div
                         style="padding:15px; background:var(--bg-input); font-weight:bold; border-bottom:1px solid var(--border-color);">
                         Filtrar Mapas
-                        <input type="date" id="mapListDateFilter" onchange="renderMapList()"
+                        <input type="date" id="mapListDateFilter" onchange="window.renderMapList()"
                             style="width:100%; margin-top:10px;">
                     </div>
                     <div class="mc-list-items" id="mapList" style="flex:1; overflow-y:auto;"></div>
-                    <div style="padding:10px;"><button onclick="modalTruckOpen()" class="btn btn-save"
+                    <div style="padding:10px;"><button onclick="window.modalTruckOpen()" class="btn btn-save"
                             style="width:100%; justify-content:center;">+ Novo Mapa Manual</button></div>
                 </div>
 
@@ -238,12 +222,12 @@
                             </table>
                         </div>
                         <div class="controls" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="btn btn-save" onclick="saveCurrentMap()">Salvar Alterações</button>
-                            <button class="btn btn-launch" onclick="launchMap()" id="btnLaunch">Lançar
+                            <button class="btn btn-save" onclick="window.saveCurrentMap()">Salvar Alterações</button>
+                            <button class="btn btn-launch" onclick="window.launchMap()" id="btnLaunch">Lançar
                                 Definitivo</button>
                             <button class="btn btn-edit" id="btnRequestEdit"
                                 style="display:none; background:#ff9800; color:white;"
-                                onclick="triggerRequest('edit')">Solicitar Edição</button>
+                                onclick="window.triggerRequest('edit')">Solicitar Edição</button>
                             <div id="mapStatus"
                                 style="padding:8px 15px; border-radius:4px; font-weight:bold; margin-left:auto;">
                                 Rascunho</div>
@@ -256,11 +240,11 @@
                                     id="mapPlaca" class="cell" type="text"
                                     style="width:100%; border-bottom:1px solid #ccc;"></div>
                             <div style="flex:1; display:flex; gap:10px; justify-content:flex-end;">
-                                <div style="text-align:center;"><button onclick="signMap('receb')" class="btn-sign">Ass.
+                                <div style="text-align:center;"><button onclick="window.signMap('receb')" class="btn-sign">Ass.
                                         Recebimento</button>
                                     <div id="sigReceb" style="color:blue; font-weight:bold; font-size:0.8rem;"></div>
                                 </div>
-                                <div style="text-align:center;"><button onclick="signMap('conf')"
+                                <div style="text-align:center;"><button onclick="window.signMap('conf')"
                                         class="btn-sign-alm">Ass. Conferencia</button>
                                     <div id="sigConf" style="color:red; font-weight:bold; font-size:0.8rem;"></div>
                                 </div>
@@ -275,7 +259,7 @@
             <div class="table-container">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                     <h3 style="margin:0; color:var(--primary);"><i class="fas fa-weight-hanging"></i> Controle de Pesagem</h3>
-                    <input type="date" id="mpDateFilter" onchange="renderMateriaPrima()" style="width:auto;">
+                    <input type="date" id="mpDateFilter" onchange="window.renderMateriaPrima()" style="width:auto;">
                 </div>
                 <table class="modern-table">
                     <thead>
@@ -299,7 +283,7 @@
                     <tbody id="mpBody"></tbody>
                 </table>
             </div>
-            <div class="fab" onclick="openManualWeighingModal()">+</div>
+            <div class="fab" onclick="window.openManualWeighingModal()">+</div>
         </div>
 
         <div id="view-carregamento" class="view-section">
@@ -307,7 +291,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                     <h3 style="margin:0; color:var(--text-main);"><i class="fas fa-dolly"></i> Expedição e Carregamento
                     </h3>
-                    <input type="date" id="carrDateFilter" onchange="renderCarregamento()" style="width:auto;">
+                    <input type="date" id="carrDateFilter" onchange="window.renderCarregamento()" style="width:auto;">
                 </div>
                 <table class="modern-table">
                     <thead>
@@ -328,7 +312,7 @@
                     <tbody id="carrBody"></tbody>
                 </table>
             </div>
-            <div class="fab" onclick="openModalCarregamento()">+</div>
+            <div class="fab" onclick="window.openModalCarregamento()">+</div>
         </div>
 
         <div id="view-relatorios" class="view-section">
@@ -352,9 +336,9 @@
                     <div style="flex:1; min-width:200px;"><label
                             style="font-weight:bold; font-size:0.8rem;">Busca</label><input type="text"
                             id="repSearchTerm" placeholder="Placa, NF, Forn..."></div>
-                    <button class="btn btn-save" onclick="generateAdvancedReport()"><i class="fas fa-search"></i>
+                    <button class="btn btn-save" onclick="window.generateAdvancedReport()"><i class="fas fa-search"></i>
                         Filtrar</button>
-                    <button class="btn btn-edit" onclick="exportReportToPDF()"><i class="fas fa-file-pdf"></i>
+                    <button class="btn btn-edit" onclick="window.exportReportToPDF()"><i class="fas fa-file-pdf"></i>
                         PDF</button>
                 </div>
                 <div id="repResultArea" style="margin-top:30px; overflow-x:auto;"></div>
@@ -402,18 +386,18 @@
                     <div class="action-row">
                         <span style="font-size:0.9rem; font-weight:bold; color:#555;">Adicionar ao:</span>
                         <div class="slot-buttons">
-                            <button class="btn-slot" onclick="addToSlot(0)">Slot 1</button>
-                            <button class="btn-slot" onclick="addToSlot(1)">Slot 2</button>
-                            <button class="btn-slot" onclick="addToSlot(2)">Slot 3</button>
-                            <button class="btn-slot" onclick="addToSlot(3)">Slot 4</button>
+                            <button class="btn-slot" onclick="window.addToSlot(0)">Slot 1</button>
+                            <button class="btn-slot" onclick="window.addToSlot(1)">Slot 2</button>
+                            <button class="btn-slot" onclick="window.addToSlot(2)">Slot 3</button>
+                            <button class="btn-slot" onclick="window.addToSlot(3)">Slot 4</button>
                         </div>
 
-                        <button class="btn btn-save" onclick="saveDashboardLayout()"
+                        <button class="btn btn-save" onclick="window.saveDashboardLayout()"
                             style="margin-left:auto; display:flex; align-items:center; gap:5px;">
                             <i class="fas fa-save"></i> Salvar Layout
                         </button>
 
-                        <button class="btn btn-edit" onclick="clearDashboard()"
+                        <button class="btn btn-edit" onclick="window.clearDashboard()"
                             style="margin-left:10px;">Limpar</button>
                     </div>
                 </div>
@@ -449,7 +433,7 @@
                     <h3 style="margin:0"><i class="fas fa-database"></i> Banco de Dados</h3>
 
                     <div style="display:flex; gap:10px;">
-                        <select id="cadFilterType" onchange="renderCadastros()" style="padding:8px; border-radius:6px; background:var(--bg-input);">
+                        <select id="cadFilterType" onchange="window.renderCadastros()" style="padding:8px; border-radius:6px; background:var(--bg-input);">
                             <option value="transportadora">Transportadoras</option>
                             <option value="fornecedor">Fornecedores</option>
                             <option value="motorista">Motoristas</option>
@@ -466,6 +450,8 @@
                         <span id="badgeReq" class="notification-badge" style="display:none; position:relative; background: orange;">0</span>
                     </div>
 
+                    <div id="cadReqSection" style="display:none; margin-bottom:15px; padding:10px; background:#fffbeb; border-radius:8px; border:1px solid #fcd34d;"></div>
+
                     <table class="modern-table">
                         <thead id="cadTableHead"></thead>
                         <tbody id="cadTableBody"></tbody>
@@ -473,7 +459,7 @@
                     <div id="requestsList" style="padding:10px;"></div>
                 </div>
             </div>
-            <div class="fab" onclick="openCadSelectModal()" title="Novo Cadastro">+</div>
+            <div class="fab" onclick="window.openCadSelectModal()" title="Novo Cadastro">+</div>
         </div>
         <div id="view-produtos" class="view-section">
             <div class="settings-card">
@@ -529,7 +515,7 @@
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <div><strong>Modo Escuro</strong></div>
                         <label class="switch"><input type="checkbox" id="darkModeToggle"
-                                onchange="toggleDarkMode()"><span class="slider"></span></label>
+                                onchange="window.toggleDarkMode()"><span class="slider"></span></label>
                     </div>
                     <div
                         style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; border-top:1px solid #eee; padding-top:10px;">
@@ -537,28 +523,28 @@
                             <strong>Modo Rápido</strong>
                             <div style="font-size:0.8rem; color:var(--text-muted);">Remove animações (PC Lento)</div>
                         </div>
-                        <label class="switch"><input type="checkbox" id="fastModeToggle" onchange="toggleFastMode()"><span
+                        <label class="switch"><input type="checkbox" id="fastModeToggle" onchange="window.toggleFastMode()"><span
                                 class="slider"></span></label>
                     </div>
                 </div>
                 <div class="settings-card">
                     <h4><i class="fas fa-bell"></i> Sistema</h4>
                     <div style="display:flex; gap:10px;"><button class="btn btn-save"
-                            onclick="manualRequestPermission()">Ativar Notificações</button><button class="btn btn-edit"
-                            onclick="playBeep()">Testar Som</button></div>
+                            onclick="window.manualRequestPermission()">Ativar Notificações</button><button class="btn btn-edit"
+                            onclick="window.playBeep()">Testar Som</button></div>
                 </div>
                 <div class="settings-card">
                     <h4><i class="fas fa-database"></i> Dados</h4>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        <button class="btn btn-edit" onclick="backupData()">Backup</button>
+                        <button class="btn btn-edit" onclick="window.backupData()">Backup</button>
                         <button class="btn btn-edit"
                             onclick="document.getElementById('fileRestore').click()">Restaurar</button>
-                        <input type="file" id="fileRestore" style="display:none" onchange="restoreData(this)"
+                        <input type="file" id="fileRestore" style="display:none" onchange="window.restoreData(this)"
                             accept=".json">
                     </div>
                     <button class="btn btn-edit"
                         style="color:var(--status-danger); border-color:var(--status-danger); width:100%; margin-top:15px;"
-                        onclick="clearAllData()">RESETAR DADOS</button>
+                        onclick="window.clearAllData()">RESETAR DADOS</button>
                 </div>
             </div>
         </div>
@@ -576,7 +562,7 @@
                 <div class="form-full">
                     <label>Fornecedor</label>
                     <div style="position:relative;">
-                        <input type="text" id="inForn" class="form-input-styled" list="dlForn" placeholder="Digite para buscar..." oninput="filterChain('fornecedor')" autocomplete="off">
+                        <input type="text" id="inForn" class="form-input-styled" list="dlForn" placeholder="Digite para buscar..." oninput="window.filterChain('fornecedor')" autocomplete="off">
                         <datalist id="dlForn"></datalist>
                     </div>
                 </div>
@@ -585,11 +571,11 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
                         <label>Transportadora</label>
                         <label style="font-size:0.8rem; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; gap:5px;">
-                            <input type="checkbox" id="chkUseCarrier" onchange="toggleCarrierInput()"> Utilizar Transportadora
+                            <input type="checkbox" id="chkUseCarrier" onchange="window.toggleCarrierInput()"> Utilizar Transportadora
                         </label>
                     </div>
                     <div style="position:relative;">
-                        <input type="text" id="inTransp" class="form-input-styled" list="dlTransp" placeholder="Selecione (Opcional)..." oninput="filterChain('transportadora')" autocomplete="off" disabled style="background-color: #f1f5f9; cursor: not-allowed;">
+                        <input type="text" id="inTransp" class="form-input-styled" list="dlTransp" placeholder="Selecione (Opcional)..." oninput="window.filterChain('transportadora')" autocomplete="off" disabled style="background-color: #f1f5f9; cursor: not-allowed;">
                         <datalist id="dlTransp"></datalist>
                     </div>
                 </div>
@@ -597,7 +583,7 @@
                 <div class="form-group">
                     <label>Motorista</label>
                     <div style="position:relative;">
-                        <input type="text" id="inMot" class="form-input-styled" list="dlMot" placeholder="Nome..." oninput="filterChain('motorista')" autocomplete="off">
+                        <input type="text" id="inMot" class="form-input-styled" list="dlMot" placeholder="Nome..." oninput="window.filterChain('motorista')" autocomplete="off">
                         <datalist id="dlMot"></datalist>
                     </div>
                 </div>
@@ -605,7 +591,7 @@
                 <div class="form-group">
                     <label>Placa</label>
                     <div style="position:relative;">
-                        <input type="text" id="inPlaca" class="form-input-styled" list="dlPlaca" placeholder="ABC-1234" maxlength="8" oninput="filterChain('placa')" autocomplete="off">
+                        <input type="text" id="inPlaca" class="form-input-styled" list="dlPlaca" placeholder="ABC-1234" maxlength="8" oninput="window.filterChain('placa')" autocomplete="off">
                         <datalist id="dlPlaca"></datalist>
                     </div>
                 </div>
@@ -619,7 +605,9 @@
                         <option value="INFRA">Infraestrutura</option>
                         <option value="PESAGEM">Pesagem Avulsa</option>
                         <option value="LAB">Laboratório</option>
+                        <option value="SST">SST</option>
                         <option value="CD">CD (Logística)</option>
+                        <option value="COMPRAS">Compras</option>
                         <option value="OUT">Outros</option>
                     </select>
                 </div>
@@ -630,10 +618,10 @@
                 <div style="display:flex; gap:5px; margin-bottom:5px; position:relative;">
                     <input type="text" id="tmpNF" placeholder="NF" style="width:30%" class="form-input-styled">
                     <div style="flex:1; position:relative;">
-                        <input type="text" id="tmpProd" placeholder="Produto (Busca ou Novo)" class="form-input-styled" list="prodListSuggestions" oninput="checkProductInput()">
+                        <input type="text" id="tmpProd" placeholder="Produto (Busca ou Novo)" class="form-input-styled" list="prodListSuggestions" oninput="window.checkProductInput()">
                         <datalist id="prodListSuggestions"></datalist>
                     </div>
-                    <button class="btn btn-save" onclick="addTmpItem()">+</button>
+                    <button class="btn btn-save" onclick="window.addTmpItem()">+</button>
                 </div>
                 <ul id="tmpList" style="list-style:none; padding:0; font-size:0.85rem; color:#555;"></ul>
             </div>
@@ -645,8 +633,8 @@
 
             <div style="text-align:right; margin-top:20px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalTruck').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" id="btnSaveTruck" onclick="saveTruckAndMap()">Registrar Entrada</button>
-                <button class="btn btn-save" id="btnReqTruck" style="display:none; background:#d97706;" onclick="submitComplexRequest()">Solicitar Requisição & Entrar</button>
+                <button class="btn btn-save" id="btnSaveTruck" onclick="window.saveTruckAndMap()">Registrar Entrada</button>
+                <button class="btn btn-save" id="btnReqTruck" style="display:none; background:#d97706;" onclick="window.submitComplexRequest()">Solicitar Requisição & Entrar</button>
             </div>
         </div>
     </div>
@@ -668,8 +656,8 @@
             </div>
 
         <div class="modal-footer space-between">
-            <button class="btn btn-edit" style="color:red; border-color:red;" onclick="rejectUnifiedRequest()">Rejeitar Requisição</button>
-            <button class="btn btn-save" onclick="confirmUnifiedApproval()">✅ Aprovar e Cadastrar Tudo</button>
+            <button class="btn btn-edit" style="color:red; border-color:red;" onclick="window.rejectUnifiedRequest()">Rejeitar Requisição</button>
+            <button class="btn btn-save" onclick="window.confirmUnifiedApproval()">✅ Aprovar e Cadastrar Tudo</button>
         </div>
     </div>
 </div>
@@ -686,23 +674,23 @@
             <p style="color:var(--text-muted); text-align:center; margin-bottom:10px;">O que você deseja cadastrar?</p>
             
             <div class="cad-select-grid">
-                <div class="cad-select-card" onclick="openCadModal('fornecedor')">
+                <div class="cad-select-card" onclick="window.openCadModal('fornecedor')">
                     <i class="fas fa-industry"></i>
                     Fornecedor
                 </div>
-                <div class="cad-select-card" onclick="openCadModal('transportadora')">
+                <div class="cad-select-card" onclick="window.openCadModal('transportadora')">
                     <i class="fas fa-truck"></i>
                     Transportadora
                 </div>
-                <div class="cad-select-card" onclick="openCadModal('motorista')">
+                <div class="cad-select-card" onclick="window.openCadModal('motorista')">
                     <i class="fas fa-user-friends"></i>
                     Motorista
                 </div>
-                <div class="cad-select-card" onclick="openCadModal('placa')">
+                <div class="cad-select-card" onclick="window.openCadModal('placa')">
                     <i class="fas fa-closed-captioning"></i>
                     Placa / Veículo
                 </div>
-                <div class="cad-select-card" onclick="openCadModal('produto')">
+                <div class="cad-select-card" onclick="window.openCadModal('produto')">
                     <i class="fas fa-box-open"></i>
                     Produto
                 </div>
@@ -719,7 +707,7 @@
             <div style="text-align:right;">
                 <button class="btn btn-edit"
                     onclick="document.getElementById('modalCadForm').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" onclick="saveOfficialCadastro()">Salvar Cadastro</button>
+                <button class="btn btn-save" onclick="window.saveOfficialCadastro()">Salvar Cadastro</button>
             </div>
         </div>
     </div>
@@ -742,7 +730,7 @@
             <div style="text-align:right;">
                 <button class="btn btn-edit"
                     onclick="document.getElementById('modalProvisorio').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" style="background:#d97706;" onclick="confirmProvisory()">Gerar
+                <button class="btn btn-save" style="background:#d97706;" onclick="window.confirmProvisory()">Gerar
                     Requisição</button>
             </div>
         </div>
@@ -774,6 +762,7 @@
                         <option value="SST">SST</option>
                         <option value="CD">CD</option>
                         <option value="COMPRAS">COMPRAS</option>
+                        <option value="OUT">OUTROS</option>
                     </select>
                 </div>
             </div>
@@ -782,18 +771,18 @@
                 <div style="display:flex; gap:5px;">
                     <input id="editTmpNF" placeholder="NF" style="width:30%" class="form-input-styled">
                     <input id="editTmpProd" placeholder="Produto" style="flex:1" class="form-input-styled">
-                    <button class="btn btn-save" onclick="addEditTmpItem()">+</button>
+                    <button class="btn btn-save" onclick="window.addEditTmpItem()">+</button>
                 </div>
                 <ul id="editTmpList" class="product-list"></ul>
             </div>
             <div class="form-group"><label><input type="checkbox" id="editTruckLaudo"> Com Laudo?</label></div>
             <div style="display:flex; justify-content:space-between; margin-top:20px;">
-                <button onclick="deleteTruck()" class="btn btn-edit"
+                <button onclick="window.deleteTruck()" class="btn btn-edit"
                     style="background:red; border:none; color:white;">Excluir</button>
                 <div>
                     <button class="btn btn-edit"
                         onclick="document.getElementById('modalEditTruck').style.display='none'">Cancelar</button>
-                    <button class="btn btn-save" onclick="saveEditTruck()">Salvar</button>
+                    <button class="btn btn-save" onclick="window.saveEditTruck()">Salvar</button>
                 </div>
             </div>
         </div>
@@ -805,7 +794,7 @@
             <p>Seu primeiro acesso requer a troca de senha.</p>
             <input type="password" id="firstNewPass" placeholder="Nova Senha" class="form-input-styled" style="margin-bottom:10px;">
             <input type="password" id="firstNewPass2" placeholder="Confirmar Senha" class="form-input-styled" style="margin-bottom:10px;">
-            <button class="btn btn-save" style="width:100%;" onclick="confirmFirstAccessChange()">Confirmar</button>
+            <button class="btn btn-save" style="width:100%;" onclick="window.confirmFirstAccessChange()">Confirmar</button>
         </div>
     </div>
 
@@ -825,12 +814,12 @@
             <p style="color: #666; margin-bottom: 20px;">Como deseja excluir este veículo?</p>
             
             <div class="delete-options-container">
-                <div class="del-option selected" id="optQueue" onclick="selectDeleteOption('queue')">
+                <div class="del-option selected" id="optQueue" onclick="window.selectDeleteOption('queue')">
                     <i class="fas fa-list-ul"></i>
                     <strong>Apenas da Fila</strong>
                     <div style="font-size: 0.75rem; color: #888;">Remove do painel, mas mantém histórico e mapa.</div>
                 </div>
-                <div class="del-option" id="optGeneral" onclick="selectDeleteOption('general')">
+                <div class="del-option" id="optGeneral" onclick="window.selectDeleteOption('general')">
                     <i class="fas fa-bomb"></i>
                     <strong>Excluir Tudo</strong>
                     <div style="font-size: 0.75rem; color: #888;">Apaga do Pátio, Mapa Cego e Pesagem. Irreversível.</div>
@@ -839,7 +828,7 @@
 
             <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: center;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalDeleteConfirm').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" style="background-color: #ef4444;" onclick="executeDeleteTruck()">Confirmar Exclusão</button>
+                <button class="btn btn-save" style="background-color: #ef4444;" onclick="window.executeDeleteTruck()">Confirmar Exclusão</button>
             </div>
         </div>
     </div>
@@ -867,31 +856,31 @@
                 <div class="form-full">
                     <label>Fornecedor</label>
                     <div style="position:relative;">
-                        <input type="text" id="mwForn" class="form-input-styled" list="dlForn" placeholder="Busque o fornecedor..." oninput="filterWeighingChain('fornecedor')" autocomplete="off">
-                        <datalist id="dlForn"></datalist>
+                        <input type="text" id="mwForn" class="form-input-styled" list="dlFornMW" placeholder="Busque o fornecedor..." oninput="window.filterWeighingChain('fornecedor')" autocomplete="off">
+                        <datalist id="dlFornMW"></datalist>
                     </div>
                 </div>
 
                 <div class="form-full">
                     <label>Produto</label>
                     <div style="position:relative;">
-                        <input type="text" id="mwProd" class="form-input-styled" list="prodListSuggestions" placeholder="Ex: ACUCAR..." oninput="filterWeighingChain('produto')" autocomplete="off">
+                        <input type="text" id="mwProd" class="form-input-styled" list="prodListSuggestions" placeholder="Ex: ACUCAR..." oninput="window.filterWeighingChain('produto')" autocomplete="off">
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Placa</label>
                     <div style="position:relative;">
-                        <input type="text" id="mwPlaca" class="form-input-styled" list="dlPlaca" placeholder="ABC-1234" maxlength="8" oninput="filterWeighingChain('placa')" autocomplete="off">
-                        <datalist id="dlPlaca"></datalist>
+                        <input type="text" id="mwPlaca" class="form-input-styled" list="dlPlacaMW" placeholder="ABC-1234" maxlength="8" oninput="window.filterWeighingChain('placa')" autocomplete="off">
+                        <datalist id="dlPlacaMW"></datalist>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label>Motorista (Opcional)</label>
                     <div style="position:relative;">
-                        <input type="text" id="mwMot" class="form-input-styled" list="dlMot" placeholder="Nome..." oninput="filterWeighingChain('motorista')" autocomplete="off">
-                        <datalist id="dlMot"></datalist>
+                        <input type="text" id="mwMot" class="form-input-styled" list="dlMotMW" placeholder="Nome..." oninput="window.filterWeighingChain('motorista')" autocomplete="off">
+                        <datalist id="dlMotMW"></datalist>
                     </div>
                 </div>
             </div>
@@ -906,8 +895,8 @@
 
             <div style="text-align:right; margin-top:20px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalManualWeighing').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" id="btnSaveMW" onclick="saveManualWeighing()">Lançar Pesagem</button>
-                <button class="btn btn-save" id="btnReqMW" style="display:none; background:#d97706;" onclick="submitWeighingRequest()">Solicitar & Lançar</button>
+                <button class="btn btn-save" id="btnSaveMW" onclick="window.saveManualWeighing()">Lançar Pesagem</button>
+                <button class="btn btn-save" id="btnReqMW" style="display:none; background:#d97706;" onclick="window.submitWeighingRequest()">Solicitar & Lançar</button>
             </div>
         </div>
     </div>
@@ -930,7 +919,7 @@
             </div>
             <div style="text-align:right; margin-top:20px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalEditMP').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" onclick="saveEditMP()">Salvar Alterações</button>
+                <button class="btn btn-save" onclick="window.saveEditMP()">Salvar Alterações</button>
             </div>
         </div>
     </div>
@@ -942,7 +931,7 @@
             <textarea id="noteMPText" class="form-input-styled" rows="5" placeholder="Digite a observação aqui..."></textarea>
             <div style="text-align:right; margin-top:20px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalNoteMP').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" onclick="saveNoteMP()">Salvar Nota</button>
+                <button class="btn btn-save" onclick="window.saveNoteMP()">Salvar Nota</button>
             </div>
         </div>
     </div>
@@ -975,11 +964,11 @@
                 <div id="carretaContainer">
                     <input type="text" class="carrCarretaInput form-input-styled" placeholder="Placa da carreta">
                 </div>
-                <button class="btn btn-edit btn-small" style="margin-top:5px; width:100%;" onclick="addCarretaField()">+ Adicionar Carreta</button>
+                <button class="btn btn-edit btn-small" style="margin-top:5px; width:100%;" onclick="window.addCarretaField()">+ Adicionar Carreta</button>
             </div>
             <div style="text-align:right; margin-top:20px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalCarregamento').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" onclick="saveCarregamento()">Salvar Carregamento</button>
+                <button class="btn btn-save" onclick="window.saveCarregamento()">Salvar Carregamento</button>
             </div>
         </div>
     </div>
@@ -999,7 +988,7 @@
             </div>
             <div style="text-align:right; margin-top:20px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalEditCarr').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" onclick="saveEditCarr()">Salvar</button>
+                <button class="btn btn-save" onclick="window.saveEditCarr()">Salvar</button>
             </div>
         </div>
     </div>
@@ -1012,7 +1001,7 @@
             <textarea id="noteCarrText" class="form-input-styled" rows="4"></textarea>
             <div style="text-align:right; margin-top:20px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalNoteCarr').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" onclick="saveNoteCarr()">Salvar</button>
+                <button class="btn btn-save" onclick="window.saveNoteCarr()">Salvar</button>
             </div>
         </div>
     </div>
@@ -1033,8 +1022,6 @@
 
             <button class="btn btn-edit" style="width:100%" onclick="document.getElementById('modalProdCode').style.display='none'">Fechar</button>
         </div>
-    </div>
-    <div id="modalUnifiedApproval" class="modal-overlay" style="z-index: 8000;">
     </div>
     <script src="../js/config.js"></script>
     <script type="module" src="../js/main.js"></script>
@@ -1060,7 +1047,7 @@
         // Funções visuais de carregamento
         function showLoading() { document.getElementById("loading-screen").classList.remove("hidden"); }
         function hideLoading() { document.getElementById("loading-screen").classList.add("hidden"); }
-        window.onload = () => { showLoading(); setTimeout(hideLoading, 1500); };
+        window.onload = () => { showLoading(); setTimeout(hideLoading, 800); };
 
         if (window.require) {
             const { ipcRenderer } = require('electron');

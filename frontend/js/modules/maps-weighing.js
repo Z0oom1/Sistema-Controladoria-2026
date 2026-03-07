@@ -183,11 +183,25 @@ window.launchMap = function() {
 
 window.showProductCodePopup = function(productName) {
     if(!productName) return;
-    const prod = window.productsData.find(p => p.nome === productName.toUpperCase());
+    const nameUpper = productName.toUpperCase().trim();
+    const prod = window.productsData.find(p => p.nome === nameUpper);
     const modal = document.getElementById('modalProdCode');
     if(!modal) return;
-    document.getElementById('popProdName').innerText = productName.toUpperCase();
-    document.getElementById('popProdCode').innerText = prod ? (prod.sku || 'SEM SKU') : 'NÃO CADASTRADO';
+    const lblName = document.getElementById('popProdName');
+    const lblCode = document.getElementById('popProdCode');
+    if(!lblName || !lblCode) return;
+    lblName.innerText = nameUpper;
+    // Usa prod.codigo (campo correto do sistema)
+    const code = prod ? (prod.codigo || prod.sku || null) : null;
+    if (code) {
+        lblCode.innerText = code;
+        lblCode.style.color = 'var(--primary)';
+        lblCode.style.fontSize = '2.5rem';
+    } else {
+        lblCode.innerText = 'NÃO CADASTRADO';
+        lblCode.style.color = '#ccc';
+        lblCode.style.fontSize = '1.5rem';
+    }
     modal.style.display = 'flex';
 };
 

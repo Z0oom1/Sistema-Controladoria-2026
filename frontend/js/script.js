@@ -120,41 +120,14 @@ function createVisualNotification(title, body, targetView, targetId) {
     } catch (e) { console.error("Notif error", e); }
 }
 
-let suppliersData = [];     // { id, nome }
-let carriersData = [];      // { id, nome, apelido, cnpj, supplierIds: [] }
-let driversData = [];       // { id, nome, doc, carrierIds: [] }
-let platesData = [];        // { id, numero, driverId }
-let productsData = [];
-
-let patioData = [];
-let mapData = [];
-let mpData = [];
-let carregamentoData = [];
-let requests = [];
-let usersData = [];
-
-let entryState = {
-    selectedSupplierId: null,
-    selectedCarrierId: null,
-    selectedDriverId: null,
-    selectedPlateId: null
-};
-
-let tmpItems = [];
-let currentMapId = null;
-let contextMapId = null;
-let contextMPId = null;
-let contextCarrId = null;
-let contextTruckId = null;
-let contextCadId = null;
-let deleteOptionSelected = 'queue';
-let editTmpItems = [];
-let isEditingMode = false;
-let filteredReportData = [];
-let currentReportType = '';
-let selectedReportItems = new Set();
-let notifiedEvents = new Set();
-const defaultProducts = ["CX PAP 125A", "AÇ CRISTAL", "AÇ LIQUIDO", "AÇ REFINADO", "SAL REFINADO"];
+// NOTA: Variáveis de estado gerenciadas pelo global-state.js via Object.defineProperty
+// NÃO declarar novamente aqui para evitar conflito com os getters/setters do StateManager
+// suppliersData, carriersData, driversData, platesData, productsData,
+// patioData, mapData, mpData, carregamentoData, requests, usersData,
+// entryState, tmpItems, currentMapId, contextMapId, contextMPId,
+// contextCarrId, contextTruckId, contextCadId, deleteOptionSelected,
+// editTmpItems, isEditingMode, filteredReportData, currentReportType,
+// selectedReportItems, notifiedEvents, defaultProducts
 
 function initRoleBasedUI() {
     if (localStorage.getItem('aw_dark_mode') === 'true') {
@@ -670,15 +643,20 @@ function showProductCodePopup(prodName) {
     const product = productsData.find(p => p.nome === nameUpper);
 
     const modal = document.getElementById('modalProdCode');
+    if (!modal) return;
     const lblName = document.getElementById('popProdName');
     const lblCode = document.getElementById('popProdCode');
+    if (!lblName || !lblCode) return;
 
     lblName.innerText = nameUpper;
 
-    if (product && product.codigo) {
-        lblCode.innerText = product.codigo;
+    // Usa prod.codigo (campo correto do sistema)
+    const code = product ? (product.codigo || product.sku || null) : null;
+    if (code) {
+        lblCode.innerText = code;
         lblCode.style.color = "var(--primary)";
         lblCode.style.fontStyle = "normal";
+        lblCode.style.fontSize = "2.5rem";
     } else {
         lblCode.innerText = "NÃO CADASTRADO";
         lblCode.style.color = "#ccc";
@@ -1097,7 +1075,18 @@ function submitComplexRequest() {
     const visualEmpresa = inTransp || visualForn;
 
     const dest = document.getElementById('addDestino').value;
-    const secMap = { 'DOCA': { n: 'DOCA (ALM)', c: 'ALM' }, 'GAVA': { n: 'GAVA', c: 'GAVA' }, 'MANUTENCAO': { n: 'MANUTENÇÃO', c: 'OUT' } }; // ...resto
+    const secMap = {
+        'DOCA': { n: 'DOCA (ALM)', c: 'ALM' },
+        'GAVA': { n: 'GAVA', c: 'GAVA' },
+        'MANUTENCAO': { n: 'MANUTENÇÃO', c: 'OUT' },
+        'INFRA': { n: 'INFRAESTRUTURA', c: 'OUT' },
+        'PESAGEM': { n: 'SALA DE PESAGEM', c: 'OUT' },
+        'LAB': { n: 'LABORATÓRIO', c: 'OUT' },
+        'SST': { n: 'SST', c: 'OUT' },
+        'CD': { n: 'CD', c: 'OUT' },
+        'OUT': { n: 'OUTROS', c: 'OUT' },
+        'COMPRAS': { n: 'COMPRAS', c: 'OUT' }
+    };
     const sec = secMap[dest] || { n: 'OUTROS', c: 'OUT' };
     const seq = patioData.filter(t => (t.chegada || '').startsWith(todayStr)).length + 1;
 
@@ -1119,8 +1108,8 @@ function submitComplexRequest() {
         cargas: [{ numero: '1', produtos: tmpItems.map(i => ({ nome: i.prod, qtd: '-', nf: i.nf })) }]
     });
 
-    const mapRows = tmpItems.map((item, idx) => ({ id: id + '_' + idx, desc: item.prod, qty: '', nf: item.nf, forn: visualForn, owners: {} }));
-    for (let i = mapRows.length; i < 8; i++) mapRows.push({ id: id + '_x_' + i, desc: '', qty: '', nf: '', forn: '', owners: {} });
+    const mapRows = tmpItems.map((item, idx) => ({ id: id + '_' + idx, desc: item.prod, qty: '', qty_nf: '', nf: item.nf, forn: visualForn, owners: {} }));
+    for (let i = mapRows.length; i < 8; i++) mapRows.push({ id: id + '_x_' + i, desc: '', qty: '', qty_nf: '', nf: '', forn: '', owners: {} });
     mapData.push({ id, date: todayStr, rows: mapRows, placa: inPlaca, setor: sec.n, launched: false, signatures: {}, forceUnlock: false, divergence: null });
 
     if (document.getElementById('chkBalan').checked) {
@@ -2517,7 +2506,18 @@ function openEditTruck(id) {
     document.getElementById('editTruckPlaca').value = truck.placa;
 
 
-    const secMapReverse = { 'DOCA (ALM)': 'DOCA', 'GAVA': 'GAVA', 'MANUTENÇÃO': 'MANUTENCAO', 'INFRAESTRUTURA': 'INFRA', 'SALA DE PESAGEM': 'PESAGEM', 'LABORATÓRIO': 'LAB' };
+    const secMapReverse = {
+        'DOCA (ALM)': 'DOCA',
+        'GAVA': 'GAVA',
+        'MANUTENÇÃO': 'MANUTENCAO',
+        'INFRAESTRUTURA': 'INFRA',
+        'SALA DE PESAGEM': 'PESAGEM',
+        'LABORATÓRIO': 'LAB',
+        'SST': 'SST',
+        'CD': 'CD',
+        'OUTROS': 'OUT',
+        'COMPRAS': 'COMPRAS'
+    };
     document.getElementById('editTruckDestino').value = secMapReverse[truck.localSpec] || 'OUT';
 
     document.getElementById('editTruckLaudo').checked = truck.comLaudo || false;

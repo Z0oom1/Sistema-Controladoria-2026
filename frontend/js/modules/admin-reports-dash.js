@@ -182,33 +182,71 @@ window.renderCadastros = function() {
     const body = document.getElementById('cadTableBody');
     if(!head || !body) return;
 
+    // Renderiza requisições pendentes acima da tabela
+    const reqSection = document.getElementById('cadReqSection');
+    if (reqSection) {
+        const pending = window.requests.filter(r => r.status === 'PENDENTE' && (r.type === 'complex_entry' || r.type === 'entrada_veiculo'));
+        if (pending.length > 0) {
+            reqSection.style.display = 'block';
+            reqSection.innerHTML = `<h4 style="color:#d97706; margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> ${pending.length} Requisição(ões) Pendente(s)</h4>` +
+                pending.map(r => `
+                    <div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <b>Solicitado por: ${r.requester || r.user || '---'}</b>
+                            <br><small style="color:#888;">${r.timestamp ? new Date(r.timestamp).toLocaleString() : '--'}</small>
+                        </div>
+                        <button class="btn btn-save btn-small" onclick="window.openUnifiedApproval('${r.id}')"><i class="fas fa-search"></i> Analisar</button>
+                    </div>
+                `).join('');
+        } else {
+            reqSection.style.display = 'none';
+            reqSection.innerHTML = '';
+        }
+    }
+
     let data = [];
     if(type === 'fornecedor') {
         data = window.suppliersData;
-        head.innerHTML = '<tr><th>ID</th><th>Nome</th><th>Ações</th></tr>';
+        head.innerHTML = '<tr><th>Nome</th><th>Apelido</th><th>CNPJ</th><th>Ações</th></tr>';
     } else if(type === 'transportadora') {
         data = window.carriersData;
-        head.innerHTML = '<tr><th>ID</th><th>Nome</th><th>Ações</th></tr>';
+        head.innerHTML = '<tr><th>Nome</th><th>Apelido</th><th>CNPJ</th><th>Ações</th></tr>';
     } else if(type === 'motorista') {
         data = window.driversData;
-        head.innerHTML = '<tr><th>ID</th><th>Nome</th><th>Documento</th><th>Ações</th></tr>';
+        head.innerHTML = '<tr><th>Nome</th><th>Documento</th><th>Ações</th></tr>';
     } else if(type === 'placa') {
         data = window.platesData;
-        head.innerHTML = '<tr><th>ID</th><th>Placa</th><th>Ações</th></tr>';
+        head.innerHTML = '<tr><th>Placa</th><th>Motorista</th><th>Ações</th></tr>';
     } else if(type === 'produto') {
         data = window.productsData;
-        head.innerHTML = '<tr><th>SKU</th><th>Produto</th><th>Ações</th></tr>';
+        head.innerHTML = '<tr><th>Código</th><th>Produto</th><th>Ações</th></tr>';
     }
 
     const filtered = data.filter(item => JSON.stringify(item).toUpperCase().includes(term));
-    body.innerHTML = filtered.map(item => `
-        <tr>
-            <td>${item.id || item.sku || item.numero || '---'}</td>
-            <td>${item.nome || item.numero}</td>
-            ${type === 'motorista' ? `<td>${item.doc || '---'}</td>` : ''}
-            <td><button class="btn-icon-remove" onclick="window.deleteCad('${type}','${item.id || item.sku || item.numero}')"><i class="fas fa-trash"></i></button></td>
-        </tr>
-    `).join('');
+    body.innerHTML = filtered.map(item => {
+        let cols = '';
+        if (type === 'fornecedor') {
+            cols = `<td>${item.nome || '---'}</td><td>${item.apelido || '---'}</td><td>${item.cnpj || '---'}</td>`;
+        } else if (type === 'transportadora') {
+            cols = `<td>${item.nome || '---'}</td><td>${item.apelido || '---'}</td><td>${item.cnpj || '---'}</td>`;
+        } else if (type === 'motorista') {
+            cols = `<td>${item.nome || '---'}</td><td>${item.doc || '---'}</td>`;
+        } else if (type === 'placa') {
+            const driver = window.driversData.find(d => d.id === item.driverId);
+            cols = `<td>${item.numero || '---'}</td><td>${driver ? driver.nome : '---'}</td>`;
+        } else if (type === 'produto') {
+            cols = `<td><b style="color:var(--primary)">${item.codigo || '---'}</b></td><td>${item.nome || '---'}</td>`;
+        }
+        return `
+            <tr>
+                ${cols}
+                <td>
+                    <button class="btn btn-save btn-small" onclick="window.openCadModal('${type}','${item.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon-remove" style="margin-left:4px" onclick="window.deleteCad('${type}','${item.id}')"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 };
 
 window.renderProductsView = function() {
@@ -219,27 +257,20 @@ window.renderProductsView = function() {
     const filtered = window.productsData.filter(p => p.nome.toUpperCase().includes(term));
     body.innerHTML = filtered.map(p => `
         <tr>
-            <td><b style="color:var(--primary)">${p.sku || '---'}</b></td>
+            <td><b style="color:var(--primary)">${p.codigo || '---'}</b></td>
             <td>${p.nome}</td>
             <td>${p.cargasCount || 0}</td>
             <td>${p.lastSupplier || '---'}</td>
             <td>
-                <button class="btn btn-save btn-small" onclick="window.openEditProduct('${p.id || p.nome}')"><i class="fas fa-edit"></i></button>
-                <button class="btn-icon-remove" onclick="window.deleteCad('produto', '${p.id || p.nome}')"><i class="fas fa-trash"></i></button>
+                <button class="btn btn-save btn-small" onclick="window.openCadModal('produto','${p.id}')"><i class="fas fa-edit"></i></button>
+                <button class="btn-icon-remove" onclick="window.deleteCad('produto', '${p.id}')"><i class="fas fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
 };
 
 window.openEditProduct = function(id) {
-    const prod = window.productsData.find(p => (p.id === id || p.nome === id));
-    if(!prod) return;
-    const newSku = prompt(`Editando Produto: ${prod.nome}\n\nDigite o novo Código (SKU):`, prod.sku || "");
-    if (newSku !== null) {
-        prod.sku = newSku.toUpperCase();
-        window.saveAll();
-        window.renderProductsView();
-    }
+    window.openCadModal('produto', id);
 };
 
 window.renderRequests = function() {
@@ -255,64 +286,53 @@ window.renderRequests = function() {
     list.innerHTML = pending.map(req => `
         <div class="notification-item" style="border-left: 4px solid #f59e0b; margin-bottom:10px; padding:12px; background:var(--bg-card); border-radius:8px; box-shadow:var(--shadow-sm);">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <b style="font-size:0.8rem; color:var(--primary);">${req.type.toUpperCase()}</b>
+                <b style="font-size:0.8rem; color:var(--primary);">${(req.type || '').toUpperCase()}</b>
                 <small style="color:#888;">${req.timestamp ? req.timestamp.slice(11, 16) : '--:--'}</small>
             </div>
-            <p style="margin:5px 0; font-size:0.9rem;">Solicitado por: <b>${req.requester}</b></p>
+            <p style="margin:5px 0; font-size:0.9rem;">Solicitado por: <b>${req.requester || req.user || '---'}</b></p>
             <button class="btn btn-save btn-small" style="width:100%" onclick="window.openUnifiedApproval('${req.id}')">Analisar e Aprovar</button>
         </div>
     `).join('');
 };
 
 window.openUnifiedApproval = function(id) {
+    // Suporte a ambos os formatos de requisição (novo e antigo)
     const req = window.requests.find(r => r.id === id);
     if (!req) return;
-    const modal = document.getElementById('modalUnifiedApproval');
-    const container = document.getElementById('approvalContainer');
-    if(!modal || !container) return;
-    document.getElementById('appReqId').value = id;
-    let html = '<div style="display:grid; gap:15px;">';
-    if(req.data.fornecedor?.isNew) html += `<div><label>FORNECEDOR:</label><input type="text" id="appForn" value="${req.data.fornecedor.nome}" class="form-input-styled input-warning"></div>`;
-    if(req.data.transportadora?.active && req.data.transportadora?.isNew) html += `<div><label>TRANSPORTADORA:</label><input type="text" id="appTransp" value="${req.data.transportadora.nome}" class="form-input-styled input-warning"></div>`;
-    if(req.data.motorista?.isNew) html += `<div><label>MOTORISTA:</label><input type="text" id="appMot" value="${req.data.motorista.nome}" class="form-input-styled input-warning"></div>`;
-    if(req.data.placa?.isNew) html += `<div><label>PLACA:</label><input type="text" id="appPlaca" value="${req.data.placa.numero}" class="form-input-styled input-warning"></div>`;
-    html += '</div>';
-    container.innerHTML = html;
-    modal.style.display = 'flex';
+
+    // Normaliza o formato da requisição para o formato novo (complex_entry)
+    if (req.type === 'entrada_veiculo' && req.data && req.data.fornecedor) {
+        // Converte formato antigo para novo
+        req.data = {
+            supplier: { name: req.data.fornecedor.nome, id: req.data.fornecedor.isNew ? null : 'exists' },
+            carrier: { name: req.data.transportadora?.nome || '', id: req.data.transportadora?.isNew ? null : (req.data.transportadora?.active ? 'exists' : null) },
+            driver: { name: req.data.motorista.nome, id: req.data.motorista.isNew ? null : 'exists' },
+            plate: { number: req.data.placa.numero, id: req.data.placa.isNew ? null : 'exists' },
+            newProducts: req.data.produtosNovos || []
+        };
+        req.type = 'complex_entry';
+    }
+
+    if (typeof window.openUnifiedApprovalModal === 'function') {
+        window.openUnifiedApprovalModal(id);
+    }
 };
 
-window.confirmUnifiedApproval = function() {
-    const id = document.getElementById('appReqId').value;
-    const reqIndex = window.requests.findIndex(r => r.id === id);
-    if (reqIndex === -1) return;
-    const req = window.requests[reqIndex];
-    if(req.data.fornecedor?.isNew) {
-        const val = document.getElementById('appForn').value.toUpperCase();
-        window.suppliersData.push({ id: 'SUP' + Date.now(), nome: val });
-    }
-    if(req.data.motorista?.isNew) {
-        const val = document.getElementById('appMot').value.toUpperCase();
-        window.driversData.push({ id: 'DRV' + Date.now(), nome: val, carrierIds: [] });
-    }
-    if(req.data.placa?.isNew) {
-        const val = document.getElementById('appPlaca').value.toUpperCase();
-        window.platesData.push({ id: 'PLK' + Date.now(), numero: val });
-    }
-    window.requests[reqIndex].status = 'APROVADO';
-    const truck = window.patioData.find(t => t.linkedRequestId === id);
-    if(truck) { truck.isProvisory = false; truck.localSpec = 'APROVADO'; }
-    window.saveAll();
-    alert("Requisição aprovada!");
-    document.getElementById('modalUnifiedApproval').style.display = 'none';
-    window.renderRequests(); window.renderPatio();
-};
+// confirmUnifiedApproval é definido no missing-functions.js com lógica completa
+// Esta versão é um fallback caso o módulo não tenha carregado
+if (typeof window.confirmUnifiedApproval !== 'function') {
+    window.confirmUnifiedApproval = function() {
+        alert('Erro: módulo de aprovação não carregado. Recarregue a página.');
+    };
+}
 
 window.deleteCad = function(type, id) {
     if(!confirm("Excluir este cadastro?")) return;
     if(type === 'fornecedor') window.suppliersData = window.suppliersData.filter(x => x.id !== id);
     else if(type === 'motorista') window.driversData = window.driversData.filter(x => x.id !== id);
     else if(type === 'placa') window.platesData = window.platesData.filter(x => x.id !== id);
-    else if(type === 'produto') window.productsData = window.productsData.filter(x => (x.id !== id && x.sku !== id));
+    else if(type === 'transportadora') window.carriersData = window.carriersData.filter(x => x.id !== id);
+    else if(type === 'produto') window.productsData = window.productsData.filter(x => x.id !== id);
     window.saveAll(); window.renderCadastros(); window.renderProductsView();
 };
 
