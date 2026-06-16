@@ -2,17 +2,17 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
-  root: 'frontend', // O Vite passa a operar DIRETAMENTE dentro da pasta frontend
-  base: '/',        // Essencial para o roteamento de SPA/Multipáginas na nuvem
+  root: 'frontend',
+  base: '/',
   build: {
     outDir: '../dist',
     emptyOutDir: true,
     rollupOptions: {
         input: {
-            // Caminhos relativos à pasta 'frontend' (que é a root)
-            index: path.resolve(__dirname, 'frontend/index.html'),
-            login: path.resolve(__dirname, 'frontend/pages/login.html'),
-            home: path.resolve(__dirname, 'frontend/pages/home.html')
+            // Definindo explicitamente o nome da saída para manter a estrutura de subpastas
+            'index': path.resolve(__dirname, 'frontend/index.html'),
+            'pages/login': path.resolve(__dirname, 'frontend/pages/login.html'),
+            'pages/home': path.resolve(__dirname, 'frontend/pages/home.html')
         },
         output: {
             manualChunks(id) {
