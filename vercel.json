@@ -1,8 +1,27 @@
 {
+  "version": 2,
   "crons": [
     {
       "path": "/api/ping",
       "schedule": "0 0 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/pages/login.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/pages/login.html"
+    },
+    {
+      "source": "/home",
+      "destination": "/pages/home.html"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     }
   ]
 }
