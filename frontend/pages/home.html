@@ -532,6 +532,9 @@
                         <i class="fas fa-clipboard-check"></i> Requisições 
                         <span id="cadBadgeReq" style="background:orange; display:none; padding:2px 6px; border-radius:10px; font-size:0.75rem; color:white; font-weight:bold;">0</span>
                     </button>
+                    <button id="tabPerfis" class="cad-tab" data-type="perfis" onclick="window.switchCadTab('perfis')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease; display:none;">
+                        <i class="fas fa-users-cog"></i> Perfis & Grupos
+                    </button>
                 </div>
                 <input type="hidden" id="cadFilterType" value="transportadora">
 
@@ -544,6 +547,7 @@
                     </table>
                     <div id="cadVincularSection" style="display:none; padding:15px;"></div>
                     <div id="requestsList" style="padding:10px;"></div>
+                    <div id="cadPerfisSection" style="display:none; padding:15px;"></div>
                 </div>
             </div>
             <div class="fab" onclick="window.openCadSelectModal()" title="Novo Cadastro">+</div>
@@ -1407,6 +1411,7 @@
                                     'aw_carregamento': 'carregamento',
                                     'aw_requests': 'requests',
                                     'mapa_cego_users': 'users',
+                                    'mapa_cego_groups': 'groups',
                                     'aw_suppliers': 'suppliers',
                                     'aw_carriers': 'carriers',
                                     'aw_drivers': 'drivers',
@@ -1425,6 +1430,7 @@
                                     'aw_carregamento': 'carregamentoData',
                                     'aw_requests': 'requests',
                                     'mapa_cego_users': 'usersData',
+                                    'mapa_cego_groups': 'groupsData',
                                     'aw_suppliers': 'suppliersData',
                                     'aw_carriers': 'carriersData',
                                     'aw_drivers': 'driversData',

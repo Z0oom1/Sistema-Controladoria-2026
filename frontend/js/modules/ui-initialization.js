@@ -67,6 +67,10 @@ window.initRoleBasedUI = function() {
     const isAlmoxarifado = typeof userSubType !== 'undefined' && userSubType === 'ALM';
     if (menuCadastros) menuCadastros.style.display = isAlmoxarifado ? 'none' : 'flex';
 
+    // Controle de acesso à aba de Perfis e Permissões (apenas Admin)
+    const tabPerfis = document.getElementById('tabPerfis');
+    if (tabPerfis) tabPerfis.style.display = isAdm ? 'flex' : 'none';
+
     // Lógica de colunas por Subtipo de utilizador
     if (isConf && typeof userSubType !== 'undefined' && userSubType) {
         const cA = domCache.get('col-ALM');

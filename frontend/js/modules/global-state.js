@@ -23,6 +23,7 @@ class StateManager {
             carregamento: [],
             requests: [],
             users: [],
+            groups: [],
 
             // Estados de seleção e contexto
             entryState: {
@@ -145,6 +146,7 @@ class StateManager {
             carregamento: [],
             requests: [],
             users: [],
+            groups: [],
             entryState: {
                 selectedSupplierId: null,
                 selectedCarrierId: null,
@@ -229,6 +231,11 @@ Object.defineProperty(window, 'requests', {
 Object.defineProperty(window, 'usersData', {
     get() { return appState.get('users'); },
     set(v) { appState.set('users', v); }
+});
+
+Object.defineProperty(window, 'groupsData', {
+    get() { return appState.get('groups'); },
+    set(v) { appState.set('groups', v); }
 });
 
 Object.defineProperty(window, 'entryState', {

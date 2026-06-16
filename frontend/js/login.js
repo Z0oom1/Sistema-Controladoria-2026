@@ -12,6 +12,7 @@ const testAccounts = [
 
     { username: 'Guilherme', sector: 'conferente', subType: 'GAVA', role: 'user', label: 'Conferente - GAVA' },
     { username: 'Wayner', sector: 'conferente', subType: 'INFRA', role: 'user', label: 'Conferente - INFRAESTRUTURA' },
+    { username: 'Manutencao', sector: 'conferente', subType: 'MANUT', role: 'user', label: 'Conferente - MANUTENÇÃO' },
     { username: 'Outros', sector: 'conferente', subType: 'OUT', role: 'user', label: 'Conferente - OUTROS' },
     
     { username: 'Caio', sector: 'recebimento', subType: null, role: 'user', label: 'Recebimento - Caio' },
@@ -34,6 +35,7 @@ const DEFAULT_PASSWORDS = {
     'Caio': '123',
     'Recebimento': '123',
     'Wayner': '123',
+    'Manutencao': '123',
     'Guilherme': '123',
     'Outros': '123'
 };
@@ -101,12 +103,24 @@ async function tryServerLogin(username, password) {
                 users = data.value || [];
             }
 
+            const { data: grpData, error: grpError } = await window.supabaseClient
+                .from('app_data')
+                .select('value')
+                .eq('key', 'mapa_cego_groups')
+                .maybeSingle();
+
+            let groups = [];
+            if (!grpError && grpData) {
+                groups = grpData.value || [];
+            }
+
             const defaultUsers = [
                 { username: 'Admin', password: '123', role: 'admin', sector: 'recebimento' },
                 { username: 'Caio', password: '123', role: 'user', sector: 'recebimento' },
                 { username: 'Balanca', password: '123', role: 'user', sector: 'recebimento' },
                 { username: 'Recebimento', password: '123', role: 'user', sector: 'recebimento' },
                 { username: 'Wayner', password: '123', role: 'user', sector: 'conferente', subType: 'INFRA' },
+                { username: 'Manutencao', password: '123', role: 'user', sector: 'conferente', subType: 'MANUT' },
                 { username: 'Fabricio', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
                 { username: 'Clodoaldo', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
                 { username: 'Guilherme', password: '123', role: 'user', sector: 'conferente', subType: 'GAVA' },
@@ -114,7 +128,10 @@ async function tryServerLogin(username, password) {
                 { username: 'EncarConf', password: 'enc123', role: 'Encarregado', sector: 'conferente' }
             ];
 
-            const allUsers = [...defaultUsers];
+            const allUsers = defaultUsers.map(du => {
+                const override = users.find(u => u.username.toLowerCase() === du.username.toLowerCase());
+                return override ? { ...du, ...override } : du;
+            });
             if (Array.isArray(users)) {
                 users.forEach(u => {
                     if (u && u.username && !allUsers.find(x => x.username.toLowerCase() === u.username.toLowerCase())) {
@@ -125,12 +142,28 @@ async function tryServerLogin(username, password) {
 
             const user = allUsers.find(u => u.username.toLowerCase() === username.toLowerCase() && (u.password === password || (u.username === 'Admin' && password === 'admin')));
             if (user) {
+                let userRole = user.role;
+                let userSector = user.sector;
+                let userSubType = user.subType || null;
+                let userLabel = user.label || `${user.role} - ${user.username}`;
+
+                if (user.group) {
+                    const matchedGrp = groups.find(g => g.id === user.group || g.name === user.group);
+                    if (matchedGrp) {
+                        userRole = matchedGrp.role || userRole;
+                        userSector = matchedGrp.sector || userSector;
+                        userSubType = matchedGrp.subType || null;
+                        userLabel = `${userRole} - ${user.username} (${matchedGrp.name})`;
+                    }
+                }
+
                 const loggedUser = {
                     username: user.username,
-                    sector: user.sector,
-                    subType: user.subType || null,
-                    role: user.role,
-                    label: user.label || `${user.role} - ${user.username}`,
+                    sector: userSector,
+                    subType: userSubType,
+                    role: userRole,
+                    label: userLabel,
+                    group: user.group || null,
                     token: 'jwt-token-stub-' + user.username
                 };
                 LoginCache.set(username, loggedUser);
@@ -177,7 +210,32 @@ async function tryServerLogin(username, password) {
 
 function tryLocalLogin(username, password) {
     const users = JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-    return users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password) || null;
+    const groups = JSON.parse(localStorage.getItem('mapa_cego_groups')) || [];
+    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+    if (user) {
+        let userRole = user.role;
+        let userSector = user.sector;
+        let userSubType = user.subType || null;
+        let userLabel = user.label || `${user.role} - ${user.username}`;
+
+        if (user.group) {
+            const matchedGrp = groups.find(g => g.id === user.group || g.name === user.group);
+            if (matchedGrp) {
+                userRole = matchedGrp.role || userRole;
+                userSector = matchedGrp.sector || userSector;
+                userSubType = matchedGrp.subType || null;
+                userLabel = `${userRole} - ${user.username} (${matchedGrp.name})`;
+            }
+        }
+        return {
+            ...user,
+            role: userRole,
+            sector: userSector,
+            subType: userSubType,
+            label: userLabel
+        };
+    }
+    return null;
 }
 
 async function fazerLogin() {
@@ -262,11 +320,35 @@ function createAccountItem(acc) {
 
     item.onclick = async () => {
         await requestController.execute(`quick_login_${acc.username}`, async () => {
-            const senha = DEFAULT_PASSWORDS[acc.username] || '123';
+            let senha = DEFAULT_PASSWORDS[acc.username] || '123';
+            
+            let dbUsers = [];
+            if (window.supabaseClient) {
+                try {
+                    const { data } = await window.supabaseClient
+                        .from('app_data')
+                        .select('value')
+                        .eq('key', 'mapa_cego_users')
+                        .maybeSingle();
+                    if (data && data.value) dbUsers = data.value;
+                } catch(e) {}
+            } else {
+                dbUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+            }
+            const matchedUser = dbUsers.find(u => u.username.toLowerCase() === acc.username.toLowerCase());
+            if (matchedUser && matchedUser.password) {
+                senha = matchedUser.password;
+            }
             
             const serverUser = await tryServerLogin(acc.username, senha);
             if (serverUser) {
                 loginComUsuario(serverUser);
+                return;
+            }
+            
+            const localUser = tryLocalLogin(acc.username, senha);
+            if (localUser) {
+                loginComUsuario(localUser);
                 return;
             }
             
@@ -308,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { username: 'Balanca', password: '123', role: 'user', sector: 'recebimento' },
         { username: 'Recebimento', password: '123', role: 'user', sector: 'recebimento' },
         { username: 'Wayner', password: '123', role: 'user', sector: 'conferente', subType: 'INFRA' },
+        { username: 'Manutencao', password: '123', role: 'user', sector: 'conferente', subType: 'MANUT' },
         { username: 'Fabricio', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
         { username: 'Clodoaldo', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
         { username: 'Guilherme', password: '123', role: 'user', sector: 'conferente', subType: 'GAVA' },
@@ -316,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     defaultUsers.forEach(newUser => {
-         if (!users.find(u => u.username === newUser.username)) {
+         if (!users.find(u => u.username.toLowerCase() === newUser.username.toLowerCase())) {
              users.push(newUser);
          }
     });

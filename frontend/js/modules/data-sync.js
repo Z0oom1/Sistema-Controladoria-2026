@@ -93,6 +93,7 @@ function applyDataToState(data) {
         window.appState.set('carregamento', data.aw_carregamento || []);
         window.appState.set('requests', data.aw_requests || []);
         window.appState.set('users', data.mapa_cego_users || []);
+        window.appState.set('groups', data.mapa_cego_groups || []);
 
         window.appState.set('suppliers', data.aw_suppliers || []);
         window.appState.set('carriers', data.aw_carriers || []);
@@ -107,6 +108,7 @@ function applyDataToState(data) {
         window.carregamentoData = data.aw_carregamento || [];
         window.requests = data.aw_requests || [];
         window.usersData = data.mapa_cego_users || [];
+        window.groupsData = data.mapa_cego_groups || [];
 
         window.suppliersData = data.aw_suppliers || [];
         window.carriersData = data.aw_carriers || [];
@@ -127,6 +129,7 @@ window.restoreFromLocal = function() {
         aw_carregamento: JSON.parse(localStorage.getItem('aw_carregamento') || '[]'),
         aw_requests: JSON.parse(localStorage.getItem('aw_requests') || '[]'),
         mapa_cego_users: JSON.parse(localStorage.getItem('mapa_cego_users') || '[]'),
+        mapa_cego_groups: JSON.parse(localStorage.getItem('mapa_cego_groups') || '[]'),
         aw_suppliers: JSON.parse(localStorage.getItem('aw_suppliers') || '[]'),
         aw_carriers: JSON.parse(localStorage.getItem('aw_carriers') || '[]'),
         aw_drivers: JSON.parse(localStorage.getItem('aw_drivers') || '[]'),
@@ -153,6 +156,7 @@ window.saveAll = function() {
         window.saveToServer('aw_carregamento', window.carregamentoData);
         window.saveToServer('aw_requests', window.requests);
         window.saveToServer('mapa_cego_users', window.usersData);
+        window.saveToServer('mapa_cego_groups', window.groupsData);
 
         // Sincronizar dados de cadastro
         window.saveToServer('aw_suppliers', window.suppliersData);
@@ -210,6 +214,7 @@ window.saveToLocalOnly = function() {
         localStorage.setItem('aw_carregamento', JSON.stringify(window.carregamentoData));
         localStorage.setItem('aw_requests', JSON.stringify(window.requests));
         localStorage.setItem('mapa_cego_users', JSON.stringify(window.usersData));
+        localStorage.setItem('mapa_cego_groups', JSON.stringify(window.groupsData));
 
         localStorage.setItem('aw_suppliers', JSON.stringify(window.suppliersData));
         localStorage.setItem('aw_carriers', JSON.stringify(window.carriersData));

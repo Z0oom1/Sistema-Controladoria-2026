@@ -638,7 +638,10 @@ window.renderCadastros = function() {
     const cadTable = document.getElementById('cadTable');
     const cadVincularSection = document.getElementById('cadVincularSection');
     const requestsList = document.getElementById('requestsList');
+    const cadPerfisSection = document.getElementById('cadPerfisSection');
     const fab = document.querySelector('#view-cadastros .fab');
+
+    if (cadPerfisSection) cadPerfisSection.style.display = 'none';
 
     // Update pending requests badge next to tab name
     const pendingRequests = window.requests.filter(r => r.status === 'PENDENTE');
@@ -650,6 +653,18 @@ window.renderCadastros = function() {
         } else {
             badgeReq.style.display = 'none';
         }
+    }
+
+    if (type === 'perfis') {
+        if (cadTable) cadTable.style.display = 'none';
+        if (fab) fab.style.display = 'none';
+        if (cadVincularSection) cadVincularSection.style.display = 'none';
+        if (requestsList) requestsList.style.display = 'none';
+        if (cadPerfisSection) {
+            cadPerfisSection.style.display = 'block';
+            window.renderPerfisDashboard();
+        }
+        return;
     }
 
     if (type === 'vincular') {
@@ -1352,3 +1367,546 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.loadDataFromServer === 'function') window.loadDataFromServer();
     setInterval(() => { if (typeof window.renderRequests === 'function') window.renderRequests(); }, 4000);
 });
+
+// =========================================================
+// CONTROLES DE PERFIS E GRUPOS DE ACESSO (APENAS ADMIN)
+// =========================================================
+
+window.renderPerfisDashboard = function() {
+    const container = document.getElementById('cadPerfisSection');
+    if (!container) return;
+
+    if (!container.querySelector('.perfis-grid')) {
+        container.innerHTML = `
+            <div class="perfis-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-wrap: wrap;">
+                <!-- COLUNA 1: GESTÃO DE GRUPOS -->
+                <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px;">
+                    <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-users"></i> Grupos de Acesso</h4>
+                    
+                    <!-- Formulário do Grupo (Criar / Editar) -->
+                    <div id="groupFormContainer" style="background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.05); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+                        <h5 id="groupFormTitle" style="margin: 0; font-weight: bold; color: var(--text-main);">Novo Grupo</h5>
+                        <input type="hidden" id="editGroupId" value="">
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Nome do Grupo</label>
+                            <input type="text" id="groupNameInput" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" placeholder="Ex: Almoxarifado">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Função (Role)</label>
+                                <select id="groupRoleSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                    <option value="user">User</option>
+                                    <option value="Encarregado">Encarregado</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Setor (Sector)</label>
+                                <select id="groupSectorSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                    <option value="conferente">Conferente</option>
+                                    <option value="recebimento">Recebimento</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Subtipo (SubType)</label>
+                            <select id="groupSubTypeSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                <option value="">Nenhum (Geral)</option>
+                                <option value="ALM">ALM (Doca/Almoxarifado)</option>
+                                <option value="GAVA">GAVA (Portaria Gava)</option>
+                                <option value="INFRA">INFRA (Infraestrutura)</option>
+                                <option value="MANUT">MANUT (Manutenção)</option>
+                                <option value="OUT">OUTROS</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 5px;">
+                            <button onclick="window.saveGroup()" class="btn btn-save" style="flex: 1; padding: 10px; font-weight: bold;"><i class="fas fa-save"></i> Salvar</button>
+                            <button onclick="window.clearGroupForm()" class="btn" style="padding: 10px; background: #94a3b8; color: white;"><i class="fas fa-times"></i> Cancelar</button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Grupos -->
+                    <div style="flex: 1; overflow-y: auto; max-height: 300px; border-top: 1px solid #eee; padding-top: 10px;">
+                        <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 8px; color: var(--text-muted);">Grupos Cadastrados</label>
+                        <div id="groups_list_container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    </div>
+                </div>
+
+                <!-- COLUNA 2: GESTÃO DE PERFIS -->
+                <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px;">
+                    <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-user-cog"></i> Perfis de Usuários</h4>
+                    
+                    <!-- Formulário do Usuário (Criar / Editar) -->
+                    <div id="userFormContainer" style="background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.05); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+                        <h5 id="userFormTitle" style="margin: 0; font-weight: bold; color: var(--text-main);">Novo Usuário</h5>
+                        <input type="hidden" id="editUserId" value="">
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Nome de Usuário (Login)</label>
+                                <input type="text" id="userUsernameInput" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" placeholder="Ex: joao">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Senha</label>
+                                <input type="password" id="userPasswordInput" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" placeholder="Senha">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Grupo de Acesso (Herança)</label>
+                            <select id="userGroupSelect" onchange="window.toggleUserPermissionsEdit(this.value)" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                <option value="">Sem Grupo (Permissões Manuais)</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos Manuais (ocultados/desabilitados se tiver grupo) -->
+                        <div id="manualPermissionsArea" style="display: block;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Função (Role)</label>
+                                    <select id="userRoleSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                        <option value="user">User</option>
+                                        <option value="Encarregado">Encarregado</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Setor (Sector)</label>
+                                    <select id="userSectorSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                        <option value="conferente">Conferente</option>
+                                        <option value="recebimento">Recebimento</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Subtipo (SubType)</label>
+                                <select id="userSubTypeSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                    <option value="">Nenhum (Geral)</option>
+                                    <option value="ALM">ALM (Doca/Almoxarifado)</option>
+                                    <option value="GAVA">GAVA (Portaria Gava)</option>
+                                    <option value="INFRA">INFRA (Infraestrutura)</option>
+                                    <option value="MANUT">MANUT (Manutenção)</option>
+                                    <option value="OUT">OUTROS</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Aviso de Herança -->
+                        <div id="groupInheritanceNotice" style="display: none; padding: 10px; background: #e0f2fe; border-radius: 6px; border: 1px solid #bae6fd; color: #0369a1; font-size: 0.8rem; line-height: 1.3;">
+                            <i class="fas fa-info-circle"></i> Este usuário herdará as permissões do grupo selecionado. As configurações manuais de acesso estão desabilitadas.
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-top: 5px;">
+                            <button onclick="window.saveUser()" class="btn btn-save" style="flex: 1; padding: 10px; font-weight: bold;"><i class="fas fa-save"></i> Salvar</button>
+                            <button onclick="window.clearUserForm()" class="btn" style="padding: 10px; background: #94a3b8; color: white;"><i class="fas fa-times"></i> Cancelar</button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Usuários -->
+                    <div style="flex: 1; overflow-y: auto; max-height: 300px; border-top: 1px solid #eee; padding-top: 10px;">
+                        <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 8px; color: var(--text-muted);">Usuários Cadastrados</label>
+                        <div id="users_list_container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    const groups = window.groupsData || [];
+    const dbUsers = window.usersData || [];
+
+    // Populando o select de grupos no formulário de usuários
+    const userGroupSelect = document.getElementById('userGroupSelect');
+    if (userGroupSelect) {
+        userGroupSelect.innerHTML = '<option value="">Sem Grupo (Permissões Manuais)</option>';
+        groups.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = `${g.name} (${g.role}/${g.sector}/${g.subType || 'Geral'})`;
+            userGroupSelect.appendChild(opt);
+        });
+    }
+
+    // Renderizando a Lista de Grupos
+    const groupsList = document.getElementById('groups_list_container');
+    if (groupsList) {
+        groupsList.innerHTML = groups.map(g => {
+            const subName = g.subType || 'Nenhum';
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:8px; font-size:0.85rem;">
+                    <div>
+                        <span style="font-weight:bold; color:var(--text-main); font-size:0.95rem;">${g.name}</span>
+                        <div style="color:var(--text-muted); font-size:0.75rem; margin-top:2px;">
+                            <span>Função: <b>${g.role}</b></span> | 
+                            <span>Setor: <b>${g.sector}</b></span> | 
+                            <span>Sub: <b>${subName}</b></span>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                        <button onclick="window.editGroup('${g.id}')" class="btn btn-save btn-small" style="padding:4px 8px;" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button onclick="window.deleteGroup('${g.id}')" class="btn-icon-remove" style="padding:4px 8px;" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `;
+        }).join('') || '<div style="color:#999; text-align:center; padding:10px; font-size:0.85rem;">Nenhum grupo cadastrado</div>';
+    }
+
+    // Montando todos os usuários (Padrão + Customizados)
+    const defaultUsers = [
+        { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
+        { username: 'Caio', role: 'user', sector: 'recebimento', subType: null },
+        { username: 'Balanca', role: 'user', sector: 'recebimento', subType: null },
+        { username: 'Recebimento', role: 'user', sector: 'recebimento', subType: null },
+        { username: 'Wayner', role: 'user', sector: 'conferente', subType: 'INFRA' },
+        { username: 'Manutencao', role: 'user', sector: 'conferente', subType: 'MANUT' },
+        { username: 'Fabricio', role: 'user', sector: 'conferente', subType: 'ALM' },
+        { username: 'Clodoaldo', role: 'user', sector: 'conferente', subType: 'ALM' },
+        { username: 'Guilherme', role: 'user', sector: 'conferente', subType: 'GAVA' },
+        { username: 'EncarRec', role: 'Encarregado', sector: 'recebimento', subType: null },
+        { username: 'EncarConf', role: 'Encarregado', sector: 'conferente', subType: null }
+    ];
+
+    const allDisplayUsers = defaultUsers.map(du => {
+        const custom = dbUsers.find(u => u.username.toLowerCase() === du.username.toLowerCase());
+        return custom ? { ...du, ...custom, isDefault: true } : { ...du, password: '123', isDefault: true };
+    });
+
+    dbUsers.forEach(u => {
+        if (!allDisplayUsers.find(du => du.username.toLowerCase() === u.username.toLowerCase())) {
+            allDisplayUsers.push({ ...u, isDefault: false });
+        }
+    });
+
+    // Renderizando a Lista de Usuários
+    const usersList = document.getElementById('users_list_container');
+    if (usersList) {
+        usersList.innerHTML = allDisplayUsers.map(u => {
+            let badgeText = u.isDefault ? 'Padrão' : 'Customizado';
+            let badgeColor = u.isDefault ? '#64748b' : '#3b82f6';
+            
+            const hasOverride = !u.isDefault || dbUsers.some(dbu => dbu.username.toLowerCase() === u.username.toLowerCase());
+            if (hasOverride && u.isDefault) {
+                badgeText = 'Padrão (Alterado)';
+                badgeColor = '#d97706';
+            }
+
+            let resolvedRole = u.role;
+            let resolvedSector = u.sector;
+            let resolvedSubType = u.subType || 'Nenhum';
+            let grpLabel = 'Sem Grupo';
+
+            if (u.group) {
+                const grp = groups.find(g => g.id === u.group || g.name === u.group);
+                if (grp) {
+                    resolvedRole = grp.role;
+                    resolvedSector = grp.sector;
+                    resolvedSubType = grp.subType || 'Nenhum';
+                    grpLabel = `<span style="color:var(--primary); font-weight:bold;">${grp.name}</span>`;
+                }
+            }
+
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:8px; font-size:0.85rem;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span style="font-weight:bold; color:var(--text-main); font-size:0.95rem;">${u.username}</span>
+                            <span style="font-size:0.65rem; background:${badgeColor}; color:white; padding:1px 5px; border-radius:10px; font-weight:bold;">${badgeText}</span>
+                        </div>
+                        <div style="color:var(--text-muted); font-size:0.75rem; margin-top:2px;">
+                            <span>Grupo: <b>${grpLabel}</b></span> | 
+                            <span>Role: <b>${resolvedRole}</b></span> | 
+                            <span>Setor: <b>${resolvedSector}</b></span> | 
+                            <span>Sub: <b>${resolvedSubType}</b></span>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                        <button onclick="window.editUser('${u.username}')" class="btn btn-save btn-small" style="padding:4px 8px;" title="Editar"><i class="fas fa-edit"></i></button>
+                        ${u.isDefault ? 
+                            (hasOverride ? `<button onclick="window.deleteUser('${u.username}')" class="btn-icon-remove" style="padding:4px 8px; background:#fef3c7; color:#d97706;" title="Restaurar Padrão"><i class="fas fa-undo"></i></button>` : '') 
+                            : `<button onclick="window.deleteUser('${u.username}')" class="btn-icon-remove" style="padding:4px 8px;" title="Excluir"><i class="fas fa-trash"></i></button>`
+                        }
+                    </div>
+                </div>
+            `;
+        }).join('') || '<div style="color:#999; text-align:center; padding:10px; font-size:0.85rem;">Nenhum usuário cadastrado</div>';
+    }
+};
+
+window.toggleUserPermissionsEdit = function(groupId) {
+    const manualArea = document.getElementById('manualPermissionsArea');
+    const noticeArea = document.getElementById('groupInheritanceNotice');
+    if (!manualArea || !noticeArea) return;
+
+    if (groupId) {
+        manualArea.style.display = 'none';
+        noticeArea.style.display = 'block';
+    } else {
+        manualArea.style.display = 'block';
+        noticeArea.style.display = 'none';
+    }
+};
+
+window.clearGroupForm = function() {
+    const editGroupId = document.getElementById('editGroupId');
+    const nameIn = document.getElementById('groupNameInput');
+    const roleSel = document.getElementById('groupRoleSelect');
+    const sectorSel = document.getElementById('groupSectorSelect');
+    const subSel = document.getElementById('groupSubTypeSelect');
+    const title = document.getElementById('groupFormTitle');
+
+    if (editGroupId) editGroupId.value = '';
+    if (nameIn) nameIn.value = '';
+    if (roleSel) roleSel.value = 'user';
+    if (sectorSel) sectorSel.value = 'conferente';
+    if (subSel) subSel.value = '';
+    if (title) title.innerText = 'Novo Grupo';
+};
+
+window.clearUserForm = function() {
+    const editUserId = document.getElementById('editUserId');
+    const userIn = document.getElementById('userUsernameInput');
+    const passIn = document.getElementById('userPasswordInput');
+    const grpSel = document.getElementById('userGroupSelect');
+    const roleSel = document.getElementById('userRoleSelect');
+    const sectorSel = document.getElementById('userSectorSelect');
+    const subSel = document.getElementById('userSubTypeSelect');
+    const title = document.getElementById('userFormTitle');
+
+    if (editUserId) editUserId.value = '';
+    if (userIn) {
+        userIn.value = '';
+        userIn.readOnly = false;
+    }
+    if (passIn) passIn.value = '';
+    if (grpSel) grpSel.value = '';
+    if (roleSel) roleSel.value = 'user';
+    if (sectorSel) sectorSel.value = 'conferente';
+    if (subSel) subSel.value = '';
+    if (title) title.innerText = 'Novo Usuário';
+
+    window.toggleUserPermissionsEdit('');
+};
+
+window.saveGroup = function() {
+    const editGroupId = document.getElementById('editGroupId')?.value;
+    const nameVal = document.getElementById('groupNameInput')?.value.trim();
+    const roleVal = document.getElementById('groupRoleSelect')?.value;
+    const sectorVal = document.getElementById('groupSectorSelect')?.value;
+    const subVal = document.getElementById('groupSubTypeSelect')?.value || null;
+
+    if (!nameVal) {
+        alert("O nome do grupo é obrigatório.");
+        return;
+    }
+
+    if (!window.groupsData) window.groupsData = [];
+
+    if (editGroupId) {
+        const idx = window.groupsData.findIndex(g => g.id === editGroupId);
+        if (idx > -1) {
+            window.groupsData[idx].name = nameVal;
+            window.groupsData[idx].role = roleVal;
+            window.groupsData[idx].sector = sectorVal;
+            window.groupsData[idx].subType = subVal;
+        }
+    } else {
+        const newGrp = {
+            id: Date.now().toString(),
+            name: nameVal,
+            role: roleVal,
+            sector: sectorVal,
+            subType: subVal
+        };
+        window.groupsData.push(newGrp);
+    }
+
+    window.saveAll();
+    window.renderCadastros();
+    window.clearGroupForm();
+};
+
+window.editGroup = function(groupId) {
+    const grp = (window.groupsData || []).find(g => g.id === groupId);
+    if (!grp) return;
+
+    const editGroupId = document.getElementById('editGroupId');
+    const nameIn = document.getElementById('groupNameInput');
+    const roleSel = document.getElementById('groupRoleSelect');
+    const sectorSel = document.getElementById('groupSectorSelect');
+    const subSel = document.getElementById('groupSubTypeSelect');
+    const title = document.getElementById('groupFormTitle');
+
+    if (editGroupId) editGroupId.value = grp.id;
+    if (nameIn) nameIn.value = grp.name;
+    if (roleSel) roleSel.value = grp.role;
+    if (sectorSel) sectorSel.value = grp.sector;
+    if (subSel) subSel.value = grp.subType || '';
+    if (title) title.innerText = `Editar Grupo: ${grp.name}`;
+};
+
+window.deleteGroup = function(groupId) {
+    const grp = (window.groupsData || []).find(g => g.id === groupId);
+    if (!grp) return;
+
+    if (!confirm(`Excluir o grupo "${grp.name}"? Usuários deste grupo voltarão a usar permissões manuais.`)) return;
+
+    window.groupsData = (window.groupsData || []).filter(g => g.id !== groupId);
+
+    if (window.usersData) {
+        window.usersData.forEach(u => {
+            if (u.group === groupId || u.group === grp.name) {
+                u.group = null;
+            }
+        });
+    }
+
+    window.saveAll();
+    window.renderCadastros();
+};
+
+window.saveUser = function() {
+    const editUserId = document.getElementById('editUserId')?.value;
+    const usernameVal = document.getElementById('userUsernameInput')?.value.trim();
+    const passwordVal = document.getElementById('userPasswordInput')?.value;
+    const groupVal = document.getElementById('userGroupSelect')?.value || null;
+    const roleVal = document.getElementById('userRoleSelect')?.value;
+    const sectorVal = document.getElementById('userSectorSelect')?.value;
+    const subVal = document.getElementById('userSubTypeSelect')?.value || null;
+
+    if (!usernameVal) {
+        alert("Preencha o nome do usuário.");
+        return;
+    }
+
+    if (!window.usersData) window.usersData = [];
+
+    const normalizedUsername = usernameVal.toLowerCase();
+
+    if (editUserId) {
+        let uIdx = window.usersData.findIndex(u => u.username.toLowerCase() === editUserId.toLowerCase());
+        if (uIdx > -1) {
+            if (passwordVal) window.usersData[uIdx].password = passwordVal;
+            window.usersData[uIdx].group = groupVal;
+            if (!groupVal) {
+                window.usersData[uIdx].role = roleVal;
+                window.usersData[uIdx].sector = sectorVal;
+                window.usersData[uIdx].subType = subVal;
+            }
+        } else {
+            const defaultUsersList = [
+                { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
+                { username: 'Caio', role: 'user', sector: 'recebimento', subType: null },
+                { username: 'Balanca', role: 'user', sector: 'recebimento', subType: null },
+                { username: 'Recebimento', role: 'user', sector: 'recebimento', subType: null },
+                { username: 'Wayner', role: 'user', sector: 'conferente', subType: 'INFRA' },
+                { username: 'Manutencao', role: 'user', sector: 'conferente', subType: 'MANUT' },
+                { username: 'Fabricio', role: 'user', sector: 'conferente', subType: 'ALM' },
+                { username: 'Clodoaldo', role: 'user', sector: 'conferente', subType: 'ALM' },
+                { username: 'Guilherme', role: 'user', sector: 'conferente', subType: 'GAVA' },
+                { username: 'EncarRec', role: 'Encarregado', sector: 'recebimento', subType: null },
+                { username: 'EncarConf', role: 'Encarregado', sector: 'conferente', subType: null }
+            ];
+            const defUser = defaultUsersList.find(du => du.username.toLowerCase() === editUserId.toLowerCase());
+            const newOverride = {
+                username: defUser ? defUser.username : usernameVal,
+                password: passwordVal || '123',
+                group: groupVal,
+                role: groupVal ? undefined : roleVal,
+                sector: groupVal ? undefined : sectorVal,
+                subType: groupVal ? undefined : subVal
+            };
+            window.usersData.push(newOverride);
+        }
+    } else {
+        const defaultUsersNames = ['admin', 'caio', 'balanca', 'recebimento', 'wayner', 'manutencao', 'fabricio', 'clodoaldo', 'guilherme', 'encarrec', 'encarconf'];
+        const exists = defaultUsersNames.includes(normalizedUsername) || window.usersData.some(u => u.username.toLowerCase() === normalizedUsername);
+        if (exists) {
+            alert(`O usuário "${usernameVal}" já existe.`);
+            return;
+        }
+
+        if (!passwordVal) {
+            alert("A senha é obrigatória para novos usuários.");
+            return;
+        }
+
+        const newUserObj = {
+            username: usernameVal,
+            password: passwordVal,
+            group: groupVal,
+            role: groupVal ? undefined : roleVal,
+            sector: groupVal ? undefined : sectorVal,
+            subType: groupVal ? undefined : subVal
+        };
+        window.usersData.push(newUserObj);
+    }
+
+    window.saveAll();
+    window.renderCadastros();
+    window.clearUserForm();
+};
+
+window.editUser = function(username) {
+    const dbUsers = window.usersData || [];
+    const defaultUsers = [
+        { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
+        { username: 'Caio', role: 'user', sector: 'recebimento', subType: null },
+        { username: 'Balanca', role: 'user', sector: 'recebimento', subType: null },
+        { username: 'Recebimento', role: 'user', sector: 'recebimento', subType: null },
+        { username: 'Wayner', role: 'user', sector: 'conferente', subType: 'INFRA' },
+        { username: 'Manutencao', role: 'user', sector: 'conferente', subType: 'MANUT' },
+        { username: 'Fabricio', role: 'user', sector: 'conferente', subType: 'ALM' },
+        { username: 'Clodoaldo', role: 'user', sector: 'conferente', subType: 'ALM' },
+        { username: 'Guilherme', role: 'user', sector: 'conferente', subType: 'GAVA' },
+        { username: 'EncarRec', role: 'Encarregado', sector: 'recebimento', subType: null },
+        { username: 'EncarConf', role: 'Encarregado', sector: 'conferente', subType: null }
+    ];
+
+    const matchedDef = defaultUsers.find(du => du.username.toLowerCase() === username.toLowerCase());
+    const matchedDb = dbUsers.find(u => u.username.toLowerCase() === username.toLowerCase());
+    const user = matchedDb ? { ...(matchedDef || {}), ...matchedDb } : { ...matchedDef, password: '123' };
+
+    if (!user.username) return;
+
+    const editUserId = document.getElementById('editUserId');
+    const userIn = document.getElementById('userUsernameInput');
+    const passIn = document.getElementById('userPasswordInput');
+    const grpSel = document.getElementById('userGroupSelect');
+    const roleSel = document.getElementById('userRoleSelect');
+    const sectorSel = document.getElementById('userSectorSelect');
+    const subSel = document.getElementById('userSubTypeSelect');
+    const title = document.getElementById('userFormTitle');
+
+    if (editUserId) editUserId.value = user.username;
+    if (userIn) {
+        userIn.value = user.username;
+        userIn.readOnly = true;
+    }
+    if (passIn) passIn.value = user.password || '';
+    if (grpSel) grpSel.value = user.group || '';
+    
+    window.toggleUserPermissionsEdit(user.group || '');
+
+    if (!user.group) {
+        if (roleSel) roleSel.value = user.role || 'user';
+        if (sectorSel) sectorSel.value = user.sector || 'conferente';
+        if (subSel) subSel.value = user.subType || '';
+    }
+
+    if (title) title.innerText = `Editar Usuário: ${user.username}`;
+};
+
+window.deleteUser = function(username) {
+    const isDefault = ['admin', 'caio', 'balanca', 'recebimento', 'wayner', 'manutencao', 'fabricio', 'clodoaldo', 'guilherme', 'encarrec', 'encarconf'].includes(username.toLowerCase());
+    
+    if (isDefault) {
+        if (!confirm(`Deseja restaurar o usuário padrão "${username}" para as configurações originais de fábrica?`)) return;
+        window.usersData = (window.usersData || []).filter(u => u.username.toLowerCase() !== username.toLowerCase());
+    } else {
+        if (!confirm(`Excluir permanentemente o usuário "${username}"?`)) return;
+        window.usersData = (window.usersData || []).filter(u => u.username.toLowerCase() !== username.toLowerCase());
+    }
+
+    window.saveAll();
+    window.renderCadastros();
+};

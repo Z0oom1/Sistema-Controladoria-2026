@@ -26,8 +26,13 @@ window.renderPatio = function() {
 
     // Filtra e ordena os caminhões por índice de ordenação (sortIndex) e fallback por horário de chegada
     const list = window.patioData.filter(c => {
-        if (c.status === 'SAIU') return (c.saida || '').startsWith(fd);
-        return (c.chegada || '').split('T')[0] === fd;
+        const dateMatch = c.status === 'SAIU' ? (c.saida || '').startsWith(fd) : (c.chegada || '').split('T')[0] === fd;
+        if (!dateMatch) return false;
+        
+        if (typeof window.hasSectorAccess === 'function') {
+            return window.hasSectorAccess(c.localSpec);
+        }
+        return true;
     }).sort((a, b) => {
         const orderA = a.sortIndex !== undefined ? a.sortIndex : new Date(a.chegada).getTime();
         const orderB = b.sortIndex !== undefined ? b.sortIndex : new Date(b.chegada).getTime();

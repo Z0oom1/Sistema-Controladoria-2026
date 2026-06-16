@@ -192,14 +192,16 @@ app.post('/api/login', (req, res) => {
         return res.status(400).json({ error: 'Preencha usuário e senha' });
     }
 
-    db.get(`SELECT value FROM app_data WHERE key = ?`, ['mapa_cego_users'], (err, row) => {
+    db.all(`SELECT key, value FROM app_data WHERE key IN ('mapa_cego_users', 'mapa_cego_groups')`, (err, rows) => {
         let users = [];
-        if (!err && row) {
-            try {
-                users = JSON.parse(row.value);
-            } catch (e) {
-                users = [];
-            }
+        let groups = [];
+        if (!err && rows) {
+            rows.forEach(r => {
+                try {
+                    if (r.key === 'mapa_cego_users') users = JSON.parse(r.value) || [];
+                    if (r.key === 'mapa_cego_groups') groups = JSON.parse(r.value) || [];
+                } catch (e) {}
+            });
         }
 
         const defaultUsers = [
@@ -208,6 +210,7 @@ app.post('/api/login', (req, res) => {
             { username: 'Balanca', password: '123', role: 'user', sector: 'recebimento' },
             { username: 'Recebimento', password: '123', role: 'user', sector: 'recebimento' },
             { username: 'Wayner', password: '123', role: 'user', sector: 'conferente', subType: 'INFRA' },
+            { username: 'Manutencao', password: '123', role: 'user', sector: 'conferente', subType: 'MANUT' },
             { username: 'Fabricio', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
             { username: 'Clodoaldo', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
             { username: 'Guilherme', password: '123', role: 'user', sector: 'conferente', subType: 'GAVA' },
@@ -215,7 +218,10 @@ app.post('/api/login', (req, res) => {
             { username: 'EncarConf', password: 'enc123', role: 'Encarregado', sector: 'conferente' }
         ];
 
-        const allUsers = [...defaultUsers];
+        const allUsers = defaultUsers.map(du => {
+            const override = users.find(u => u.username.toLowerCase() === du.username.toLowerCase());
+            return override ? { ...du, ...override } : du;
+        });
         if (Array.isArray(users)) {
             users.forEach(u => {
                 if (u && u.username && !allUsers.find(x => x.username.toLowerCase() === u.username.toLowerCase())) {
@@ -226,14 +232,30 @@ app.post('/api/login', (req, res) => {
 
         const user = allUsers.find(u => u.username.toLowerCase() === username.toLowerCase() && (u.password === password || (u.username === 'Admin' && password === 'admin')));
         if (user) {
+            let userRole = user.role;
+            let userSector = user.sector;
+            let userSubType = user.subType || null;
+            let userLabel = user.label || `${user.role} - ${user.username}`;
+
+            if (user.group) {
+                const matchedGrp = groups.find(g => g.id === user.group || g.name === user.group);
+                if (matchedGrp) {
+                    userRole = matchedGrp.role || userRole;
+                    userSector = matchedGrp.sector || userSector;
+                    userSubType = matchedGrp.subType || null;
+                    userLabel = `${userRole} - ${user.username} (${matchedGrp.name})`;
+                }
+            }
+
             return res.json({
                 success: true,
                 user: {
                     username: user.username,
-                    sector: user.sector,
-                    subType: user.subType || null,
-                    role: user.role,
-                    label: user.label || `${user.role} - ${user.username}`
+                    sector: userSector,
+                    subType: userSubType,
+                    role: userRole,
+                    label: userLabel,
+                    group: user.group || null
                 },
                 token: 'jwt-token-stub-' + user.username
             });
