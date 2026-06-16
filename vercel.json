@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "cleanUrls": true,
   "crons": [
     {
       "path": "/api/ping",
@@ -18,10 +19,6 @@
     {
       "source": "/home",
       "destination": "/pages/home.html"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
     }
   ]
 }
