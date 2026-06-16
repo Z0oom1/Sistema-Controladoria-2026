@@ -258,7 +258,7 @@ window.logout = function() {
     sessionStorage.removeItem('loggedInUser');
     sessionStorage.removeItem('aw_token');
     domCache.clear();
-    window.location.href = 'login.html'; 
+    window.location.href = '/pages/login.html'; 
 };
 
 /**

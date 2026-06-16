@@ -65,7 +65,7 @@
 
     <script>
         const loggedUser = JSON.parse(sessionStorage.getItem('loggedInUser'));
-        if (!loggedUser && window.location.protocol !== 'file:') window.location.href = 'login.html';
+        if (!loggedUser && window.location.protocol !== 'file:') window.location.href = '/pages/login.html';
         const safeUser = loggedUser || { username: 'Admin', sector: 'recebimento', role: 'Administrador', subType: null };
         const userSector = (safeUser.sector || '').toLowerCase();
         const userRoleRaw = (safeUser.role || '').toString().toLowerCase();
@@ -1328,11 +1328,16 @@
             
             document.head.appendChild(socketScript);
         } else {
-            // Se estiver usando Supabase, inicializa o realtime após o carregamento da página
-            window.addEventListener('DOMContentLoaded', () => {
-                console.log("⚡ Usando Supabase para sincronização em tempo real.");
+            // Se estiver usando Supabase, inicializa o realtime (tratando caso a página já tenha carregado)
+            if (document.readyState === 'loading') {
+                window.addEventListener('DOMContentLoaded', () => {
+                    console.log("⚡ Usando Supabase para sincronização em tempo real.");
+                    initRealTimeSystem();
+                });
+            } else {
+                console.log("⚡ Usando Supabase para sincronização em tempo real (imediato).");
                 initRealTimeSystem();
-            });
+            }
         }
     </script>
     

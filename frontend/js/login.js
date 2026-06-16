@@ -219,8 +219,8 @@ function loginComUsuario(user) {
     if (user.token) sessionStorage.setItem('aw_token', user.token);
     sessionStorage.setItem('loggedInUser', JSON.stringify(user));
     
-    // Redirecionamento limpo e compatível com o vercel.json
-    window.location.href = '/home'; 
+    // Redirecionamento limpo e compatível com o vercel.json e local
+    window.location.href = window.supabaseClient ? '/home' : '/pages/home.html'; 
 }
 
 // --- INTERFACE (SWITCHER E REGISTRO) ---
