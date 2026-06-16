@@ -1,0 +1,46 @@
+name: Build and Release Electron App
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build Windows App
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Frontend and Electron
+        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release App
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Versão Windows Recente
+          body: |
+            Instalador gerado automaticamente para o sistema Controladoria AW (vinculado ao Supabase/Vercel).
+            
+            Baixe o arquivo `.exe` abaixo para instalar o sistema no Windows.
+          files: |
+            dist/*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
