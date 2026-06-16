@@ -2,13 +2,14 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
-  root: 'frontend', // Onde estão seus HTML/JS
-  base: './',      // Caminho relativo para facilitar o build final
+  root: 'frontend', // O Vite passa a operar DIRETAMENTE dentro da pasta frontend
+  base: '/',        // Essencial para o roteamento de SPA/Multipáginas na nuvem
   build: {
     outDir: '../dist',
     emptyOutDir: true,
     rollupOptions: {
         input: {
+            // Caminhos relativos à pasta 'frontend' (que é a root)
             index: path.resolve(__dirname, 'frontend/index.html'),
             login: path.resolve(__dirname, 'frontend/pages/login.html'),
             home: path.resolve(__dirname, 'frontend/pages/home.html')
