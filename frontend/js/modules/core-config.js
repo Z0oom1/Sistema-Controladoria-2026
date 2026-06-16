@@ -70,7 +70,7 @@ try {
                 window.loadDataFromServer();
             }
         });
-    } else {
+    } else if (!window.supabaseClient) {
         console.error("ERRO: Socket.io não foi carregado no HTML.");
     }
 } catch (e) {

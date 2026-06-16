@@ -1,5 +1,5 @@
 // --- CONFIGURAÇÃO DO SUPABASE ---
-window.VITE_SUPABASE_URL = "https://abmjqotikqfailvylhu.supabase.co";
+window.VITE_SUPABASE_URL = "https://abmjqotikqfailjvylhu.supabase.co";
 window.VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFibWpxb3Rpa3FmYWlsanZ5bGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MDQyMTMsImV4cCI6MjA5NzE4MDIxM30.g7cXuTRhgs9wu-sHJiJGnUGL8zxEbNxHt37oTCngwOI";
 
 const supabaseUrl = window.VITE_SUPABASE_URL;
