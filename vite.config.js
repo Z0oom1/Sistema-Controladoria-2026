@@ -2,25 +2,19 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
-  root: 'frontend', // Onde estão seus HTML/JS
-  base: './',      // Caminho relativo para facilitar o build final
+  root: 'frontend', // Define a raiz do código fonte do front-end
   build: {
-    outDir: '../dist',
+    outDir: '../dist', // Joga o resultado do build na pasta /dist na raiz do projeto
     emptyOutDir: true,
     rollupOptions: {
-        input: {
-            login: path.resolve(__dirname, 'frontend/pages/login.html'),
-            home: path.resolve(__dirname, 'frontend/pages/home.html')
-        },
-        output: {
-            manualChunks(id) {
-                if (id.includes('node_modules')) {
-                    return 'vendor';
-                }
-            }
-        }
+      input: {
+        // Mapeia os pontos de entrada HTML corretamente
+        login: path.resolve(__dirname, 'frontend/pages/login.html'),
+        home: path.resolve(__dirname, 'frontend/pages/home.html')
+      }
     }
-  },
+  }
+});
   server: {
     port: 5173,
     strictPort: true,
