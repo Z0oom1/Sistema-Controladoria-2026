@@ -11,7 +11,7 @@ const SERVER_PORT = 2006;
 const VITE_PORT = 5173;
 
 // URL de produção da Vercel (se configurada, a janela carregará direto da nuvem)
-const VERCEL_URL = "https://sistema-controladoria-2026.vercel.app"; // <--- ALTERE PARA O SEU ENDEREÇO DA VERCEL
+const VERCEL_URL = "https://controladoria-seven.vercel.app"; // <--- ALTERE PARA O SEU ENDEREÇO DA VERCEL
 
 // app.disableHardwareAcceleration(); // Reativado para aceleração por GPU (melhor performance de renderização)
 
