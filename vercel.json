@@ -19,6 +19,14 @@
     {
       "source": "/home",
       "destination": "/pages/home.html"
+    },
+    {
+      "source": "/pages/home.html",
+      "destination": "/pages/home.html"
+    },
+    {
+      "source": "/pages/login.html",
+      "destination": "/pages/login.html"
     }
   ]
 }
