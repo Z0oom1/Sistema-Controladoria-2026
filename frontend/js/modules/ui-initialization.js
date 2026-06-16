@@ -251,14 +251,15 @@ window.toggleMapListMobile = function() {
     if (mm) mm.classList.toggle('open'); 
 };
 
-/**
- * Realiza logout do usuário
- */
 window.logout = function() { 
     sessionStorage.removeItem('loggedInUser');
     sessionStorage.removeItem('aw_token');
     domCache.clear();
-    window.location.href = '/pages/login.html'; 
+    if (window.location.protocol === 'file:') {
+        window.location.href = 'login.html'; 
+    } else {
+        window.location.href = '/login'; 
+    }
 };
 
 /**

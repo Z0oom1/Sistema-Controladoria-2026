@@ -220,7 +220,11 @@ function loginComUsuario(user) {
     sessionStorage.setItem('loggedInUser', JSON.stringify(user));
     
     // Redirecionamento limpo e compatível com o vercel.json e local
-    window.location.href = window.supabaseClient ? '/home' : '/pages/home.html'; 
+    if (window.location.protocol === 'file:') {
+        window.location.href = 'home.html';
+    } else {
+        window.location.href = window.supabaseClient ? '/home' : '/pages/home.html'; 
+    }
 }
 
 // --- INTERFACE (SWITCHER E REGISTRO) ---
