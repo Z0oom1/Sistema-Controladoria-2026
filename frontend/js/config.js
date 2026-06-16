@@ -2,19 +2,20 @@
 window.VITE_SUPABASE_URL = "https://abmjqotikqfailvylhu.supabase.co";
 window.VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFibWpxb3Rpa3FmYWlsanZ5bGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MDQyMTMsImV4cCI6MjA5NzE4MDIxM30.g7cXuTRhgs9wu-sHJiJGnUGL8zxEbNxHt37oTCngwOI";
 
-const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_URL) || window.VITE_SUPABASE_URL;
-const supabaseKey = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_ANON_KEY) || window.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = window.VITE_SUPABASE_URL;
+const supabaseKey = window.VITE_SUPABASE_ANON_KEY;
 
 if (supabaseUrl && supabaseKey && typeof supabase !== 'undefined') {
     window.supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
     console.log("✅ Supabase Client inicializado com sucesso.");
 } else {
-    console.log("ℹ️ Supabase não configurado ou CDN não carregado. Usando fallback local.");
+    console.log("ℹ️ Supabase não configurado ou biblioteca não carregada. Usando fallback local.");
 }
 
 const SERVER_IP = "localhost"; // Em vez de 192.168.2.106
 const SERVER_PORT = "2006";
-const API_BASE_URL = `http://${SERVER_IP}:${SERVER_PORT}`;
+window.API_BASE_URL = `http://${SERVER_IP}:${SERVER_PORT}`;
+var API_BASE_URL = window.API_BASE_URL;
 
 // --- FORMATADOR DE PRODUTO ---
 window.formatProductName = function(name) {
