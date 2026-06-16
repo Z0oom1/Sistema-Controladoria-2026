@@ -24,11 +24,15 @@ window.renderPatio = function() {
         badge.innerText = dailyActiveCount;
     }
 
-    // Filtra e ordena os caminhões por horário de chegada
+    // Filtra e ordena os caminhões por índice de ordenação (sortIndex) e fallback por horário de chegada
     const list = window.patioData.filter(c => {
         if (c.status === 'SAIU') return (c.saida || '').startsWith(fd);
         return (c.chegada || '').split('T')[0] === fd;
-    }).sort((a, b) => new Date(a.chegada) - new Date(b.chegada));
+    }).sort((a, b) => {
+        const orderA = a.sortIndex !== undefined ? a.sortIndex : new Date(a.chegada).getTime();
+        const orderB = b.sortIndex !== undefined ? b.sortIndex : new Date(b.chegada).getTime();
+        return orderA - orderB;
+    });
 
     list.forEach(c => {
         const isSaiu = c.status === 'SAIU';
@@ -45,14 +49,38 @@ window.renderPatio = function() {
         card.className = 'truck-card';
         if (c.isProvisory) card.style.borderLeft = "4px solid #f59e0b";
 
-        // Ativar Arrastar e Soltar (Drag & Drop)
-        card.draggable = true;
+        // Ativar Arrastar e Soltar (Drag & Drop) - Apenas Recebimento e Admin
+        card.draggable = window.isRecebimento || window.isAdmin;
         card.addEventListener('dragstart', (e) => {
+            if (!(window.isRecebimento || window.isAdmin)) {
+                e.preventDefault();
+                return;
+            }
             e.dataTransfer.setData('text/plain', c.id);
             card.style.opacity = '0.5';
         });
         card.addEventListener('dragend', () => {
             card.style.opacity = '1';
+        });
+
+        // Permite reordenação arrastando um card sobre o outro
+        card.addEventListener('dragover', (e) => {
+            if (window.isRecebimento || window.isAdmin) {
+                e.preventDefault();
+                card.classList.add('drag-over-card');
+            }
+        });
+        card.addEventListener('dragleave', () => {
+            card.classList.remove('drag-over-card');
+        });
+        card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Evita que o evento suba para a coluna
+            card.classList.remove('drag-over-card');
+            const draggedId = e.dataTransfer.getData('text/plain');
+            if (draggedId && draggedId !== c.id) {
+                window.reorderTruck(draggedId, c.id);
+            }
         });
 
         // Menu de contexto no clique direito
@@ -62,7 +90,15 @@ window.renderPatio = function() {
         };
 
         let displayName = c.empresa;
-        if (c.supplierId) {
+        const associatedMap = window.mapData.find(x => x.id === c.id);
+        if (associatedMap && associatedMap.rows && associatedMap.rows[0] && associatedMap.rows[0].forn) {
+            displayName = associatedMap.rows[0].forn;
+        } else if (c.linkedRequestId) {
+            const req = window.requests.find(r => r.id === c.linkedRequestId);
+            if (req && req.data && req.data.fornecedor) {
+                displayName = req.data.fornecedor.nome;
+            }
+        } else if (c.supplierId) {
             const s = window.suppliersData.find(x => x.id === c.supplierId);
             if (s) displayName = s.nome;
         }
@@ -460,6 +496,12 @@ function setupDragAndDrop() {
         colEl.addEventListener('drop', (e) => {
             e.preventDefault();
             colEl.classList.remove('drag-over');
+            
+            // Permissão: Apenas recebimento e admin podem mover veículos
+            if (!(window.isRecebimento || window.isAdmin)) {
+                return alert("Acesso negado: Apenas o Recebimento e Administradores podem mover veículos.");
+            }
+
             const truckId = e.dataTransfer.getData('text/plain');
             if (!truckId) return;
 
@@ -470,8 +512,12 @@ function setupDragAndDrop() {
                     if (truck.status !== 'SAIU') {
                         window.changeStatus(truckId, 'SAIU');
                     }
+                } else if (colId === 'OUT') {
+                    // Mover para outros setores abre o modal de seleção específico
+                    document.getElementById('moveSectorTruckId').value = truckId;
+                    document.getElementById('modalMoveSector').style.display = 'flex';
                 } else {
-                    const secNames = { 'ALM': 'DOCA (ALM)', 'GAVA': 'GAVA', 'OUT': 'OUTROS SETORES' };
+                    const secNames = { 'ALM': 'DOCA (ALM)', 'GAVA': 'GAVA' };
                     
                     // Modifica o setor local do caminhão
                     truck.local = colId;
@@ -490,6 +536,123 @@ function setupDragAndDrop() {
         });
     });
 }
+
+window.confirmMoveSector = function() {
+    const truckId = document.getElementById('moveSectorTruckId').value;
+    const selectedSector = document.getElementById('moveSectorSelect').value;
+    if (!truckId || !selectedSector) return;
+
+    const i = window.patioData.findIndex(t => t.id === truckId);
+    if (i > -1) {
+        const truck = window.patioData[i];
+        truck.local = 'OUT';
+        truck.localSpec = selectedSector;
+
+        // Se o status era "SAIU", volta para a fila
+        if (truck.status === 'SAIU') {
+            truck.status = 'FILA';
+            truck.saida = null;
+        }
+
+        // Também atualiza o mapa cego se existir
+        const mapIdx = window.mapData.findIndex(m => m.id === truckId);
+        if (mapIdx > -1) {
+            window.mapData[mapIdx].setor = selectedSector;
+        }
+
+        // Também atualiza a pesagem se existir
+        const mpIdx = window.mpData.findIndex(m => m.id === truckId);
+        if (mpIdx > -1) {
+            window.mpData[mpIdx].local = selectedSector;
+        }
+
+        window.saveAll();
+        window.renderPatio();
+        
+        // Se a tela de mapas estiver aberta, renderiza a lista atualizada
+        const viewMapas = document.getElementById('view-mapas');
+        if (viewMapas && viewMapas.classList.contains('active') && typeof window.renderMapList === 'function') {
+            window.renderMapList();
+        }
+    }
+    document.getElementById('modalMoveSector').style.display = 'none';
+};
+
+window.reorderTruck = function(draggedId, targetId) {
+    if (draggedId === targetId) return;
+
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem reordenar veículos.");
+        return;
+    }
+
+    const draggedTruck = window.patioData.find(t => t.id === draggedId);
+    const targetTruck = window.patioData.find(t => t.id === targetId);
+    if (!draggedTruck || !targetTruck) return;
+
+    const targetCol = targetTruck.status === 'SAIU' ? 'SAIU' : (targetTruck.local || 'OUT');
+    if (targetCol === 'SAIU') {
+        if (draggedTruck.status !== 'SAIU') {
+            window.changeStatus(draggedId, 'SAIU');
+        }
+    } else {
+        if (draggedTruck.status === 'SAIU') {
+            draggedTruck.status = 'FILA';
+            draggedTruck.saida = null;
+            const m = window.mpData.find(x => x.id === draggedId);
+            if (m) m.saida = null;
+        }
+
+        draggedTruck.local = targetTruck.local || 'OUT';
+        draggedTruck.localSpec = targetTruck.localSpec;
+
+        const mapIdx = window.mapData.findIndex(m => m.id === draggedId);
+        if (mapIdx > -1) {
+            window.mapData[mapIdx].setor = targetTruck.localSpec;
+        }
+
+        const mpIdx = window.mpData.findIndex(m => m.id === draggedId);
+        if (mpIdx > -1) {
+            window.mpData[mpIdx].local = targetTruck.localSpec;
+        }
+    }
+
+    const filterEl = document.getElementById('patioDateFilter');
+    const fd = filterEl ? filterEl.value : window.getBrazilTime().split('T')[0];
+    
+    let filteredTrucks = window.patioData.filter(c => {
+        if (c.status === 'SAIU') return (c.saida || '').startsWith(fd);
+        return (c.chegada || '').split('T')[0] === fd;
+    });
+
+    filteredTrucks.sort((a, b) => {
+        const orderA = a.sortIndex !== undefined ? a.sortIndex : new Date(a.chegada).getTime();
+        const orderB = b.sortIndex !== undefined ? b.sortIndex : new Date(b.chegada).getTime();
+        return orderA - orderB;
+    });
+
+    const dragIdx = filteredTrucks.findIndex(t => t.id === draggedId);
+    const targetIdx = filteredTrucks.findIndex(t => t.id === targetId);
+
+    if (dragIdx > -1 && targetIdx > -1) {
+        const [movedTruck] = filteredTrucks.splice(dragIdx, 1);
+        const newTargetIdx = filteredTrucks.findIndex(t => t.id === targetId);
+        filteredTrucks.splice(newTargetIdx, 0, movedTruck);
+
+        filteredTrucks.forEach((t, index) => {
+            t.sortIndex = index;
+        });
+
+        window.saveAll();
+        window.renderPatio();
+
+        // Se a tela de mapas estiver aberta, renderiza a lista atualizada
+        const viewMapas = document.getElementById('view-mapas');
+        if (viewMapas && viewMapas.classList.contains('active') && typeof window.renderMapList === 'function') {
+            window.renderMapList();
+        }
+    }
+};
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupDragAndDrop);

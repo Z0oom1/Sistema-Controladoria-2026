@@ -71,9 +71,7 @@ window.sendSystemNotification = function(title, body, targetView, targetId) {
 // Cria a notificação nativa do navegador
 window.createVisualNotification = function(title, body, targetView, targetId) {
     try {
-        const iconPath = window.location.protocol === 'file:' 
-            ? new URL('../Imgs/logo-sf.png', window.location.href).href
-            : `${window.API_URL}/Imgs/logo-sf.png`;
+        const iconPath = new URL('../Imgs/logo-sf.png', window.location.href).href;
 
         const notif = new Notification(title, { 
             body: body, 
@@ -104,9 +102,7 @@ window.manualRequestPermission = function() {
         if (permission === "granted") {
             window.playBeep();
             
-            const iconPath = window.location.protocol === 'file:' 
-                ? new URL('../Imgs/logo-sf.png', window.location.href).href
-                : `${window.API_URL}/Imgs/logo-sf.png`;
+            const iconPath = new URL('../Imgs/logo-sf.png', window.location.href).href;
 
             new Notification("Configuração", {
                 body: "Notificações ativadas com sucesso!",

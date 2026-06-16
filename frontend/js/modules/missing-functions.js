@@ -2395,34 +2395,66 @@ window.runDiagnostics = async function() {
     
     const startTime = performance.now();
     try {
-        const response = await fetch(`${window.API_URL}/api/diagnostics?t=${Date.now()}`, { cache: 'no-store' });
-        const endTime = performance.now();
-        const latency = Math.round(endTime - startTime);
-        
-        const data = await response.json();
-        
-        // Atualiza os displays do card com animações/cores suaves
-        const pingEl = document.getElementById('diagPing');
-        if (pingEl) {
-            pingEl.innerText = `${latency} ms`;
-            if (latency < 30) pingEl.style.color = '#10b981'; // Verde excelente
-            else if (latency < 100) pingEl.style.color = '#f59e0b'; // Laranja ok
-            else pingEl.style.color = '#ef4444'; // Vermelho lento
-        }
+        if (window.supabaseClient) {
+            // Mede o ping fazendo uma consulta leve
+            const { data, error } = await window.supabaseClient.from('app_data').select('key').limit(1);
+            const endTime = performance.now();
+            const latency = Math.round(endTime - startTime);
+            if (error) throw error;
 
-        const connsEl = document.getElementById('diagConns');
-        if (connsEl) connsEl.innerText = data.activeConnections || '1';
+            const pingEl = document.getElementById('diagPing');
+            if (pingEl) {
+                pingEl.innerText = `${latency} ms`;
+                if (latency < 100) pingEl.style.color = '#10b981'; // Verde excelente
+                else if (latency < 250) pingEl.style.color = '#f59e0b'; // Laranja ok
+                else pingEl.style.color = '#ef4444'; // Vermelho lento
+            }
 
-        const dbSizeEl = document.getElementById('diagDbSize');
-        if (dbSizeEl) dbSizeEl.innerText = `${(data.dbSize / 1024).toFixed(1)} KB`;
+            const connsEl = document.getElementById('diagConns');
+            if (connsEl) connsEl.innerText = 'Ativa (Supabase Realtime)';
 
-        const uptimeEl = document.getElementById('diagUptime');
-        if (uptimeEl) {
-            const ut = data.uptime || 0;
-            const hrs = Math.floor(ut / 3600);
-            const mins = Math.floor((ut % 3600) / 60);
-            const secs = Math.floor(ut % 60);
-            uptimeEl.innerText = `${hrs}h ${mins}m ${secs}s`;
+            const dbSizeEl = document.getElementById('diagDbSize');
+            if (dbSizeEl) {
+                const { count, error: countErr } = await window.supabaseClient
+                    .from('app_data')
+                    .select('*', { count: 'exact', head: true });
+                dbSizeEl.innerText = countErr ? '--' : `${count} tabelas JSON`;
+            }
+
+            const uptimeEl = document.getElementById('diagUptime');
+            if (uptimeEl) {
+                uptimeEl.innerText = 'Nuvem (Supabase)';
+            }
+        } else {
+            const response = await fetch(`${window.API_URL}/api/diagnostics?t=${Date.now()}`, { cache: 'no-store' });
+            const endTime = performance.now();
+            const latency = Math.round(endTime - startTime);
+            
+            const data = await response.json();
+            
+            // Atualiza os displays do card com animações/cores suaves
+            const pingEl = document.getElementById('diagPing');
+            if (pingEl) {
+                pingEl.innerText = `${latency} ms`;
+                if (latency < 30) pingEl.style.color = '#10b981'; // Verde excelente
+                else if (latency < 100) pingEl.style.color = '#f59e0b'; // Laranja ok
+                else pingEl.style.color = '#ef4444'; // Vermelho lento
+            }
+
+            const connsEl = document.getElementById('diagConns');
+            if (connsEl) connsEl.innerText = data.activeConnections || '1';
+
+            const dbSizeEl = document.getElementById('diagDbSize');
+            if (dbSizeEl) dbSizeEl.innerText = `${(data.dbSize / 1024).toFixed(1)} KB`;
+
+            const uptimeEl = document.getElementById('diagUptime');
+            if (uptimeEl) {
+                const ut = data.uptime || 0;
+                const hrs = Math.floor(ut / 3600);
+                const mins = Math.floor((ut % 3600) / 60);
+                const secs = Math.floor(ut % 60);
+                uptimeEl.innerText = `${hrs}h ${mins}m ${secs}s`;
+            }
         }
     } catch (err) {
         console.error('Erro no diagnóstico:', err);

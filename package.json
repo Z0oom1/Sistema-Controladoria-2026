@@ -7,7 +7,11 @@
     "start": "electron .",
     "server": "node server/server.js",
     "dev": "concurrently -k \"node server/server.js\" \"vite\" \"electron .\"",
-    "build": "vite build && electron-builder"
+    "build": "vite build && electron-builder",
+    "build:vercel": "vite build && cp -r frontend/js dist/"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.0"
   },
   "build": {
     "appId": "com.wilson.controladoria",

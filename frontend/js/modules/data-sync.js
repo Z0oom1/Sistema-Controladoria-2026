@@ -42,13 +42,26 @@ const syncDebouncer = new Debouncer(300); // 300ms debounce para sync
  */
 window.loadDataFromServer = async function() {
     try {
-        const response = await fetch(`${window.API_URL}/api/sync?t=${Date.now()}`, { 
-            cache: "no-store",
-            signal: AbortSignal.timeout(10000) // 10s timeout
-        });
+        let data = {};
+        if (window.supabaseClient) {
+            const { data: rows, error } = await window.supabaseClient
+                .from('app_data')
+                .select('*');
+            
+            if (error) throw error;
+            
+            rows.forEach(row => {
+                data[row.key] = row.value;
+            });
+        } else {
+            const response = await fetch(`${window.API_URL}/api/sync?t=${Date.now()}`, { 
+                cache: "no-store",
+                signal: AbortSignal.timeout(10000) // 10s timeout
+            });
 
-        if (!response.ok) throw new Error("Offline");
-        const data = await response.json();
+            if (!response.ok) throw new Error("Offline");
+            data = await response.json();
+        }
 
         // Aplicar dados ao estado
         applyDataToState(data);
@@ -162,14 +175,28 @@ window.saveToServer = function(key, data) {
         return;
     }
 
-    fetch(`${window.API_URL}/api/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: key, data: data }),
-        signal: AbortSignal.timeout(5000)
-    }).catch(err => {
-        console.error(`Erro ao salvar ${key} no servidor:`, err.message);
-    });
+    if (window.supabaseClient) {
+        window.supabaseClient
+            .from('app_data')
+            .upsert({ key: key, value: data })
+            .then(({ error }) => {
+                if (error) {
+                    console.error(`Erro ao salvar ${key} no Supabase:`, error.message);
+                }
+            })
+            .catch(err => {
+                console.error(`Erro de conexão ao salvar ${key} no Supabase:`, err.message);
+            });
+    } else {
+        fetch(`${window.API_URL}/api/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: key, data: data }),
+            signal: AbortSignal.timeout(5000)
+        }).catch(err => {
+            console.error(`Erro ao salvar ${key} no servidor:`, err.message);
+        });
+    }
 };
 
 /**
@@ -276,20 +303,38 @@ window.restoreData = function(i) {
  */
 window.clearAllData = function() {
     if (confirm('PERIGO: Isso apagará TODOS os dados de TODOS os computadores.\n\nTem certeza absoluta?')) {
-        fetch(`${window.API_URL}/api/reset`, { 
-            method: 'DELETE',
-            signal: AbortSignal.timeout(10000)
-        })
-            .then(response => {
-                if (response.ok) {
-                    alert('Sistema resetado com sucesso!');
-                } else {
-                    alert('Erro ao tentar resetar o servidor.');
-                }
+        if (window.supabaseClient) {
+            window.supabaseClient
+                .from('app_data')
+                .delete()
+                .neq('key', '') // Deleta todas as chaves
+                .then(({ error }) => {
+                    if (error) {
+                        alert('Erro ao tentar resetar o Supabase: ' + error.message);
+                    } else {
+                        alert('Sistema resetado com sucesso no Supabase!');
+                    }
+                })
+                .catch(error => {
+                    console.error("Erro ao resetar Supabase:", error);
+                    alert('Erro de conexão ao tentar resetar o Supabase.');
+                });
+        } else {
+            fetch(`${window.API_URL}/api/reset`, { 
+                method: 'DELETE',
+                signal: AbortSignal.timeout(10000)
             })
-            .catch(error => {
-                console.error("Erro:", error);
-                alert('Erro de conexão ao tentar resetar.');
-            });
+                .then(response => {
+                    if (response.ok) {
+                        alert('Sistema resetado com sucesso!');
+                    } else {
+                        alert('Erro ao tentar resetar o servidor.');
+                    }
+                })
+                .catch(error => {
+                    console.error("Erro:", error);
+                    alert('Erro de conexão ao tentar resetar.');
+                });
+        }
     }
 };

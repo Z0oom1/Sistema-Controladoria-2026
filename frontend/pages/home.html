@@ -549,18 +549,63 @@
             <div class="fab" onclick="window.openCadSelectModal()" title="Novo Cadastro">+</div>
         </div>
         <div id="view-produtos" class="view-section">
+            <!-- Estatísticas do Catálogo -->
+            <div class="prod-stats-grid">
+                <div class="prod-stat-card">
+                    <div class="prod-stat-icon prod-icon-blue">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="prod-stat-info">
+                        <span class="prod-stat-label">Total no Catálogo</span>
+                        <span class="prod-stat-value" id="prodStatTotal">--</span>
+                    </div>
+                </div>
+                <div class="prod-stat-card">
+                    <div class="prod-stat-icon prod-icon-green">
+                        <i class="fas fa-truck-loading"></i>
+                    </div>
+                    <div class="prod-stat-info">
+                        <span class="prod-stat-label">Cargas Totais</span>
+                        <span class="prod-stat-value" id="prodStatCargas">--</span>
+                    </div>
+                </div>
+                <div class="prod-stat-card">
+                    <div class="prod-stat-icon prod-icon-purple">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="prod-stat-info">
+                        <span class="prod-stat-label">Mais Recebido</span>
+                        <span class="prod-stat-value" id="prodStatFrequente">--</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="settings-card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #eee; padding-bottom:15px; flex-wrap:wrap; gap:15px;">
                     <div>
                         <h3 style="margin:0; color:var(--text-main);"><i class="fas fa-cubes"></i> Catálogo de Produtos</h3>
                         <small style="color:var(--text-muted);">Visualização geral e códigos de identificação</small>
                     </div>
-                    <div style="display:flex; gap:10px;">
-                        <input type="text" id="prodViewSearch" placeholder="Buscar produto..." onkeyup="renderProductsView()" style="padding:8px; border-radius:6px; width:250px; border:1px solid #ccc;">
+                    <div class="prod-header-controls">
+                        <input type="text" id="prodViewSearch" placeholder="Buscar produto..." onkeyup="renderProductsView()" style="padding:8px; border-radius:6px; width:220px; border:1px solid #ccc;">
+                        
+                        <div class="prod-view-toggle">
+                            <button class="toggle-view-btn active" id="btnViewTable" onclick="window.switchProductView('table')">
+                                <i class="fas fa-table"></i> Tabela
+                            </button>
+                            <button class="toggle-view-btn" id="btnViewCards" onclick="window.switchProductView('cards')">
+                                <i class="fas fa-th-large"></i> Cards
+                            </button>
+                        </div>
+
+                        <button class="btn btn-save" onclick="window.openCadModal('produto')" style="padding: 8px 16px;">
+                            <i class="fas fa-plus"></i> Novo Produto
+                        </button>
                     </div>
                 </div>
 
-                <div class="table-container" style="box-shadow:none; padding:0; border:none;">
+                <!-- Visualização em Tabela -->
+                <div id="prodViewTableContainer" class="table-container" style="box-shadow:none; padding:0; border:none; display:block;">
                     <table class="modern-table">
                         <thead>
                             <tr>
@@ -573,6 +618,25 @@
                         </thead>
                         <tbody id="prodViewBody"></tbody>
                     </table>
+                </div>
+
+                <!-- Visualização em Cards (Grid) -->
+                <div id="prodViewGridContainer" class="prod-grid-container" style="display:none;"></div>
+
+                <!-- Controles de Paginação -->
+                <div class="prod-pagination-bar" style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; padding-top:15px; border-top:1px solid #eee; flex-wrap:wrap; gap:15px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:0.85rem; color:var(--text-muted);">Itens por página:</span>
+                        <select id="prodPageSizeSelect" onchange="window.changeProductPageSize(this.value)" style="width:80px; padding:6px; border-radius:6px; font-size:0.85rem;">
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">Todos</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;" id="prodPaginationButtons">
+                        <!-- Botões de página injetados dinamicamente via JS -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -1217,24 +1281,59 @@
             <button class="btn btn-edit" style="width:100%" onclick="document.getElementById('modalProdCode').style.display='none'">Fechar</button>
         </div>
     </div>
+    
+    <!-- Modal para Seleção de Setor Alternativo (Outros Setores) -->
+    <div id="modalMoveSector" class="modal-overlay" style="z-index: 9999; display:none;">
+        <div class="modal-box" style="width: 400px; padding: 25px;">
+            <h3 style="margin-top:0;"><i class="fas fa-route" style="color:var(--primary);"></i> Selecionar Setor</h3>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:15px;">Selecione o setor de destino específico para o veículo:</p>
+            <input type="hidden" id="moveSectorTruckId">
+            <div class="form-full">
+                <label style="font-weight:bold; font-size:0.8rem; display:block; margin-bottom:5px;">Setor de Destino</label>
+                <select id="moveSectorSelect" class="form-input-styled" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-main);">
+                    <option value="MANUTENÇÃO">MANUTENÇÃO</option>
+                    <option value="INFRAESTRUTURA">INFRAESTRUTURA</option>
+                    <option value="SALA DE PESAGEM">SALA DE PESAGEM</option>
+                    <option value="LABORATÓRIO">LABORATÓRIO</option>
+                    <option value="SST">SST</option>
+                    <option value="CD">CD</option>
+                    <option value="COMPRAS">COMPRAS</option>
+                    <option value="OUTROS">OUTROS</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-edit" style="flex:1;" onclick="document.getElementById('modalMoveSector').style.display='none'">Cancelar</button>
+                <button class="btn btn-save" style="flex:1;" onclick="window.confirmMoveSector()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../js/config.js"></script>
     <script type="module" src="../js/main.js"></script>
     <script>
-        // Carrega dinamicamente o script do Socket.IO vindo do servidor
-        const socketScript = document.createElement('script');
-        socketScript.src = `${API_BASE_URL}/socket.io/socket.io.js`;
-        
-        socketScript.onload = function() {
-            console.log("✅ Biblioteca Socket.IO carregada do servidor.");
-            initRealTimeSystem(); 
-        };
-        
-        socketScript.onerror = function() {
-            console.error("❌ Não foi possível encontrar o servidor em " + API_BASE_URL);
-            document.getElementById('socketStatus').innerHTML = 'Erro Conexão';
-        };
-        
-        document.head.appendChild(socketScript);
+        // Carrega dinamicamente o script do Socket.IO vindo do servidor apenas se o Supabase não estiver ativo
+        if (!window.supabaseClient) {
+            const socketScript = document.createElement('script');
+            socketScript.src = `${API_BASE_URL}/socket.io/socket.io.js`;
+            
+            socketScript.onload = function() {
+                console.log("✅ Biblioteca Socket.IO carregada do servidor.");
+                initRealTimeSystem(); 
+            };
+            
+            socketScript.onerror = function() {
+                console.error("❌ Não foi possível encontrar o servidor em " + API_BASE_URL);
+                document.getElementById('socketStatus').innerHTML = 'Erro Conexão';
+            };
+            
+            document.head.appendChild(socketScript);
+        } else {
+            // Se estiver usando Supabase, inicializa o realtime após o carregamento da página
+            window.addEventListener('DOMContentLoaded', () => {
+                console.log("⚡ Usando Supabase para sincronização em tempo real.");
+                initRealTimeSystem();
+            });
+        }
     </script>
     
     <script>
@@ -1259,19 +1358,92 @@
         // Isso resolve o problema de "realizar ação" em outros PCs
         const originalFetch = window.fetch;
         window.fetch = function(url, options) {
-            // Se a URL for apenas "/api/...", adiciona o IP do servidor antes
-            if (url.startsWith('/')) {
+            // Se a URL for apenas "/api/..." e não estivermos usando Supabase, adiciona o IP do servidor antes.
+            // Se estivermos usando Supabase, não redirecionamos as chamadas da Vercel API.
+            if (url.startsWith('/') && !window.supabaseClient) {
                 url = API_BASE_URL + url;
             }
             return originalFetch(url, options);
         };
 
-        // --- LÓGICA DE TEMPO REAL (SOCKET) ---
+        // --- LÓGICA DE TEMPO REAL (SOCKET / SUPABASE) ---
         function initRealTimeSystem() {
-            if (typeof io !== 'undefined') {
+            const statusEl = document.getElementById('socketStatus');
+            
+            if (window.supabaseClient) {
+                if(statusEl) {
+                    statusEl.innerHTML = '<div style="width:8px; height:8px; background:#10b981; border-radius:50%; box-shadow:0 0 5px #10b981;"></div> Online (DB)';
+                    statusEl.style.color = '#10b981';
+                }
+                
+                // Recarrega os dados ao iniciar para sincronizar
+                if (typeof window.loadDataFromServer === 'function') {
+                    window.loadDataFromServer();
+                }
+
+                // Inscreve no canal em tempo real do Supabase
+                const channel = window.supabaseClient
+                    .channel('realtime:app_data')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_data' }, (payload) => {
+                        console.log("🔄 [Supabase Realtime] Atualização recebida:", payload);
+                        
+                        if (payload.eventType === 'DELETE') {
+                            if (typeof window.loadDataFromServer === 'function') window.loadDataFromServer();
+                        } else {
+                            const key = payload.new.key;
+                            const value = payload.new.value;
+                            
+                            // Atualiza o estado da aplicação local
+                            if (window.appState) {
+                                const keyMap = {
+                                    'aw_caminhoes_v2': 'patio',
+                                    'mapas_cegos_v3': 'maps',
+                                    'aw_materia_prima': 'materiaPrima',
+                                    'aw_carregamento': 'carregamento',
+                                    'aw_requests': 'requests',
+                                    'mapa_cego_users': 'users',
+                                    'aw_suppliers': 'suppliers',
+                                    'aw_carriers': 'carriers',
+                                    'aw_drivers': 'drivers',
+                                    'aw_plates': 'plates',
+                                    'aw_products': 'products'
+                                };
+                                const stateKey = keyMap[key];
+                                if (stateKey) {
+                                    window.appState.set(stateKey, value || []);
+                                }
+                            } else {
+                                const globalVarMap = {
+                                    'aw_caminhoes_v2': 'patioData',
+                                    'mapas_cegos_v3': 'mapData',
+                                    'aw_materia_prima': 'mpData',
+                                    'aw_carregamento': 'carregamentoData',
+                                    'aw_requests': 'requests',
+                                    'mapa_cego_users': 'usersData',
+                                    'aw_suppliers': 'suppliersData',
+                                    'aw_carriers': 'carriersData',
+                                    'aw_drivers': 'driversData',
+                                    'aw_plates': 'platesData',
+                                    'aw_products': 'productsData'
+                                };
+                                const varName = globalVarMap[key];
+                                if (varName) {
+                                    window[varName] = value || [];
+                                }
+                            }
+                            
+                            if (typeof window.saveToLocalOnly === 'function') window.saveToLocalOnly();
+                            if (typeof window.refreshCurrentView === 'function') window.refreshCurrentView();
+                        }
+                    })
+                    .subscribe((status) => {
+                        if (status !== 'SUBSCRIBED') {
+                            console.warn("⚠️ Falha na subscrição Realtime do Supabase:", status);
+                        }
+                    });
+            } else if (typeof io !== 'undefined') {
                 // Conecta explicitamente no IP do servidor
                 const socket = io(API_BASE_URL);
-                const statusEl = document.getElementById('socketStatus');
 
                 socket.on('connect', () => {
                     console.log(`🟢 [Socket] Conectado ao servidor ${API_BASE_URL}`);
@@ -1279,8 +1451,7 @@
                         statusEl.innerHTML = '<div style="width:8px; height:8px; background:#10b981; border-radius:50%; box-shadow:0 0 5px #10b981;"></div> Online';
                         statusEl.style.color = '#10b981';
                     }
-                    // Recarrega dados ao conectar para garantir sincronia
-                    if(window.loadData) window.loadData();
+                    if(typeof window.loadDataFromServer === 'function') window.loadDataFromServer();
                 });
                 
                 socket.on('disconnect', () => {
@@ -1293,18 +1464,7 @@
                 // ATUALIZAÇÃO AUTOMÁTICA
                 socket.on('atualizar_sistema', (data) => {
                     console.log("🔄 [Socket] Atualização recebida:", data);
-                    
-                    // Atualiza a tela que estiver aberta
-                    const activeView = document.querySelector('.view-section.active');
-                    if(activeView) {
-                        if (activeView.id === 'view-patio' && window.renderPatio) window.renderPatio();
-                        if (activeView.id === 'view-mapas' && window.renderMapList) window.renderMapList();
-                        if (activeView.id === 'view-materia-prima' && window.renderMateriaPrima) window.renderMateriaPrima();
-                        if (activeView.id === 'view-carregamento' && window.renderCarregamento) window.renderCarregamento();
-                        if (activeView.id === 'view-cadastros' && window.renderCadastros) window.renderCadastros();
-                    }
-                    
-                    if(window.checkNotifications) window.checkNotifications();
+                    if(typeof window.loadDataFromServer === 'function') window.loadDataFromServer();
                 });
             }
         }

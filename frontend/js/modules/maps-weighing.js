@@ -481,7 +481,7 @@ window.renderMateriaPrima = function() {
 
         tr.innerHTML = `
         <td>${m.date ? m.date.split('-').reverse().join('/') : '---'}</td>
-        <td><b>${m.produto}</b><br><small style="color:var(--text-muted);">${m.empresa}</small></td>
+        <td><b style="cursor:help; color:var(--primary);" data-fullname="${m.produto}">${window.formatProductName(m.produto)}</b><br><small style="color:var(--text-muted);">${m.empresa}</small></td>
         <td><span class="badge-code">${m.placa}</span></td>
         <td>${localBadge}</td>
         <td><b style="color:var(--text-muted);">${m.chegada ? m.chegada.slice(11, 16) : '-'}</b></td>

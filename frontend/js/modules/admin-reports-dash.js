@@ -7,92 +7,370 @@ window.renderProfileArea = function() {
     if (!container) return;
     container.innerHTML = '';
 
+    if (!window.loggedUser) {
+        container.innerHTML = '<p style="padding:20px; color:#999; text-align:center;">Nenhum usuário logado.</p>';
+        return;
+    }
+
+    const hasPermission = function(perm) {
+        const role = (window.loggedUser.role || '').toLowerCase();
+        const sector = (window.loggedUser.sector || '').toLowerCase();
+        const isAdm = role.includes('admin') || role.includes('administrador');
+        const isReceb = sector === 'recebimento' || isAdm;
+        const isConf = sector === 'conferente' || isAdm;
+        const isEnc = role.includes('encarreg');
+
+        switch(perm) {
+            case 'patio': return isReceb || isConf || isEnc;
+            case 'drag_truck': return isReceb;
+            case 'register_truck': return isReceb;
+            case 'sign_notes': return isConf;
+            case 'weighing': return isConf || isReceb;
+            case 'user_management': return isAdm;
+            case 'staff_creation': return isEnc || isAdm;
+            case 'reports_dash': return isAdm || isEnc;
+            case 'approve_requests': return isAdm || isEnc;
+            default: return false;
+        }
+    };
+
+    const renderPermissionItem = function(label, active) {
+        const icon = active 
+            ? '<i class="fas fa-check-circle" style="color: #10b981; margin-right: 8px;"></i>' 
+            : '<i class="fas fa-times-circle" style="color: var(--text-muted); opacity: 0.5; margin-right: 8px;"></i>';
+        const textStyle = active ? 'font-weight: 500; color: var(--text-main);' : 'color: var(--text-muted); text-decoration: line-through; opacity: 0.7;';
+        return `
+            <div class="permission-item" style="display: flex; align-items: center; padding: 6px 10px; background: rgba(0,0,0,0.02); border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border-color);">
+                ${icon}
+                <span style="${textStyle}">${label}</span>
+            </div>
+        `;
+    };
+
+    const u = (window.usersData || []).find(x => x.username === window.loggedUser.username);
+    const avatarEmoji = window.loggedUser.avatarEmoji || (u ? u.avatarEmoji : null) || '👤';
+    const avatarColor = window.loggedUser.avatarColor || (u ? u.avatarColor : null) || '#3b82f6';
+
+    const AVATARS = [
+        { emoji: '👤', color: '#3b82f6' },
+        { emoji: '👷', color: '#f59e0b' },
+        { emoji: '👨‍💼', color: '#8b5cf6' },
+        { emoji: '👩‍💼', color: '#ec4899' },
+        { emoji: '👨‍💻', color: '#10b981' },
+        { emoji: '👩‍💻', color: '#14b8a6' },
+        { emoji: '🕵️', color: '#6b7280' },
+        { emoji: '⚡', color: '#ef4444' }
+    ];
+
+    const avatarSelectorHtml = AVATARS.map(av => {
+        const isSelected = av.emoji === avatarEmoji && av.color === avatarColor;
+        return `
+            <div class="avatar-selector-item ${isSelected ? 'selected' : ''}" 
+                 onclick="window.selectProfileAvatar('${av.emoji}', '${av.color}')" 
+                 style="background-color: ${av.color};">
+                ${av.emoji}
+            </div>
+        `;
+    }).join('');
+
+    let roleClass = 'user';
+    if (window.isAdmin) roleClass = 'admin';
+    else if (window.isEncarregado) roleClass = 'enc';
+
+    let rightColumnContent = '';
+
     if (window.isAdmin) {
-        container.innerHTML = `
+        rightColumnContent = `
             <div class="settings-card">
                 <h4><i class="fas fa-users-cog"></i> Gerenciamento de Usuários (Administrador)</h4>
-                <div style="margin-bottom:20px; background:var(--bg-input); padding:15px; border-radius:6px; border:1px solid var(--border-color);">
-                    <h5>Adicionar Novo Usuário</h5>
+                <div style="margin-bottom:20px; background:rgba(0,0,0,0.02); padding:15px; border-radius:6px; border:1px solid var(--border-color);">
+                    <h5 style="margin-top:0;">Adicionar Novo Usuário</h5>
                     <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap:10px; align-items:end;">
-                        <div><label style="font-size:0.8rem">Usuário</label><input type="text" id="newUsername" placeholder="Ex: Joao"></div>
-                        <div><label style="font-size:0.8rem">Senha</label><input type="text" id="newPassword" placeholder="***"></div>
+                        <div><label style="font-size:0.8rem">Usuário</label><input type="text" id="newUsername" placeholder="Ex: Joao" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);"></div>
+                        <div><label style="font-size:0.8rem">Senha</label><input type="text" id="newPassword" placeholder="***" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);"></div>
                         <div><label style="font-size:0.8rem">Função</label>
-                            <select id="newRole"><option value="user">Usuário</option><option value="admin">Administrador</option></select>
+                            <select id="newRole" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);"><option value="user">Usuário</option><option value="admin">Administrador</option></select>
                         </div>
                         <div><label style="font-size:0.8rem">Setor/Subtipo</label>
-                            <select id="newSector">
+                            <select id="newSector" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);">
                                 <option value="recebimento">Recebimento</option>
                                 <option value="conferente">Conferente (Geral)</option>
                                 <option value="ALM">Conferente ALM</option>
                                 <option value="GAVA">Conferente GAVA</option>
                                 <option value="INFRA">Conferente INFRA</option>
                                 <option value="MANUT">Conferente MANUT</option>
+                                <option value="LAB">Laboratório</option>
+                                <option value="SST">SST</option>
+                                <option value="CD">CD</option>
+                                <option value="COMPRAS">Compras</option>
                             </select>
                         </div>
-                        <button class="btn btn-save" onclick="window.addNewUser()">Adicionar</button>
+                        <button class="btn btn-save" onclick="window.addNewUser()" style="height:32px;">Adicionar</button>
                     </div>
                 </div>
-                <table class="modern-table">
-                    <thead><tr><th>Usuário</th><th>Função</th><th>Setor/Subtipo</th><th>Ações</th></tr></thead>
-                    <tbody id="adminUserList"></tbody>
-                </table>
+                <div style="overflow-x: auto;">
+                    <table class="modern-table" style="width: 100%;">
+                        <thead><tr><th>Usuário</th><th>Função</th><th>Setor/Subtipo</th><th>Ações</th></tr></thead>
+                        <tbody id="adminUserList"></tbody>
+                    </table>
+                </div>
             </div>
         `;
-        if (typeof window.renderUserList === 'function') window.renderUserList();
-    } else {
-        const today = window.getBrazilTime().split('T')[0];
-        const countToday = window.patioData.filter(x => (x.chegada || '').startsWith(today)).length;
-        if (window.isEncarregado) {
-            container.innerHTML = `
-            <div class="settings-grid">
-                <div class="settings-card">
-                    <h4><i class="fas fa-id-card"></i> Meu Perfil</h4>
-                    <p><b>Usuário:</b> ${loggedUser.username}</p>
-                    <p><b>Função:</b> ${loggedUser.role}</p>
-                    <p><b>Setor:</b> ${loggedUser.sector} ${loggedUser.subType ? '(' + loggedUser.subType + ')' : ''}</p>
-                </div>
-                <div class="settings-card">
-                    <h4><i class="fas fa-chart-bar"></i> Estatísticas Hoje</h4>
-                    <p>Caminhões no Pátio: <b>${window.patioData.filter(x => x.status !== 'SAIU').length}</b></p>
-                    <p>Entradas Totais: <b>${countToday}</b></p>
-                </div>
-            </div>
-            <div style="margin-top:18px;">
-                <div class="settings-card">
-                    <h4><i class="fas fa-user-cog"></i> Controle de Contas (Encarregado)</h4>
-                    <div style="margin-bottom:10px; background:var(--bg-input); padding:12px; border-radius:6px; border:1px solid var(--border-color);">
-                        <h5 style="margin-top:0;">Criar Conta para Funcionário (Setor: ${loggedUser.sector})</h5>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; align-items:end;">
-                            <input id="new_fullname" placeholder="Nome Completo">
-                            <input id="new_display" placeholder="Nome de Assinatura">
-                            <input id="new_username" placeholder="Login">
-                            <input id="new_password" placeholder="Senha">
-                            <button class="btn btn-save" onclick="window.createAccountByEncarregado()">Criar</button>
+        setTimeout(() => { if (typeof window.renderUserList === 'function') window.renderUserList(); }, 0);
+    } else if (window.isEncarregado) {
+        rightColumnContent = `
+            <div class="settings-card">
+                <h4><i class="fas fa-user-cog"></i> Controle de Contas (Encarregado)</h4>
+                <div style="margin-bottom:20px; background:rgba(0,0,0,0.02); padding:15px; border-radius:6px; border:1px solid var(--border-color);">
+                    <h5 style="margin-top:0;">Criar Conta para Funcionário (Setor: ${window.loggedUser.sector})</h5>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+                        <div>
+                            <label style="font-size:0.8rem; color:var(--text-muted);">Nome Completo</label>
+                            <input id="new_fullname" placeholder="Ex: João da Silva" style="width:100%; padding:8px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; color:var(--text-muted);">Nome de Assinatura</label>
+                            <input id="new_display" placeholder="Ex: JOAO.SILVA" style="width:100%; padding:8px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; color:var(--text-muted);">Usuário (Login)</label>
+                            <input id="new_username" placeholder="Ex: joaosilva" style="width:100%; padding:8px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; color:var(--text-muted);">Senha</label>
+                            <input id="new_password" placeholder="***" type="password" style="width:100%; padding:8px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);">
                         </div>
                     </div>
-                    <h5>Pendências de Solicitação</h5>
-                    <div id="encReqList" style="max-height:220px; overflow:auto; border:1px solid var(--border-color); padding:8px; border-radius:6px; background:var(--bg-card);"></div>
+                    <button class="btn btn-save" onclick="window.createAccountByEncarregado()" style="width:100%;">Criar Conta</button>
+                </div>
+                
+                <h5>Pendências de Solicitação</h5>
+                <div id="encReqList" style="max-height:220px; overflow:auto; border:1px solid var(--border-color); padding:8px; border-radius:6px; background:var(--bg-card);"></div>
+            </div>
+        `;
+        setTimeout(() => { if (typeof window.loadAccountRequests === 'function') window.loadAccountRequests(); }, 0);
+    } else {
+        const today = window.getBrazilTime ? window.getBrazilTime().split('T')[0] : new Date().toISOString().split('T')[0];
+        const countToday = window.patioData ? window.patioData.filter(x => (x.chegada || '').startsWith(today)).length : 0;
+        const countInYard = window.patioData ? window.patioData.filter(x => x.status !== 'SAIU').length : 0;
+        const countGava = window.patioData ? window.patioData.filter(x => x.status === 'GAVA').length : 0;
+        const countAlm = window.patioData ? window.patioData.filter(x => x.status === 'ALM').length : 0;
+        const countOut = window.patioData ? window.patioData.filter(x => x.status === 'OUT').length : 0;
+
+        rightColumnContent = `
+            <div class="settings-card">
+                <h4><i class="fas fa-chart-bar"></i> Estatísticas Operacionais do Pátio</h4>
+                
+                <div class="profile-stats-grid">
+                    <div class="profile-stat-box" style="background: rgba(185, 28, 28, 0.05); border-color: rgba(185, 28, 28, 0.2);">
+                        <h3>${countInYard}</h3>
+                        <span>No Pátio Agora</span>
+                    </div>
+                    <div class="profile-stat-box">
+                        <h3>${countToday}</h3>
+                        <span>Entradas Hoje</span>
+                    </div>
+                </div>
+
+                <h5 style="margin: 20px 0 10px 0; font-size: 0.9rem; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <i class="fas fa-map-marker-alt" style="color: var(--primary);"></i> Distribuição por Setor
+                </h5>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.02); border-radius: 6px; border: 1px solid var(--border-color);">
+                        <span style="font-weight: 500; font-size: 0.85rem;"><i class="fas fa-warehouse" style="margin-right: 8px; color: var(--text-muted);"></i> Doca / ALM</span>
+                        <span class="badge" style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 0.75rem;">${countAlm}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.02); border-radius: 6px; border: 1px solid var(--border-color);">
+                        <span style="font-weight: 500; font-size: 0.85rem;"><i class="fas fa-traffic-light" style="margin-right: 8px; color: var(--text-muted);"></i> GAVA</span>
+                        <span class="badge" style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 0.75rem;">${countGava}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.02); border-radius: 6px; border: 1px solid var(--border-color);">
+                        <span style="font-weight: 500; font-size: 0.85rem;"><i class="fas fa-external-link-alt" style="margin-right: 8px; color: var(--text-muted);"></i> Outros Setores</span>
+                        <span class="badge" style="background: #10b981; color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 0.75rem;">${countOut}</span>
+                    </div>
+                </div>
+
+                <h5 style="margin: 20px 0 10px 0; font-size: 0.9rem; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                    <i class="fas fa-info-circle" style="color: var(--primary);"></i> Informações do Sistema
+                </h5>
+                <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; display: grid; grid-template-columns: auto 1fr; gap: 8px 12px;">
+                    <strong>Status:</strong> <span style="color: #10b981; font-weight: 600;"><i class="fas fa-check-circle"></i> Operacional</span>
+                    <strong>Último Sinc:</strong> <span>${new Date().toLocaleTimeString()}</span>
+                    <strong>Setor Ativo:</strong> <span>${(window.loggedUser.sector || '').toUpperCase()}</span>
                 </div>
             </div>
-            `;
-            if (typeof window.loadAccountRequests === 'function') window.loadAccountRequests();
-        } else {
-            container.innerHTML = `
-            <div class="settings-grid">
+        `;
+    }
+
+    container.innerHTML = `
+        <div class="profile-dashboard">
+            <!-- COLUNA ESQUERDA: PERFIL + SENHA -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- CARD MEU PERFIL -->
                 <div class="settings-card">
                     <h4><i class="fas fa-id-card"></i> Meu Perfil</h4>
-                    <p><b>Usuário:</b> ${loggedUser.username}</p>
-                    <p><b>Setor:</b> ${loggedUser.sector}</p>
+                    
+                    <div class="profile-avatar-wrapper">
+                        <div class="profile-avatar-circle" id="profileAvatarCircle" onclick="window.toggleAvatarSelector()" style="background-color: ${avatarColor};">
+                            ${avatarEmoji}
+                            <div class="profile-avatar-badge"><i class="fas fa-camera"></i></div>
+                        </div>
+                        
+                        <div class="avatar-selector-container" id="avatarSelectorContainer" style="display: none;">
+                            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Escolha seu Avatar</span>
+                            <div class="avatar-selector-grid">
+                                ${avatarSelectorHtml}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-name-area">
+                        <h3>${window.loggedUser.fullname || window.loggedUser.username}</h3>
+                        <div class="profile-badge-group">
+                            <span class="profile-badge role-${roleClass}">${window.loggedUser.role || 'Usuário'}</span>
+                            <span class="profile-badge sector-badge">${window.loggedUser.sector || 'Geral'}${window.loggedUser.subType ? ' (' + window.loggedUser.subType + ')' : ''}</span>
+                        </div>
+                    </div>
+
+                    <!-- PERMISSÕES -->
+                    <div class="profile-permissions">
+                        <h5><i class="fas fa-key"></i> Permissões Ativas</h5>
+                        <div class="permission-grid">
+                            ${renderPermissionItem('Acesso ao Pátio', hasPermission('patio'))}
+                            ${renderPermissionItem('Arrastar Caminhões', hasPermission('drag_truck'))}
+                            ${renderPermissionItem('Registrar Entrada/Saída', hasPermission('register_truck'))}
+                            ${renderPermissionItem('Assinar Notas (Mapa)', hasPermission('sign_notes'))}
+                            ${renderPermissionItem('Pesagem de Carga', hasPermission('weighing'))}
+                            ${renderPermissionItem('Gerenciar Usuários (Admin)', hasPermission('user_management'))}
+                            ${renderPermissionItem('Criar Contas (Encarregado)', hasPermission('staff_creation'))}
+                            ${renderPermissionItem('Relatórios & Dashboard', hasPermission('reports_dash'))}
+                            ${renderPermissionItem('Aprovar Requisições', hasPermission('approve_requests'))}
+                        </div>
+                    </div>
                 </div>
+
+                <!-- CARD ALTERAR SENHA -->
                 <div class="settings-card">
-                    <h4><i class="fas fa-chart-bar"></i> Estatísticas Hoje</h4>
-                    <p>Caminhões no Pátio: <b>${window.patioData.filter(x => x.status !== 'SAIU').length}</b></p>
-                    <p>Entradas Totais: <b>${countToday}</b></p>
+                    <h4><i class="fas fa-lock"></i> Alterar Senha</h4>
+                    <div class="profile-form-group">
+                        <div>
+                            <label>Senha Atual</label>
+                            <div class="profile-input-wrapper">
+                                <i class="fas fa-key"></i>
+                                <input type="password" id="profileCurrentPass" placeholder="••••••••">
+                            </div>
+                        </div>
+                        <div>
+                            <label>Nova Senha</label>
+                            <div class="profile-input-wrapper">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="profileNewPass" placeholder="Mínimo 4 caracteres">
+                            </div>
+                        </div>
+                        <div>
+                            <label>Confirmar Nova Senha</label>
+                            <div class="profile-input-wrapper">
+                                <i class="fas fa-check-double"></i>
+                                <input type="password" id="profileConfirmPass" placeholder="Repita a nova senha">
+                            </div>
+                        </div>
+                        <button class="btn btn-save" onclick="window.changeProfilePassword()" style="margin-top: 5px; width: 100%; font-weight: 600;">
+                            <i class="fas fa-save"></i> Atualizar Senha
+                        </button>
+                    </div>
                 </div>
             </div>
-            `;
+
+            <!-- COLUNA DIREITA -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                ${rightColumnContent}
+            </div>
+        </div>
+    `;
+};
+
+window.toggleAvatarSelector = function() {
+    const el = document.getElementById('avatarSelectorContainer');
+    if (!el) return;
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+};
+
+window.selectProfileAvatar = function(emoji, color) {
+    if (!window.loggedUser) return;
+    
+    // Update loggedUser state
+    window.loggedUser.avatarEmoji = emoji;
+    window.loggedUser.avatarColor = color;
+    sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
+    
+    // Update in usersData database
+    if (window.usersData) {
+        const u = window.usersData.find(x => x.username === window.loggedUser.username);
+        if (u) {
+            u.avatarEmoji = emoji;
+            u.avatarColor = color;
         }
     }
+    
+    // Save
+    if (typeof window.saveAll === 'function') {
+        window.saveAll();
+    }
+    
+    // Re-render
+    window.renderProfileArea();
+};
+
+window.changeProfilePassword = function() {
+    const currentPass = document.getElementById('profileCurrentPass').value;
+    const newPass = document.getElementById('profileNewPass').value;
+    const confirmPass = document.getElementById('profileConfirmPass').value;
+
+    if (!currentPass || !newPass || !confirmPass) {
+        alert('Por favor, preencha todos os campos da senha.');
+        return;
+    }
+
+    if (!window.usersData) {
+        alert('Erro: banco de dados de usuários não disponível.');
+        return;
+    }
+
+    const u = window.usersData.find(x => x.username === window.loggedUser.username);
+    if (!u) {
+        alert('Erro: Usuário não encontrado no banco de dados.');
+        return;
+    }
+
+    // Se o usuário tiver senha cadastrada, verifica.
+    if (u.password && u.password !== currentPass) {
+        alert('Senha atual incorreta.');
+        return;
+    }
+
+    if (newPass.length < 4) {
+        alert('A nova senha deve ter pelo menos 4 caracteres.');
+        return;
+    }
+
+    if (newPass !== confirmPass) {
+        alert('A confirmação da nova senha não coincide.');
+        return;
+    }
+
+    u.password = newPass;
+    window.loggedUser.password = newPass;
+    sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
+    
+    if (typeof window.saveAll === 'function') {
+        window.saveAll();
+    }
+
+    alert('Senha atualizada com sucesso!');
+    document.getElementById('profileCurrentPass').value = '';
+    document.getElementById('profileNewPass').value = '';
+    document.getElementById('profileConfirmPass').value = '';
 };
 
 window.switchRepTab = function(type) {
@@ -226,11 +504,11 @@ window.generateAdvancedReport = function() {
             const statusColor = isLaunched ? '#10b981' : '#f59e0b';
             html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td><span class="badge-code">${i.placa}</span></td><td>${i.rows?.[0]?.forn || '---'}</td><td><span style="background:${statusBg}; color:${statusColor}; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem;">${isLaunched ? 'Lançado' : 'Rascunho'}</span></td>`;
         } else if (t === 'materia-prima') {
-            html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td>${i.produto}</td><td><span class="badge-code">${i.placa}</span></td><td><b style="color:var(--primary);">${(i.liq || 0).toLocaleString()} Kg</b></td>`;
+            html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td><span style="cursor:help; font-weight:600; color:var(--primary);" data-fullname="${i.produto}">${window.formatProductName(i.produto)}</span></td><td><span class="badge-code">${i.placa}</span></td><td><b style="color:var(--primary);">${(i.liq || 0).toLocaleString()} Kg</b></td>`;
         } else if (t === 'divergencias') {
             const diffColor = i.diff > 0 ? '#10b981' : '#ef4444';
             const signal = i.diff > 0 ? '+' : '';
-            html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td>${i.prod}</td><td><b>NF: ${i.nf}</b></td><td><b style="color:${diffColor}; font-size:0.95rem;">${signal}${i.diff}</b></td>`;
+            html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td><span style="cursor:help; font-weight:600; color:var(--primary);" data-fullname="${i.prod}">${window.formatProductName(i.prod)}</span></td><td><b>NF: ${i.nf}</b></td><td><b style="color:${diffColor}; font-size:0.95rem;">${signal}${i.diff}</b></td>`;
         } else {
             html += `<td>${new Date(i.checkin).toLocaleString('pt-BR')}</td><td>${i.motorista}</td><td><span style="background:rgba(0,0,0,0.05); padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem;">${i.status}</span></td>`;
         }
@@ -714,17 +992,117 @@ window.renderCadastros = function() {
     }).join('');
 };
 
+window.currentProductView = 'table';
+
+window.switchProductView = function(view) {
+    window.currentProductView = view;
+    
+    const btnTable = document.getElementById('btnViewTable');
+    const btnCards = document.getElementById('btnViewCards');
+    const tableContainer = document.getElementById('prodViewTableContainer');
+    const gridContainer = document.getElementById('prodViewGridContainer');
+    
+    if (view === 'table') {
+        if (btnTable) btnTable.classList.add('active');
+        if (btnCards) btnCards.classList.remove('active');
+        if (tableContainer) tableContainer.style.display = 'block';
+        if (gridContainer) gridContainer.style.display = 'none';
+    } else {
+        if (btnTable) btnTable.classList.remove('active');
+        if (btnCards) btnCards.classList.add('active');
+        if (tableContainer) tableContainer.style.display = 'none';
+        if (gridContainer) gridContainer.style.display = 'grid';
+    }
+    
+    window.renderProductsView();
+};
+
+window.productPageSize = 25;
+window.productCurrentPage = 1;
+
+window.changeProductPageSize = function(val) {
+    if (val === 'all') {
+        window.productPageSize = -1;
+    } else {
+        window.productPageSize = parseInt(val) || 25;
+    }
+    window.productCurrentPage = 1;
+    window.renderProductsView();
+};
+
+window.setProductPage = function(page) {
+    window.productCurrentPage = page;
+    window.renderProductsView();
+};
+
 window.renderProductsView = function() {
     const body = document.getElementById('prodViewBody');
+    const grid = document.getElementById('prodViewGridContainer');
+    const paginationContainer = document.getElementById('prodPaginationButtons');
     const term = document.getElementById('prodViewSearch')?.value.toUpperCase() || '';
     if(!body) return;
 
+    // Filter products
     const filtered = window.productsData.filter(p => p.nome.toUpperCase().includes(term));
-    body.innerHTML = filtered.map(p => `
+
+    // Update Catalog Stats
+    const totalProducts = window.productsData.length;
+    let totalCargas = 0;
+    let mostFreqProduct = '---';
+    let maxCargas = -1;
+    
+    window.productsData.forEach(p => {
+        const count = parseInt(p.cargasCount) || 0;
+        totalCargas += count;
+        if (count > maxCargas) {
+            maxCargas = count;
+            mostFreqProduct = p.nome;
+        }
+    });
+    
+    const elTotal = document.getElementById('prodStatTotal');
+    const elCargas = document.getElementById('prodStatCargas');
+    const elFrequente = document.getElementById('prodStatFrequente');
+    
+    if (elTotal) elTotal.innerText = totalProducts;
+    if (elCargas) elCargas.innerText = totalCargas;
+    if (elFrequente) {
+        elFrequente.innerText = maxCargas > 0 ? window.formatProductName(mostFreqProduct) : '---';
+        if (maxCargas > 0) {
+            elFrequente.setAttribute('data-fullname', mostFreqProduct);
+            elFrequente.style.cursor = 'help';
+        } else {
+            elFrequente.removeAttribute('data-fullname');
+            elFrequente.style.cursor = 'default';
+        }
+    }
+
+    // Apply Pagination
+    const pageSize = window.productPageSize || 25;
+    const totalItems = filtered.length;
+    let totalPages = 1;
+    let paginated = filtered;
+    
+    if (pageSize !== -1) {
+        totalPages = Math.ceil(totalItems / pageSize) || 1;
+        if (window.productCurrentPage > totalPages) {
+            window.productCurrentPage = totalPages;
+        }
+        if (window.productCurrentPage < 1) {
+            window.productCurrentPage = 1;
+        }
+        const startIdx = (window.productCurrentPage - 1) * pageSize;
+        paginated = filtered.slice(startIdx, startIdx + pageSize);
+    } else {
+        window.productCurrentPage = 1;
+    }
+
+    // Render Table View
+    body.innerHTML = paginated.map(p => `
         <tr>
-            <td><b style="color:var(--primary)">${p.codigo || '---'}</b></td>
-            <td>${p.nome}</td>
-            <td>${p.cargasCount || 0}</td>
+            <td><b style="color:var(--primary); font-family:monospace;">${p.codigo || '---'}</b></td>
+            <td><span style="cursor:help; font-weight:600; color:var(--text-main);" data-fullname="${p.nome}">${window.formatProductName(p.nome)}</span></td>
+            <td><b>${p.cargasCount || 0}</b></td>
             <td>${p.lastSupplier || '---'}</td>
             <td>
                 <button class="btn btn-save btn-small" onclick="window.openCadModal('produto','${p.id}')"><i class="fas fa-edit"></i></button>
@@ -732,6 +1110,76 @@ window.renderProductsView = function() {
             </td>
         </tr>
     `).join('');
+
+    // Render Grid View
+    if (grid) {
+        grid.innerHTML = paginated.map(p => `
+            <div class="prod-card">
+                <div class="prod-card-header">
+                    <span class="prod-sku-badge">SKU: ${p.codigo || 'S/C'}</span>
+                </div>
+                <div class="prod-card-body">
+                    <h4 class="prod-card-title" style="cursor:help;" data-fullname="${p.nome}">${window.formatProductName(p.nome)}</h4>
+                    <div class="prod-card-stats">
+                        <div class="prod-card-stat-row">
+                            <span class="prod-card-stat-label">Cargas Recebidas:</span>
+                            <span class="prod-card-stat-val">${p.cargasCount || 0}</span>
+                        </div>
+                        <div class="prod-card-stat-row">
+                            <span class="prod-card-stat-label">Último Fornecedor:</span>
+                            <span class="prod-card-stat-val">${p.lastSupplier || '---'}</span>
+                        </div>
+                    </div>
+                    <div class="prod-card-actions">
+                        <button class="btn-prod-action btn-prod-edit" onclick="window.openCadModal('produto','${p.id}')" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button class="btn-prod-action btn-prod-del" onclick="window.deleteCad('produto', '${p.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Render Pagination Controls
+    if (paginationContainer) {
+        if (pageSize === -1 || totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+        } else {
+            let html = '';
+            
+            // First Page & Previous Page buttons
+            html += `<button class="page-btn" ${window.productCurrentPage === 1 ? 'disabled' : ''} onclick="window.setProductPage(1)" title="Primeira Página"><i class="fas fa-angle-double-left"></i></button>`;
+            html += `<button class="page-btn" ${window.productCurrentPage === 1 ? 'disabled' : ''} onclick="window.setProductPage(${window.productCurrentPage - 1})" title="Página Anterior"><i class="fas fa-angle-left"></i></button>`;
+            
+            // Dynamic page buttons (show current page, and up to 2 pages before and after)
+            const range = 2;
+            let startPage = Math.max(1, window.productCurrentPage - range);
+            let endPage = Math.min(totalPages, window.productCurrentPage + range);
+            
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="window.setProductPage(1)">1</button>`;
+                if (startPage > 2) {
+                    html += `<span class="page-ellipsis">...</span>`;
+                }
+            }
+            
+            for (let page = startPage; page <= endPage; page++) {
+                html += `<button class="page-btn ${window.productCurrentPage === page ? 'active' : ''}" onclick="window.setProductPage(${page})">${page}</button>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span class="page-ellipsis">...</span>`;
+                }
+                html += `<button class="page-btn" onclick="window.setProductPage(${totalPages})">${totalPages}</button>`;
+            }
+            
+            // Next Page & Last Page buttons
+            html += `<button class="page-btn" ${window.productCurrentPage === totalPages ? 'disabled' : ''} onclick="window.setProductPage(${window.productCurrentPage + 1})" title="Próxima Página"><i class="fas fa-angle-right"></i></button>`;
+            html += `<button class="page-btn" ${window.productCurrentPage === totalPages ? 'disabled' : ''} onclick="window.setProductPage(${totalPages})" title="Última Página"><i class="fas fa-angle-double-right"></i></button>`;
+            
+            paginationContainer.innerHTML = html;
+        }
+    }
 };
 
 window.openEditProduct = function(id) {
@@ -740,24 +1188,108 @@ window.openEditProduct = function(id) {
 
 window.renderRequests = function() {
     const list = document.getElementById('reqList');
+    const historyList = document.getElementById('historyList');
     const badge = document.getElementById('badgeNotif');
     if (!list) return;
+    
     const pending = window.requests.filter(r => r.status === 'PENDENTE');
     if (badge) badge.innerText = pending.length;
+    
+    // Render Pending Requests
     if (pending.length === 0) {
         list.innerHTML = '<p style="padding:20px; color:#999; text-align:center;">Nenhuma requisição pendente.</p>';
-        return;
+    } else {
+        list.innerHTML = pending.map(req => {
+            let detailsHtml = '';
+            if (req.type === 'edit') {
+                detailsHtml = 'Solicitação de liberação de edição para Mapa Cego bloqueado.';
+            } else if (req.data) {
+                const parts = [];
+                // Suporte aos formatos antigo e novo de dados
+                const isFornNew = req.data.fornecedor?.isNew || (req.data.supplier && !req.data.supplier.id);
+                const isCarrNew = (req.data.transportadora?.isNew && req.data.transportadora?.active) || (req.data.carrier && !req.data.carrier.id && req.data.carrier.name);
+                const isMotNew = req.data.motorista?.isNew || (req.data.driver && !req.data.driver.id);
+                const isPlacaNew = req.data.placa?.isNew || (req.data.plate && !req.data.plate.id);
+                
+                if (isFornNew) parts.push('Fornecedor');
+                if (isCarrNew) parts.push('Transportadora');
+                if (isMotNew) parts.push('Motorista');
+                if (isPlacaNew) parts.push('Placa');
+                
+                detailsHtml = parts.length > 0 
+                    ? `Cadastros Pendentes: <span style="color:#d97706; font-weight:600;">${parts.join(', ')}</span>`
+                    : 'Entrada de veículo com dados pré-cadastrados.';
+            } else {
+                detailsHtml = 'Requisição de aprovação.';
+            }
+            
+            return `
+                <div class="notification-item" style="border-left: 4px solid #f59e0b; margin-bottom:12px; padding:16px; background:var(--bg-card); border-radius:12px; box-shadow:var(--shadow-md); transition:transform 0.2s ease; display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="font-size:0.85rem; color:var(--primary); text-transform:uppercase;"><i class="fas fa-bell"></i> ${(req.type || '').replace('_', ' ')}</b>
+                        <small style="color:#888; font-weight:500;"><i class="far fa-clock"></i> ${req.timestamp ? req.timestamp.slice(11, 16) + ' ' + req.timestamp.slice(8, 10) + '/' + req.timestamp.slice(5, 7) : '--:--'}</small>
+                    </div>
+                    <div style="font-size:0.9rem; color:var(--text-main); margin-top:2px;">
+                        Solicitado por: <b>${req.requester || req.user || '---'}</b>
+                    </div>
+                    <p style="margin:0; font-size:0.85rem; color:var(--text-muted); line-height:1.4;">${detailsHtml}</p>
+                    <button class="btn btn-save btn-small" style="width:100%; font-weight:700; margin-top:5px; border-radius:8px;" onclick="window.openUnifiedApproval('${req.id}')">
+                        <i class="fas fa-clipboard-check"></i> Analisar e Aprovar
+                    </button>
+                </div>
+            `;
+        }).join('');
     }
-    list.innerHTML = pending.map(req => `
-        <div class="notification-item" style="border-left: 4px solid #f59e0b; margin-bottom:10px; padding:12px; background:var(--bg-card); border-radius:8px; box-shadow:var(--shadow-sm);">
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <b style="font-size:0.8rem; color:var(--primary);">${(req.type || '').toUpperCase()}</b>
-                <small style="color:#888;">${req.timestamp ? req.timestamp.slice(11, 16) : '--:--'}</small>
-            </div>
-            <p style="margin:5px 0; font-size:0.9rem;">Solicitado por: <b>${req.requester || req.user || '---'}</b></p>
-            <button class="btn btn-save btn-small" style="width:100%" onclick="window.openUnifiedApproval('${req.id}')">Analisar e Aprovar</button>
-        </div>
-    `).join('');
+
+    // Render Resolved Request History
+    if (historyList) {
+        const resolved = window.requests.filter(r => r.status !== 'PENDENTE').slice(-30).reverse(); // Últimos 30 resolvidos
+        if (resolved.length === 0) {
+            historyList.innerHTML = '<p style="padding:20px; color:#999; text-align:center;">Nenhum histórico de requisição.</p>';
+        } else {
+            historyList.innerHTML = resolved.map(req => {
+                const isApproved = req.status === 'approved' || req.status === 'APROVADO';
+                const statusLabel = isApproved ? 'APROVADO' : 'REJEITADO';
+                const borderStyle = isApproved ? 'border-left: 4px solid #10b981;' : 'border-left: 4px solid #ef4444;';
+                const icon = isApproved 
+                    ? '<i class="fas fa-check-circle" style="color:#10b981;"></i>' 
+                    : '<i class="fas fa-times-circle" style="color:#ef4444;"></i>';
+                
+                let detailsText = '';
+                if (req.type === 'edit') {
+                    detailsText = `Edição de Mapa Cego.`;
+                } else if (req.data) {
+                    const parts = [];
+                    const isFornNew = req.data.fornecedor?.isNew || (req.data.supplier && !req.data.supplier.id);
+                    const isCarrNew = (req.data.transportadora?.isNew && req.data.transportadora?.active) || (req.data.carrier && !req.data.carrier.id && req.data.carrier.name);
+                    const isMotNew = req.data.motorista?.isNew || (req.data.driver && !req.data.driver.id);
+                    const isPlacaNew = req.data.placa?.isNew || (req.data.plate && !req.data.plate.id);
+                    
+                    if (isFornNew) parts.push('Forn');
+                    if (isCarrNew) parts.push('Transp');
+                    if (isMotNew) parts.push('Mot');
+                    if (isPlacaNew) parts.push('Placa');
+                    
+                    detailsText = parts.length > 0 ? `Entrada com Novos Cadastros: ${parts.join(', ')}` : 'Entrada de Veículo';
+                } else {
+                    detailsText = req.type || 'Requisição Geral';
+                }
+                
+                return `
+                    <div class="notification-item" style="${borderStyle} margin-bottom:10px; padding:12px; background:var(--bg-card); border-radius:8px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; gap:4px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:bold; font-size:0.8rem; display:flex; align-items:center; gap:6px; text-transform:uppercase;">
+                                ${icon} ${(req.type || '').replace('_', ' ')}
+                            </span>
+                            <span style="font-size:0.75rem; background:rgba(0,0,0,0.04); color:var(--text-muted); padding:2px 6px; border-radius:10px; font-weight:bold;">${statusLabel}</span>
+                        </div>
+                        <p style="margin:2px 0; font-size:0.85rem; color:var(--text-muted);">${detailsText}</p>
+                        <small style="color:#888; font-size:0.75rem;"><i class="far fa-clock"></i> Solicitante: <b>${req.requester || req.user || '---'}</b></small>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
 };
 
 window.openUnifiedApproval = function(id) {

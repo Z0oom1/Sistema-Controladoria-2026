@@ -88,6 +88,60 @@ const requestController = new RequestController();
 
 // --- FUNÇÕES DE LOGIN ---
 async function tryServerLogin(username, password) {
+    if (window.supabaseClient) {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('app_data')
+                .select('value')
+                .eq('key', 'mapa_cego_users')
+                .maybeSingle();
+
+            let users = [];
+            if (!error && data) {
+                users = data.value || [];
+            }
+
+            const defaultUsers = [
+                { username: 'Admin', password: '123', role: 'admin', sector: 'recebimento' },
+                { username: 'Caio', password: '123', role: 'user', sector: 'recebimento' },
+                { username: 'Balanca', password: '123', role: 'user', sector: 'recebimento' },
+                { username: 'Recebimento', password: '123', role: 'user', sector: 'recebimento' },
+                { username: 'Wayner', password: '123', role: 'user', sector: 'conferente', subType: 'INFRA' },
+                { username: 'Fabricio', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
+                { username: 'Clodoaldo', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
+                { username: 'Guilherme', password: '123', role: 'user', sector: 'conferente', subType: 'GAVA' },
+                { username: 'EncarRec', password: 'enc123', role: 'Encarregado', sector: 'recebimento' },
+                { username: 'EncarConf', password: 'enc123', role: 'Encarregado', sector: 'conferente' }
+            ];
+
+            const allUsers = [...defaultUsers];
+            if (Array.isArray(users)) {
+                users.forEach(u => {
+                    if (u && u.username && !allUsers.find(x => x.username.toLowerCase() === u.username.toLowerCase())) {
+                        allUsers.push(u);
+                    }
+                });
+            }
+
+            const user = allUsers.find(u => u.username.toLowerCase() === username.toLowerCase() && (u.password === password || (u.username === 'Admin' && password === 'admin')));
+            if (user) {
+                const loggedUser = {
+                    username: user.username,
+                    sector: user.sector,
+                    subType: user.subType || null,
+                    role: user.role,
+                    label: user.label || `${user.role} - ${user.username}`,
+                    token: 'jwt-token-stub-' + user.username
+                };
+                LoginCache.set(username, loggedUser);
+                return loggedUser;
+            }
+        } catch (e) {
+            console.error("Erro ao autenticar no Supabase:", e);
+        }
+        return null;
+    }
+
     if (window.location.protocol === 'file:') {
         return null;
     }
@@ -206,30 +260,10 @@ function createAccountItem(acc) {
         await requestController.execute(`quick_login_${acc.username}`, async () => {
             const senha = DEFAULT_PASSWORDS[acc.username] || '123';
             
-            if (window.location.protocol !== 'file:') {
-                try {
-                    const fetchUrl = API_URL ? `${API_URL}/api/login` : '/api/login';
-                    
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-                    const resp = await fetch(fetchUrl, {
-                        method: 'POST', 
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: acc.username, password: senha }),
-                        signal: controller.signal
-                    });
-
-                    clearTimeout(timeoutId);
-
-                    if (resp.ok) {
-                        const body = await resp.json();
-                        loginComUsuario(body.user); 
-                        return;
-                    }
-                } catch(e) { 
-                    console.log("Servidor offline, usando local."); 
-                }
+            const serverUser = await tryServerLogin(acc.username, senha);
+            if (serverUser) {
+                loginComUsuario(serverUser);
+                return;
             }
             
             loginComUsuario(acc);
@@ -312,7 +346,31 @@ document.addEventListener('DOMContentLoaded', () => {
             ls.push(reqObj);
             localStorage.setItem('account_requests', JSON.stringify(ls));
 
-            if (window.location.protocol !== 'file:') {
+            if (window.supabaseClient) {
+                try {
+                    const { data: row, error: fetchErr } = await window.supabaseClient
+                        .from('app_data')
+                        .select('value')
+                        .eq('key', 'aw_requests')
+                        .maybeSingle();
+
+                    let requests = [];
+                    if (!fetchErr && row && row.value) {
+                        requests = row.value;
+                    }
+
+                    requests.push(reqObj);
+
+                    const { error: saveErr } = await window.supabaseClient
+                        .from('app_data')
+                        .upsert({ key: 'aw_requests', value: requests });
+
+                    if (saveErr) throw saveErr;
+                    console.log('Solicitação enviada ao Supabase com sucesso.');
+                } catch (e) {
+                    console.error('Erro ao enviar solicitação para o Supabase:', e.message);
+                }
+            } else if (window.location.protocol !== 'file:') {
                 try {
                     const fetchUrl = API_URL ? `${API_URL}/api/account-requests` : '/api/account-requests';
                     await fetch(fetchUrl, { 

@@ -10,6 +10,9 @@ const SERVER_IP = "192.168.0.100"; // <--- ALTERE AQUI PARA O SEU IP
 const SERVER_PORT = 2006;
 const VITE_PORT = 5173;
 
+// URL de produção da Vercel (se configurada, a janela carregará direto da nuvem)
+const VERCEL_URL = "https://sistema-controladoria-2026.vercel.app"; // <--- ALTERE PARA O SEU ENDEREÇO DA VERCEL
+
 // app.disableHardwareAcceleration(); // Reativado para aceleração por GPU (melhor performance de renderização)
 
 function createWindow() {
@@ -35,24 +38,21 @@ function createWindow() {
     if (isDev) {
         // --- MODO DESENVOLVIMENTO (Vite + Hot Reload) ---
         console.log(`⚡ Modo DEV: Carregando via Vite na porta ${VITE_PORT}`);
-        
+
         // No modo dev, usamos o localhost do Vite
         win.loadURL(`http://localhost:${VITE_PORT}/pages/login.html`);
-        
+
         // Abre o Inspecionar Elemento para ajudar no debug
-        win.webContents.openDevTools({ mode: 'detach' });
+        //win.webContents.openDevTools({ mode: 'detach' });
 
     } else {
         // --- MODO PRODUÇÃO / REDE ---
-        // Aqui está a mudança: Tentamos carregar do IP do Servidor primeiro.
-        // Isso é útil se você quiser servir a interface pelo servidor Node.
-        // Se falhar (offline), carregamos o arquivo local.
-        
-        const serverUrl = `http://${SERVER_IP}:${SERVER_PORT}/`;
-        console.log(`🚀 Tentando conectar ao servidor: ${serverUrl}`);
+        // Se a URL do Vercel estiver definida, usamos ela. Caso contrário, tentamos o servidor local.
+        const serverUrl = VERCEL_URL || `http://${SERVER_IP}:${SERVER_PORT}/`;
+        console.log(`🚀 Carregando interface em produção: ${serverUrl}`);
 
         win.loadURL(serverUrl).catch((err) => {
-            console.log("⚠️ Servidor não encontrado ou offline. Carregando arquivos locais.");
+            console.log("⚠️ Conexão falhou. Carregando arquivos locais do computador.");
             // Fallback: Carrega o arquivo físico do computador
             win.loadFile(path.join(__dirname, 'pages', 'login.html'));
         });
@@ -60,7 +60,7 @@ function createWindow() {
 
     // --- SEUS CONTROLES DE JANELA (Mantidos) ---
     ipcMain.on('minimize-app', () => win.minimize());
-    
+
     ipcMain.on('maximize-app', () => {
         win.isMaximized() ? win.unmaximize() : win.maximize();
     });
