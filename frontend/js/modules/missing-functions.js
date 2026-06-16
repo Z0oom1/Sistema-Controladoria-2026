@@ -13,6 +13,10 @@ window.populateDatalist = function(listId, dataArr, displayField = 'nome') {
     const dl = document.getElementById(listId);
     if (!dl) return;
     dl.innerHTML = '';
+    if (!dataArr || !Array.isArray(dataArr)) {
+        console.warn(`[populateDatalist] dataArr é inválido ou não é um Array para a lista "${listId}"`);
+        return;
+    }
     dataArr.forEach(item => {
         const val = item[displayField] || item.nome;
         const opt = document.createElement('option');
@@ -88,15 +92,20 @@ window.filterChain = function(step) {
             }
         } else {
             window.entryState.selectedCarrierId = null;
-            window.populateDatalist('dlMot', window.driversData);
+            if (window.entryState.selectedSupplierId) {
+                const validDrivers = window.driversData.filter(d => d.supplierIds && d.supplierIds.includes(window.entryState.selectedSupplierId));
+                window.populateDatalist('dlMot', validDrivers);
+            } else {
+                window.populateDatalist('dlMot', window.driversData);
+            }
         }
     }
 
-    if (step === 'motorista' || step === 'transportadora') {
+    if (step === 'motorista' || step === 'transportadora' || (step === 'fornecedor' && !useCarrier)) {
         window.entryState.selectedDriverId = findId(window.driversData, inMot.value);
         window.checkFieldStatus('inMot', window.entryState.selectedDriverId);
 
-        let validPlates = window.platesData;
+        let validPlates = [];
         if (window.entryState.selectedDriverId) {
             validPlates = window.platesData.filter(p => p.driverId === window.entryState.selectedDriverId);
         }
@@ -842,6 +851,31 @@ window.confirmUnifiedApproval = function() {
         if (!d.plate.id && appPlateNum) truck.placa = appPlateNum.value;
     }
 
+    const mpItem = window.mpData.find(m => m.linkedRequestId === reqId);
+    if (mpItem) {
+        mpItem.notes = 'Pesagem Manual';
+        const appFornName = document.getElementById('appSupName');
+        if (appFornName && appFornName.value) {
+            mpItem.empresa = appFornName.value.toUpperCase();
+        }
+        const appPlateNum = document.getElementById('appPlateNum');
+        if (appPlateNum && appPlateNum.value) {
+            mpItem.placa = appPlateNum.value.toUpperCase();
+        }
+    }
+
+    // Capturar assinatura digital do canvas se desenhada
+    const canvas = document.getElementById('signatureCanvas');
+    if (canvas) {
+        const signatureData = canvas.toDataURL();
+        const map = window.mapData.find(m => m.id === truck?.id);
+        if (map) {
+            if (!map.signatures) map.signatures = {};
+            map.signatures[req.requester || 'Conferente'] = signatureData;
+            map.conferenteSignature = signatureData; // Atalho
+        }
+    }
+
     req.status = 'APROVADO';
     window.saveAll();
     window.renderCadastros();
@@ -883,13 +917,7 @@ window.deleteMateriaPrima = function() {
 };
 
 window.openManualMPModal = function() {
-    const fields = ['manMPPlaca', 'manMPProd', 'manMPEmp', 'manMPNF'];
-    fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    const tara = document.getElementById('manMPTara');
-    if (tara) tara.value = '0';
-    const modal = document.getElementById('modalManualMP');
-    if (modal) modal.style.display = 'flex';
-    window.closeContextMenu();
+    window.openManualWeighingModal();
 };
 
 window.saveManualMP = function() {
@@ -968,35 +996,78 @@ window.saveNoteMP = function() {
 // =========================================================
 
 window.openModalCarregamento = function() {
-    const modal = document.getElementById('modalCarregamento');
-    if (modal) modal.style.display = 'flex';
+    try {
+        console.log("[openModalCarregamento] Abrindo modal de carregamento");
+        
+        // Resetar os inputs do modal
+        const motInput = document.getElementById('carrMotorista');
+        const cavInput = document.getElementById('carrCavalo');
+        if (motInput) motInput.value = '';
+        if (cavInput) cavInput.value = '';
+        
+        const container = document.getElementById('carretaContainer');
+        if (container) {
+            // Reinicializar o container com apenas uma input e o list correto
+            container.innerHTML = `<input type="text" class="carrCarretaInput form-input-styled" placeholder="Placa da carreta" list="dlPlacaCarrCarr" autocomplete="off">`;
+        }
+
+        // Popular sugestões dinâmicas de motoristas e placas (cavalos / carretas)
+        window.populateDatalist('dlMotCarr', window.driversData);
+        window.populateDatalist('dlPlacaCavCarr', window.platesData, 'numero');
+        window.populateDatalist('dlPlacaCarrCarr', window.platesData, 'numero');
+
+        const modal = document.getElementById('modalCarregamento');
+        if (modal) modal.style.display = 'flex';
+    } catch (e) {
+        console.error("[openModalCarregamento] Erro ao abrir modal de carregamento:", e);
+        alert("Erro ao abrir modal de carregamento: " + e.message);
+    }
 };
 
 window.addCarretaField = function() {
     const container = document.getElementById('carretaContainer');
-    if (container) container.innerHTML += `<input type="text" class="carrCarretaInput" style="width:100%; margin-top:5px;">`;
+    if (container) {
+        container.innerHTML += `<input type="text" class="carrCarretaInput form-input-styled" style="width:100%; margin-top:5px;" placeholder="Placa da carreta" list="dlPlacaCarrCarr" autocomplete="off">`;
+    }
 };
 
 window.saveCarregamento = function() {
-    const mot = (document.getElementById('carrMotorista') || {}).value || '';
-    const cav = (document.getElementById('carrCavalo') || {}).value || '';
-    const arr = [];
-    document.querySelectorAll('.carrCarretaInput').forEach(i => { if (i.value) arr.push(i.value); });
-    const todayStr = window.getBrazilTime().split('T')[0];
-    window.carregamentoData.push({
-        id: Date.now().toString(),
-        date: todayStr,
-        motorista: mot,
-        cavalo: cav,
-        carretas: arr,
-        tara: 0, bruto: 0, liq: 0,
-        status: 'AGUARDANDO',
-        checkin: window.getBrazilTime()
-    });
-    window.saveAll();
-    const modal = document.getElementById('modalCarregamento');
-    if (modal) modal.style.display = 'none';
-    window.renderCarregamento();
+    try {
+        const mot = (document.getElementById('carrMotorista') || {}).value || '';
+        const cav = (document.getElementById('carrCavalo') || {}).value || '';
+        const arr = [];
+        document.querySelectorAll('.carrCarretaInput').forEach(i => { if (i.value) arr.push(i.value); });
+        
+        if (!mot || !cav) {
+            return alert("Por favor, preencha o motorista e a placa do cavalo.");
+        }
+
+        const todayStr = window.getBrazilTime().split('T')[0];
+        
+        if (!Array.isArray(window.carregamentoData)) {
+            window.carregamentoData = [];
+        }
+
+        window.carregamentoData.push({
+            id: Date.now().toString(),
+            date: todayStr,
+            motorista: mot,
+            cavalo: cav,
+            carretas: arr,
+            tara: 0, bruto: 0, liq: 0,
+            status: 'AGUARDANDO',
+            checkin: window.getBrazilTime()
+        });
+        
+        window.saveAll();
+        const modal = document.getElementById('modalCarregamento');
+        if (modal) modal.style.display = 'none';
+        window.renderCarregamento();
+        alert("Carregamento manual lançado com sucesso!");
+    } catch (err) {
+        console.error("[saveCarregamento] Erro:", err);
+        alert("Erro ao salvar carregamento: " + err.message);
+    }
 };
 
 window.updateCarrWeight = function(id, f, v) {
@@ -1190,10 +1261,18 @@ window.resolveRequest = function(id, st) {
         window.requests[i].status = st;
         if (st === 'approved' && window.requests[i].type === 'edit') {
             const m = window.mapData.find(x => x.id === window.requests[i].mapId);
-            if (m) m.forceUnlock = true;
+            if (m) {
+                m.forceUnlock = true;
+                m.authorizedEditor = window.requests[i].requester;
+            }
         }
         window.saveAll();
-        window.renderRequests();
+        if (typeof window.renderRequests === 'function') window.renderRequests();
+        if (typeof window.updateBadge === 'function') window.updateBadge();
+        // Se estivermos visualizando o mapa editado, recarrega para desbloquear na hora
+        if (window.currentMapId === window.requests[i].mapId && typeof window.loadMap === 'function') {
+            window.loadMap(window.currentMapId);
+        }
     }
 };
 
@@ -1323,27 +1402,87 @@ window.openReportDetails = function(indexOrId, typeOverride) {
             });
         }
         html += `</div>`;
+
+        // Renderiza assinatura digitalizada do conferente se presente
+        if (item.conferenteSignature) {
+            html += `
+                <div style="margin-top: 15px; text-align: center; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px; background: #fff;">
+                    <span style="display: block; font-size: 0.75rem; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Assinatura Digitalizada</span>
+                    <img src="${item.conferenteSignature}" style="max-height: 60px; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 4px;" />
+                </div>
+            `;
+        }
+
         buttons = `<button class="btn btn-save" onclick="document.getElementById('modalReportDetail').style.display='none'; window.navTo('mapas'); window.loadMap('${item.id}')"><i class="fas fa-map"></i> ABRIR MAPA CEGO</button>`;
     } else if (type === 'divergencias') {
         const diffColor = item.diff > 0 ? 'green' : 'red';
         const signal = item.diff > 0 ? '+' : '';
-        html = `
-            <div style="text-align:center; margin-bottom:15px;">
-                <h2 style="color:${diffColor}; margin:0;">${signal}${item.diff}</h2>
-                <small style="color:#666; text-transform:uppercase;">Diferença Encontrada</small>
-            </div>
-            <div class="form-grid">
-                <div><strong>Produto:</strong><br>${item.prod}</div>
-                <div><strong>Fornecedor:</strong><br>${item.forn}</div>
-                <div><strong>Data:</strong><br>${item.date.split('-').reverse().join('/')}</div>
-                <div><strong>Nota Fiscal:</strong><br>${item.nf}</div>
-            </div>
-            <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin-top:15px;">
-                <div style="display:flex; justify-content:space-between;"><span>Quantidade na Nota (Fiscal):</span><strong>${item.qnf}</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-top:5px;"><span>Quantidade Contada (Físico):</span><strong>${item.qc}</strong></div>
-            </div>
-        `;
-        buttons = `<button class="btn btn-save" onclick="document.getElementById('modalReportDetail').style.display='none'; window.navTo('mapas'); window.loadMap('${item.mapId}')"><i class="fas fa-search-location"></i> VER NO MAPA</button>`;
+        
+        if (item.isGroup) {
+            html = `
+                <div style="text-align:center; margin-bottom:15px;">
+                    <h2 style="color:${diffColor}; margin:0;">${signal}${item.diff}</h2>
+                    <small style="color:#666; text-transform:uppercase;">Diferença Consolidada</small>
+                </div>
+                <div class="form-grid">
+                    <div><strong>Produto:</strong><br>${item.prod}</div>
+                    <div><strong>Fornecedor:</strong><br>${item.forn}</div>
+                    <div><strong>Última Ocorrência:</strong><br>${item.date ? item.date.split('-').reverse().join('/') : '---'}</div>
+                    <div><strong>Notas Fiscais:</strong><br>${item.nf}</div>
+                </div>
+                <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin-top:15px;">
+                    <div style="display:flex; justify-content:space-between;"><span>Total na Nota (Fiscal):</span><strong>${item.qnf}</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;"><span>Total Contado (Físico):</span><strong>${item.qc}</strong></div>
+                </div>
+                <hr style="margin:15px 0; border-color:#cbd5e1;">
+                <h5 style="margin-bottom:8px; color:var(--text-main); font-weight:600;">Mapas que compõem esta divergência:</h5>
+                <div style="background:var(--bg-input); padding:10px; border-radius:6px; max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+            `;
+            if (item.groupKeys && Array.isArray(item.groupKeys)) {
+                item.groupKeys.forEach(gk => {
+                    const associatedMap = window.mapData.find(m => m.id === gk.mapId);
+                    if (associatedMap) {
+                        const rowItem = associatedMap.rows[gk.rowIdx];
+                        const diffVal = (parseFloat(rowItem.qty) || 0) - (parseFloat(rowItem.qty_nf) || 0);
+                        const diffSignal = diffVal > 0 ? '+' : '';
+                        const diffColorVal = diffVal > 0 ? 'green' : 'red';
+                        
+                        html += `
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:6px; font-size:0.85rem; color:var(--text-main);">
+                                <div>
+                                    <b>Mapa: #${associatedMap.id}</b> (${associatedMap.date ? associatedMap.date.split('-').reverse().join('/') : '---'})<br>
+                                    <span style="color:var(--text-muted);">Placa: ${associatedMap.placa} | NF: ${rowItem.nf || 'S/N'}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="color:${diffColorVal}; font-weight:bold;">${diffSignal}${diffVal}</span>
+                                    <button class="btn btn-save btn-small" style="padding:4px 8px; font-size:0.75rem;" onclick="document.getElementById('modalReportDetail').style.display='none'; window.navTo('mapas'); window.loadMap('${associatedMap.id}')">Abrir</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            html += `</div>`;
+            buttons = `<button class="btn btn-edit" onclick="document.getElementById('modalReportDetail').style.display='none'">Fechar</button>`;
+        } else {
+            html = `
+                <div style="text-align:center; margin-bottom:15px;">
+                    <h2 style="color:${diffColor}; margin:0;">${signal}${item.diff}</h2>
+                    <small style="color:#666; text-transform:uppercase;">Diferença Encontrada</small>
+                </div>
+                <div class="form-grid">
+                    <div><strong>Produto:</strong><br>${item.prod}</div>
+                    <div><strong>Fornecedor:</strong><br>${item.forn}</div>
+                    <div><strong>Data:</strong><br>${item.date.split('-').reverse().join('/')}</div>
+                    <div><strong>Nota Fiscal:</strong><br>${item.nf}</div>
+                </div>
+                <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin-top:15px;">
+                    <div style="display:flex; justify-content:space-between;"><span>Quantidade na Nota (Fiscal):</span><strong>${item.qnf}</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;"><span>Quantidade Contada (Físico):</span><strong>${item.qc}</strong></div>
+                </div>
+            `;
+            buttons = `<button class="btn btn-save" onclick="document.getElementById('modalReportDetail').style.display='none'; window.navTo('mapas'); window.loadMap('${item.mapId}')"><i class="fas fa-search-location"></i> VER NO MAPA</button>`;
+        }
     } else if (type === 'materia-prima') {
         const difStyle = item.difKg !== 0 ? (item.difKg > 0 ? 'color:green' : 'color:red') : 'color:#666';
         html = `
@@ -1411,27 +1550,82 @@ window.toggleDivergenceGroup = function(groupId) {
 
 window.mwState = { supId: null, motId: null, plateId: null, prodExists: false };
 
+window.updateMWMiniCalculations = function() {
+    const bruto = parseFloat(document.getElementById('mwBruto').value) || 0;
+    const tara = parseFloat(document.getElementById('mwTara').value) || 0;
+    const pesoNF = parseFloat(document.getElementById('mwPesoNF').value) || 0;
+
+    const liq = bruto - tara;
+    const difKg = liq - pesoNF;
+    const difPerc = pesoNF ? ((difKg / pesoNF) * 100).toFixed(2) : 0;
+
+    const panel = document.getElementById('mwCalculationsPanel');
+    if (panel) {
+        if (bruto > 0 || tara > 0) {
+            panel.style.display = 'flex';
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+
+    const calcLiq = document.getElementById('mwCalcLiq');
+    if (calcLiq) {
+        calcLiq.textContent = liq.toLocaleString() + ' Kg';
+    }
+
+    const calcDif = document.getElementById('mwCalcDif');
+    if (calcDif) {
+        if (pesoNF > 0) {
+            const color = Math.abs(difPerc) > 1.0 ? '#ef4444' : '#10b981'; // 1% de tolerância
+            calcDif.style.color = color;
+            calcDif.textContent = `${difKg > 0 ? '+' : ''}${difKg.toLocaleString()} Kg (${difPerc}%)`;
+        } else {
+            calcDif.style.color = 'var(--text-muted)';
+            calcDif.textContent = '--- Kg';
+        }
+    }
+
+    // Anima a Balança LED com o Peso Bruto (se houver), caso contrário com o Peso da Nota
+    const targetWeight = bruto > 0 ? bruto : pesoNF;
+    if (typeof window.animateLEDWeight === 'function') {
+        window.animateLEDWeight(targetWeight);
+    }
+};
+
 window.openManualWeighingModal = function() {
-    window.mwState = { supId: null, motId: null, plateId: null, prodExists: false };
-    ['mwForn', 'mwProd', 'mwMot', 'mwPlaca', 'mwNF', 'mwPesoNF'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) { el.value = ''; el.classList.remove('input-warning'); }
-    });
+    try {
+        console.log("[openManualWeighingModal] Abrindo modal de pesagem manual");
+        window.mwState = { supId: null, motId: null, plateId: null, prodExists: false };
+        ['mwForn', 'mwProd', 'mwMot', 'mwPlaca', 'mwNF', 'mwPesoNF', 'mwBruto', 'mwTara'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.remove('input-warning'); }
+        });
 
-    const warnBox = document.getElementById('mwWarningBox');
-    const btnSave = document.getElementById('btnSaveMW');
-    const btnReq = document.getElementById('btnReqMW');
-    if (warnBox) warnBox.style.display = 'none';
-    if (btnSave) btnSave.style.display = 'inline-block';
-    if (btnReq) btnReq.style.display = 'none';
+        const warnBox = document.getElementById('mwWarningBox');
+        const btnSave = document.getElementById('btnSaveMW');
+        const btnReq = document.getElementById('btnReqMW');
+        if (warnBox) warnBox.style.display = 'none';
+        if (btnSave) btnSave.style.display = 'inline-block';
+        if (btnReq) btnReq.style.display = 'none';
 
-    window.populateDatalist('dlFornMW', window.suppliersData);
-    window.populateDatalist('dlPlacaMW', window.platesData, 'numero');
-    window.populateDatalist('dlMotMW', window.driversData);
-    window.populateDatalist('prodListSuggestions', window.productsData);
+        // Reset painel de cálculos e balança LED
+        const panel = document.getElementById('mwCalculationsPanel');
+        if (panel) panel.style.display = 'none';
 
-    const modal = document.getElementById('modalManualWeighing');
-    if (modal) modal.style.display = 'flex';
+        const led = document.getElementById('ledDisplayWeight');
+        if (led) led.innerHTML = `000000 <span style="font-size: 0.9rem; color: rgba(239, 68, 68, 0.5); font-weight: normal;">KG</span>`;
+
+        window.populateDatalist('dlFornMW', window.suppliersData);
+        window.populateDatalist('dlPlacaMW', window.platesData, 'numero');
+        window.populateDatalist('dlMotMW', window.driversData);
+        window.populateDatalist('prodListSuggestions', window.productsData);
+
+        const modal = document.getElementById('modalManualWeighing');
+        if (modal) modal.style.display = 'flex';
+    } catch (e) {
+        console.error("[openManualWeighingModal] Erro ao abrir modal de pesagem manual:", e);
+        alert("Erro ao abrir modal de pesagem: " + e.message);
+    }
 };
 
 window.filterWeighingChain = function(step) {
@@ -1440,16 +1634,21 @@ window.filterWeighingChain = function(step) {
     const inPlaca = document.getElementById('mwPlaca');
     const inMot = document.getElementById('mwMot');
 
+    const suppliers = Array.isArray(window.suppliersData) ? window.suppliersData : [];
+    const products = Array.isArray(window.productsData) ? window.productsData : [];
+    const plates = Array.isArray(window.platesData) ? window.platesData : [];
+    const drivers = Array.isArray(window.driversData) ? window.driversData : [];
+
     if (step === 'fornecedor' || !step) {
         const val = inForn ? inForn.value.toUpperCase() : '';
-        const found = window.suppliersData.find(s => s.nome === val);
+        const found = suppliers.find(s => s.nome === val);
         window.mwState.supId = found ? found.id : null;
         window.checkFieldStatus('mwForn', window.mwState.supId);
     }
 
     if (step === 'produto' || !step) {
         const val = inProd ? inProd.value.toUpperCase() : '';
-        const found = window.productsData.find(p => p.nome === val);
+        const found = products.find(p => p.nome === val);
         window.mwState.prodExists = !!found;
         if (val && !found) inProd.classList.add('input-warning');
         else if (inProd) inProd.classList.remove('input-warning');
@@ -1460,7 +1659,7 @@ window.filterWeighingChain = function(step) {
             let txt = inPlaca.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
             if (txt.length > 3 && !txt.includes('-')) txt = txt.substring(0, 3) + '-' + txt.substring(3);
             inPlaca.value = txt;
-            const found = window.platesData.find(p => p.numero === txt);
+            const found = plates.find(p => p.numero === txt);
             window.mwState.plateId = found ? found.id : null;
             window.checkFieldStatus('mwPlaca', window.mwState.plateId);
         }
@@ -1470,7 +1669,7 @@ window.filterWeighingChain = function(step) {
         if (inMot) {
             const val = inMot.value.toUpperCase();
             if (val) {
-                const found = window.driversData.find(d => d.nome === val);
+                const found = drivers.find(d => d.nome === val);
                 window.mwState.motId = found ? found.id : null;
                 window.checkFieldStatus('mwMot', window.mwState.motId);
             } else {
@@ -1501,92 +1700,134 @@ window.filterWeighingChain = function(step) {
 };
 
 window.saveManualWeighing = function() {
-    const forn = (document.getElementById('mwForn') || {}).value || '';
-    const prod = (document.getElementById('mwProd') || {}).value || '';
-    const placa = (document.getElementById('mwPlaca') || {}).value || '';
-    const nf = (document.getElementById('mwNF') || {}).value || '';
-    const pesoNF = parseFloat((document.getElementById('mwPesoNF') || {}).value) || 0;
+    try {
+        const forn = (document.getElementById('mwForn') || {}).value || '';
+        const prod = (document.getElementById('mwProd') || {}).value || '';
+        const placa = (document.getElementById('mwPlaca') || {}).value || '';
+        const nf = (document.getElementById('mwNF') || {}).value || '';
+        const pesoNF = parseFloat((document.getElementById('mwPesoNF') || {}).value) || 0;
+        const bruto = parseFloat((document.getElementById('mwBruto') || {}).value) || 0;
+        const tara = parseFloat((document.getElementById('mwTara') || {}).value) || 0;
 
-    if (!forn || !prod || !placa) return alert("Preencha Fornecedor, Produto e Placa.");
+        if (!forn || !prod || !placa) return alert("Preencha Fornecedor, Produto e Placa.");
 
-    const id = 'MAN_' + Date.now();
-    const todayStr = window.getBrazilTime().split('T')[0];
+        const id = 'MAN_' + Date.now();
+        const todayStr = window.getBrazilTime().split('T')[0];
 
-    window.mpData.push({
-        id: id,
-        date: todayStr,
-        produto: prod.toUpperCase(),
-        empresa: forn.toUpperCase(),
-        placa: placa.toUpperCase(),
-        local: 'MANUAL',
-        chegada: window.getBrazilTime(),
-        entrada: window.getBrazilTime(),
-        tara: 0, bruto: 0, liq: 0,
-        pesoNF: pesoNF,
-        difKg: 0, difPerc: 0,
-        nf: nf || 'S/N',
-        notes: 'Pesagem Manual',
-        isManual: true
-    });
+        const liq = bruto - tara;
+        const difKg = liq - pesoNF;
+        const difPerc = pesoNF ? ((difKg / pesoNF) * 100).toFixed(2) : 0;
 
-    window.saveAll();
-    const modal = document.getElementById('modalManualWeighing');
-    if (modal) modal.style.display = 'none';
-    window.renderMateriaPrima();
-    alert("Pesagem manual lançada!");
+        if (!Array.isArray(window.mpData)) {
+            window.mpData = [];
+        }
+
+        window.mpData.push({
+            id: id,
+            date: todayStr,
+            produto: prod.toUpperCase(),
+            empresa: forn.toUpperCase(),
+            placa: placa.toUpperCase(),
+            local: 'MANUAL',
+            chegada: window.getBrazilTime(),
+            entrada: window.getBrazilTime(),
+            tara: tara,
+            bruto: bruto,
+            liq: liq,
+            pesoNF: pesoNF,
+            difKg: difKg,
+            difPerc: difPerc,
+            nf: nf || 'S/N',
+            notes: 'Pesagem Manual',
+            isManual: true
+        });
+
+        window.saveAll();
+        const modal = document.getElementById('modalManualWeighing');
+        if (modal) modal.style.display = 'none';
+        window.renderMateriaPrima();
+        alert("Pesagem manual lançada com sucesso!");
+    } catch (err) {
+        console.error("[saveManualWeighing] Erro:", err);
+        alert("Erro ao lançar pesagem manual: " + err.message);
+    }
 };
 
 window.submitWeighingRequest = function() {
-    const forn = (document.getElementById('mwForn') || {}).value || '';
-    const prod = (document.getElementById('mwProd') || {}).value || '';
-    const placa = (document.getElementById('mwPlaca') || {}).value || '';
-    const mot = (document.getElementById('mwMot') || {}).value || '';
+    try {
+        const forn = (document.getElementById('mwForn') || {}).value || '';
+        const prod = (document.getElementById('mwProd') || {}).value || '';
+        const placa = (document.getElementById('mwPlaca') || {}).value || '';
+        const mot = (document.getElementById('mwMot') || {}).value || '';
+        const nf = (document.getElementById('mwNF') || {}).value || '';
+        const pesoNF = parseFloat((document.getElementById('mwPesoNF') || {}).value) || 0;
+        const bruto = parseFloat((document.getElementById('mwBruto') || {}).value) || 0;
+        const tara = parseFloat((document.getElementById('mwTara') || {}).value) || 0;
 
-    const newProducts = !window.mwState.prodExists ? [prod.toUpperCase()] : [];
-    const reqId = 'REQ_MW_' + Date.now();
+        if (!forn || !prod || !placa) return alert("Preencha Fornecedor, Produto e Placa.");
 
-    window.requests.push({
-        id: reqId,
-        type: 'complex_entry',
-        status: 'PENDENTE',
-        user: (typeof window.loggedUser !== 'undefined' ? window.loggedUser.username : 'Portaria'),
-        timestamp: window.getBrazilTime(),
-        data: {
-            supplier: { name: forn.toUpperCase(), id: window.mwState.supId },
-            carrier: { name: forn.toUpperCase(), id: null },
-            driver: { name: mot.toUpperCase(), id: window.mwState.motId },
-            plate: { number: placa.toUpperCase(), id: window.mwState.plateId },
-            newProducts: newProducts
+        const newProducts = !window.mwState.prodExists ? [prod.toUpperCase()] : [];
+        const reqId = 'REQ_MW_' + Date.now();
+
+        if (!Array.isArray(window.requests)) {
+            window.requests = [];
         }
-    });
 
-    const id = 'MAN_' + Date.now();
-    const todayStr = window.getBrazilTime().split('T')[0];
-    const nf = (document.getElementById('mwNF') || {}).value || '';
-    const pesoNF = parseFloat((document.getElementById('mwPesoNF') || {}).value) || 0;
+        window.requests.push({
+            id: reqId,
+            type: 'complex_entry',
+            status: 'PENDENTE',
+            user: (typeof window.loggedUser !== 'undefined' ? window.loggedUser.username : 'Portaria'),
+            timestamp: window.getBrazilTime(),
+            data: {
+                supplier: { name: forn.toUpperCase(), id: window.mwState.supId },
+                carrier: { name: forn.toUpperCase(), id: null },
+                driver: { name: mot.toUpperCase(), id: window.mwState.motId },
+                plate: { number: placa.toUpperCase(), id: window.mwState.plateId },
+                newProducts: newProducts
+            }
+        });
 
-    window.mpData.push({
-        id: id,
-        date: todayStr,
-        produto: prod.toUpperCase(),
-        empresa: forn.toUpperCase(),
-        placa: placa.toUpperCase(),
-        local: 'MANUAL',
-        chegada: window.getBrazilTime(),
-        entrada: window.getBrazilTime(),
-        tara: 0, bruto: 0, liq: 0, pesoNF: pesoNF,
-        nf: nf || 'S/N',
-        notes: 'Aguardando Cadastro (Req)',
-        isManual: true,
-        linkedRequestId: reqId
-    });
+        const id = 'MAN_' + Date.now();
+        const todayStr = window.getBrazilTime().split('T')[0];
 
-    window.saveAll();
-    const modal = document.getElementById('modalManualWeighing');
-    if (modal) modal.style.display = 'none';
-    window.renderMateriaPrima();
-    window.sendSystemNotification("Requisição de Pesagem", "Cadastro pendente para pesagem manual.", "materia-prima", null);
-    alert("Pesagem lançada. Requisição de cadastro enviada para aprovação.");
+        const liq = bruto - tara;
+        const difKg = liq - pesoNF;
+        const difPerc = pesoNF ? ((difKg / pesoNF) * 100).toFixed(2) : 0;
+
+        if (!Array.isArray(window.mpData)) {
+            window.mpData = [];
+        }
+
+        window.mpData.push({
+            id: id,
+            date: todayStr,
+            produto: prod.toUpperCase(),
+            empresa: forn.toUpperCase(),
+            placa: placa.toUpperCase(),
+            local: 'MANUAL',
+            chegada: window.getBrazilTime(),
+            entrada: window.getBrazilTime(),
+            tara: tara, bruto: bruto, liq: liq, pesoNF: pesoNF,
+            difKg: difKg, difPerc: difPerc,
+            nf: nf || 'S/N',
+            notes: 'Aguardando Cadastro (Req)',
+            isManual: true,
+            linkedRequestId: reqId
+        });
+
+        window.saveAll();
+        const modal = document.getElementById('modalManualWeighing');
+        if (modal) modal.style.display = 'none';
+        window.renderMateriaPrima();
+        if (typeof window.sendSystemNotification === 'function') {
+            window.sendSystemNotification("Requisição de Pesagem", "Cadastro pendente para pesagem manual.", "materia-prima", null);
+        }
+        alert("Pesagem lançada. Requisição de cadastro enviada para aprovação.");
+    } catch (err) {
+        console.error("[submitWeighingRequest] Erro:", err);
+        alert("Erro ao solicitar pesagem manual: " + err.message);
+    }
 };
 
 // =========================================================
@@ -1657,15 +1898,16 @@ window.loadAccountRequests = function() {
     `).join('');
 };
 
-// Dashboard - Funções básicas
+// Dashboard - Funções Premium (V3)
 window.initDashboard = function() {
-    // Inicializa slots com dados se houver layout salvo
     const layout = JSON.parse(localStorage.getItem('aw_dash_layout') || '[]');
-    layout.forEach((item, i) => {
-        if (item && item.type) {
-            window.addToSlot(i, item.type);
+    for (let i = 0; i < 4; i++) {
+        if (layout[i]) {
+            window.addToSlot(i, layout[i]);
+        } else {
+            window.clearSlot(i);
         }
-    });
+    }
 };
 
 window.addToSlot = function(slotIndex, chartType) {
@@ -1674,17 +1916,17 @@ window.addToSlot = function(slotIndex, chartType) {
 
     if (!chartType) {
         const types = [
-            { value: 'trucks_today', label: 'Caminhões Hoje' },
-            { value: 'trucks_week', label: 'Caminhões (Semana)' },
-            { value: 'weight_today', label: 'Pesagem Hoje' },
-            { value: 'maps_status', label: 'Status dos Mapas' }
+            { value: 'trucks_today', label: '🚚 Fluxo de Caminhões (Hoje)' },
+            { value: 'trucks_week', label: '📅 Entradas Semanais (7 dias)' },
+            { value: 'weight_today', label: '⚖️ Carga Pesada (Pesagens Hoje)' },
+            { value: 'maps_status', label: '📋 Auditoria de Mapas Cegos' }
         ];
         const options = types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
         slot.innerHTML = `
-            <div style="padding:15px;">
-                <h4>Escolha o Gráfico</h4>
-                <select id="slotType_${slotIndex}" class="form-input-styled" style="margin-bottom:10px;">${options}</select>
-                <button class="btn btn-save" onclick="window.addToSlot(${slotIndex}, document.getElementById('slotType_${slotIndex}').value)">Adicionar</button>
+            <div style="padding:20px; text-align:center; display:flex; flex-direction:column; justify-content:center; height:100%; box-sizing:border-box;">
+                <h4 style="margin-top:0; margin-bottom:12px; color:var(--text-main);"><i class="fas fa-chart-pie" style="color:var(--primary);"></i> Escolher Gráfico</h4>
+                <select id="slotType_${slotIndex}" class="form-input-styled" style="margin-bottom:15px; width:100%;">${options}</select>
+                <button class="btn btn-save" style="width:100%; justify-content:center;" onclick="window.addToSlot(${slotIndex}, document.getElementById('slotType_${slotIndex}').value)">Confirmar e Inserir</button>
             </div>
         `;
         return;
@@ -1693,12 +1935,17 @@ window.addToSlot = function(slotIndex, chartType) {
     const today = window.getBrazilTime().split('T')[0];
     let canvas = document.createElement('canvas');
     canvas.id = 'chart_' + slotIndex;
-    slot.innerHTML = `<div style="padding:10px; position:relative;"><button class="btn btn-edit btn-small" style="position:absolute; top:5px; right:5px; z-index:1;" onclick="window.clearSlot(${slotIndex})"><i class="fas fa-times"></i></button></div>`;
+    canvas.style.maxHeight = '230px';
+    slot.innerHTML = `<div style="padding:5px; position:relative; height:100%; box-sizing:border-box;"><button class="btn btn-edit btn-small" style="position:absolute; top:8px; right:8px; z-index:10; border:none; padding:4px 8px;" onclick="window.clearSlot(${slotIndex})"><i class="fas fa-times"></i></button></div>`;
     slot.querySelector('div').appendChild(canvas);
     slot.classList.remove('empty');
 
     const ctx = canvas.getContext('2d');
     let chartData = {};
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#f3f4f6' : '#1f2937';
+    const gridColor = isDark ? 'rgba(75, 85, 99, 0.2)' : 'rgba(209, 213, 219, 0.4)';
 
     if (chartType === 'trucks_today') {
         const trucks = window.patioData.filter(t => (t.chegada || '').startsWith(today));
@@ -1707,10 +1954,22 @@ window.addToSlot = function(slotIndex, chartType) {
         chartData = {
             type: 'doughnut',
             data: {
-                labels: Object.keys(byStatus),
-                datasets: [{ data: Object.values(byStatus), backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#6b7280'] }]
+                labels: ['Fila de Espera', 'Chamado/Liberado', 'Em Descarga', 'Finalizado'],
+                datasets: [{ 
+                    data: Object.values(byStatus), 
+                    backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#6b7280'],
+                    borderWidth: isDark ? 2 : 1,
+                    borderColor: isDark ? '#1f2937' : '#ffffff'
+                }]
             },
-            options: { plugins: { title: { display: true, text: 'Caminhões Hoje' } } }
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { labels: { color: textColor, font: { size: 10 } } },
+                    title: { display: true, text: 'Distribuição do Fluxo (Hoje)', color: textColor, font: { size: 13, weight: 'bold' } } 
+                } 
+            }
         };
     } else if (chartType === 'weight_today') {
         const weights = window.mpData.filter(m => m.date === today);
@@ -1718,9 +1977,27 @@ window.addToSlot = function(slotIndex, chartType) {
             type: 'bar',
             data: {
                 labels: weights.map(w => w.placa),
-                datasets: [{ label: 'Líquido (Kg)', data: weights.map(w => w.liq), backgroundColor: '#3b82f6' }]
+                datasets: [{ 
+                    label: 'Peso Líquido (Kg)', 
+                    data: weights.map(w => w.liq), 
+                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1.5,
+                    borderRadius: 4
+                }]
             },
-            options: { plugins: { title: { display: true, text: 'Pesagem Hoje' } } }
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: textColor, font: { size: 9 } }, grid: { display: false } },
+                    y: { ticks: { color: textColor, font: { size: 9 } }, grid: { color: gridColor } }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    title: { display: true, text: 'Pesagens Ativas (Hoje)', color: textColor, font: { size: 13, weight: 'bold' } } 
+                } 
+            }
         };
     } else if (chartType === 'maps_status') {
         const launched = window.mapData.filter(m => m.launched).length;
@@ -1728,10 +2005,22 @@ window.addToSlot = function(slotIndex, chartType) {
         chartData = {
             type: 'pie',
             data: {
-                labels: ['Lançados', 'Rascunho'],
-                datasets: [{ data: [launched, draft], backgroundColor: ['#10b981', '#f59e0b'] }]
+                labels: ['Lançados (Auditados)', 'Rascunhos Pendentes'],
+                datasets: [{ 
+                    data: [launched, draft], 
+                    backgroundColor: ['rgba(16, 185, 129, 0.85)', 'rgba(245, 158, 11, 0.85)'],
+                    borderWidth: isDark ? 2 : 1,
+                    borderColor: isDark ? '#1f2937' : '#ffffff'
+                }]
             },
-            options: { plugins: { title: { display: true, text: 'Status dos Mapas' } } }
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { labels: { color: textColor, font: { size: 10 } } },
+                    title: { display: true, text: 'Status de Auditoria de Mapas Cegos', color: textColor, font: { size: 13, weight: 'bold' } } 
+                } 
+            }
         };
     } else {
         // trucks_week
@@ -1741,43 +2030,90 @@ window.addToSlot = function(slotIndex, chartType) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const ds = d.toISOString().split('T')[0];
-            days.push(ds.slice(5));
+            days.push(ds.slice(5).split('-').reverse().join('/'));
             counts.push(window.patioData.filter(t => (t.chegada || '').startsWith(ds)).length);
         }
         chartData = {
             type: 'line',
             data: {
                 labels: days,
-                datasets: [{ label: 'Caminhões', data: counts, borderColor: '#3b82f6', tension: 0.3 }]
+                datasets: [{ 
+                    label: 'Cargas Recebidas', 
+                    data: counts, 
+                    borderColor: '#10b981', 
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#10b981'
+                }]
             },
-            options: { plugins: { title: { display: true, text: 'Caminhões (7 dias)' } } }
+            options: { 
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: textColor, font: { size: 9 } }, grid: { display: false } },
+                    y: { ticks: { color: textColor, font: { size: 9 } }, grid: { color: gridColor } }
+                },
+                plugins: { 
+                    legend: { labels: { color: textColor } },
+                    title: { display: true, text: 'Histórico de Entradas (7 dias)', color: textColor, font: { size: 13, weight: 'bold' } } 
+                } 
+            }
         };
     }
 
     if (typeof Chart !== 'undefined') {
-        new Chart(ctx, chartData);
+        if (window.activeCharts === undefined) window.activeCharts = {};
+        if (window.activeCharts[slotIndex]) window.activeCharts[slotIndex].destroy();
+        window.activeCharts[slotIndex] = new Chart(ctx, chartData);
     }
 };
 
 window.clearSlot = function(slotIndex) {
     const slot = document.getElementById('slot-' + slotIndex);
     if (!slot) return;
-    slot.innerHTML = `<div class="empty-state"><button class="btn btn-primary" onclick="window.addToSlot(${slotIndex})">+ Adicionar Gráfico</button></div>`;
+    if (window.activeCharts && window.activeCharts[slotIndex]) {
+        window.activeCharts[slotIndex].destroy();
+        delete window.activeCharts[slotIndex];
+    }
+    slot.innerHTML = `
+        <div class="empty-state" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted);">
+            <i class="fas fa-plus-circle" style="font-size:2rem; opacity:0.3; margin-bottom:8px;"></i>
+            <button class="btn btn-primary" onclick="window.addToSlot(${slotIndex})">Adicionar Gráfico</button>
+        </div>
+    `;
     slot.classList.add('empty');
 };
 
 window.saveDashboardLayout = function() {
-    alert('Layout salvo!');
+    const layout = [];
+    for (let i = 0; i < 4; i++) {
+        const chartCanvas = document.getElementById('chart_' + i);
+        if (chartCanvas && window.activeCharts && window.activeCharts[i]) {
+            const titleText = window.activeCharts[i].options.plugins.title.text;
+            let type = 'trucks_today';
+            if (titleText.includes('Pesagem')) type = 'weight_today';
+            else if (titleText.includes('Auditoria')) type = 'maps_status';
+            else if (titleText.includes('Histórico')) type = 'trucks_week';
+            layout.push(type);
+        } else {
+            layout.push(null);
+        }
+    }
+    localStorage.setItem('aw_dash_layout', JSON.stringify(layout));
+    alert('Layout do Painel Salvo com Sucesso!');
 };
 
 window.clearDashboard = function() {
-    if (confirm('Limpar todos os gráficos?')) {
+    if (confirm('Limpar todos os gráficos e resetar o painel?')) {
         for (let i = 0; i < 4; i++) window.clearSlot(i);
+        localStorage.removeItem('aw_dash_layout');
     }
 };
 
 window.updateAccountRequestBadge = function() {
-    const badge = document.getElementById('badgeReq');
+    const badge = document.getElementById('cadBadgeReq');
     if (!badge) return;
     const count = window.requests.filter(r => r.status === 'PENDENTE').length;
     if (count > 0) {
@@ -1798,8 +2134,81 @@ window.updateAccountRequestBadge = function() {
 window.saveCurrentMap = function() {
     const m = window.mapData.find(x => x.id === window.currentMapId);
     if (!m) return alert('Nenhum mapa selecionado.');
-    window.saveAll();
-    alert('Mapa salvo com sucesso!');
+    
+    let changeDetails = [];
+    if (m.launched && window.mapSnapshot) {
+        try {
+            const oldRows = JSON.parse(window.mapSnapshot);
+            m.rows.forEach((r, idx) => {
+                const oldR = oldRows.find(x => x.id === r.id) || {};
+                const fields = ['desc', 'qty_nf', 'qty', 'nf', 'forn'];
+                fields.forEach(f => {
+                    const oldVal = (oldR[f] !== undefined && oldR[f] !== null ? oldR[f] : '').toString().trim();
+                    const newVal = (r[f] !== undefined && r[f] !== null ? r[f] : '').toString().trim();
+                    if (oldVal !== newVal) {
+                        const fieldNames = {
+                            desc: 'Descrição',
+                            qty_nf: 'Qtd NF',
+                            qty: 'Qtd Contada',
+                            nf: 'Nota Fiscal',
+                            forn: 'Fornecedor'
+                        };
+                        changeDetails.push(`Linha #${idx + 1} (${r.desc || 'Sem desc'}): ${fieldNames[f]} alterado de "${oldVal || 'vazio'}" para "${newVal || 'vazio'}"`);
+                    }
+                });
+            });
+        } catch(e) {
+            console.error("Erro ao comparar snapshot", e);
+        }
+    }
+    
+    if (m.launched && window.mapHeaderSnapshot) {
+        try {
+            const oldHeader = JSON.parse(window.mapHeaderSnapshot);
+            const dateInput = document.getElementById('mapDate').value;
+            const placaInput = document.getElementById('mapPlaca').value;
+            const setorInput = document.getElementById('mapSetor').value;
+            
+            if (oldHeader.date !== dateInput) {
+                changeDetails.push(`Data alterada de "${oldHeader.date}" para "${dateInput}"`);
+            }
+            if (oldHeader.placa !== placaInput) {
+                changeDetails.push(`Placa alterada de "${oldHeader.placa}" para "${placaInput}"`);
+            }
+            if (oldHeader.setor !== setorInput) {
+                changeDetails.push(`Setor alterado de "${oldHeader.setor}" para "${setorInput}"`);
+            }
+        } catch(e) {
+            console.error("Erro ao comparar header snapshot", e);
+        }
+    }
+
+    m.date = document.getElementById('mapDate').value;
+    m.placa = document.getElementById('mapPlaca').value;
+    m.setor = document.getElementById('mapSetor').value;
+
+    if (changeDetails.length > 0) {
+        if (!m.changeHistory) m.changeHistory = [];
+        m.changeHistory.push({
+            user: window.loggedUser.username,
+            timestamp: window.getBrazilTime(),
+            changes: changeDetails
+        });
+        m.changeCount = (m.changeCount || 0) + 1;
+        
+        if (m.authorizedEditor === window.loggedUser.username && !window.isAdmin && !window.isRecebimento) {
+            m.authorizedEditor = null;
+            m.forceUnlock = false;
+        }
+        
+        window.saveAll();
+        alert(`Mapa salvo com sucesso! Foram registradas ${changeDetails.length} alterações.`);
+    } else {
+        window.saveAll();
+        alert('Mapa salvo com sucesso!');
+    }
+
+    window.loadMap(m.id);
 };
 
 /**
@@ -1864,14 +2273,234 @@ window.confirmFirstAccessChange = function() {
 // INICIALIZAÇÃO E INTERVALO DE NOTIFICAÇÕES
 // =========================================================
 
-// Inicia o polling de notificações após o carregamento
-document.addEventListener('DOMContentLoaded', () => {
-    // Intervalo de verificação de notificações
-    setInterval(() => {
-        if (typeof window.checkForNotifications === 'function') {
-            window.checkForNotifications();
+// --- ASSINATURA DIGITAL DO CONFERENTE (CANVAS DRAWING) ---
+let isDrawing = false;
+let sigCanvas = null;
+let sigCtx = null;
+
+window.initSignatureCanvas = function() {
+    sigCanvas = document.getElementById('signatureCanvas');
+    if (!sigCanvas) return;
+    
+    sigCtx = sigCanvas.getContext('2d');
+    
+    // Limpa o canvas e desenha uma linha pontilhada de guia
+    window.clearSignatureCanvas();
+
+    // Eventos de Ponteiro (suporta mouse, caneta digital e toque)
+    sigCanvas.addEventListener('pointerdown', (e) => {
+        isDrawing = true;
+        sigCtx.beginPath();
+        const rect = sigCanvas.getBoundingClientRect();
+        sigCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    });
+
+    sigCanvas.addEventListener('pointermove', (e) => {
+        if (!isDrawing) return;
+        const rect = sigCanvas.getBoundingClientRect();
+        sigCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        sigCtx.stroke();
+    });
+
+    sigCanvas.addEventListener('pointerup', () => {
+        isDrawing = false;
+    });
+
+    sigCanvas.addEventListener('pointerleave', () => {
+        isDrawing = false;
+    });
+};
+
+window.clearSignatureCanvas = function() {
+    if (!sigCanvas || !sigCtx) return;
+    sigCtx.fillStyle = '#ffffff';
+    sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
+    
+    // Desenha guia pontilhada discreta de "Assine aqui"
+    sigCtx.strokeStyle = '#cccccc';
+    sigCtx.lineWidth = 1;
+    sigCtx.setLineDash([5, 5]);
+    sigCtx.beginPath();
+    sigCtx.moveTo(20, sigCanvas.height - 25);
+    sigCtx.lineTo(sigCanvas.width - 20, sigCanvas.height - 25);
+    sigCtx.stroke();
+    
+    // Escreve texto discreto
+    sigCtx.fillStyle = '#888888';
+    sigCtx.font = '10px Arial';
+    sigCtx.fillText('ASSINATURA DIGITAL DO CONFERENTE', sigCanvas.width / 2 - 95, sigCanvas.height - 10);
+    
+    // Restaura configurações de pintura
+    sigCtx.strokeStyle = '#1e3a8a'; // Tinta azul marinho premium
+    sigCtx.lineWidth = 2.5;
+    sigCtx.setLineDash([]);
+};
+
+// Vincula a abertura do modal à inicialização do canvas
+const originalOpenUnifiedApproval = window.openUnifiedApproval;
+window.openUnifiedApproval = function(id) {
+    if (typeof originalOpenUnifiedApproval === 'function') {
+        originalOpenUnifiedApproval(id);
+    }
+    // Inicializa o canvas após o modal estar vísivel (delay de 100ms)
+    setTimeout(() => {
+        window.initSignatureCanvas();
+    }, 100);
+};
+
+// --- BALANÇA LED ANIMAÇÃO PROGRESSIVA ---
+window.animateLEDWeight = function(targetWeight) {
+    const el = document.getElementById('ledDisplayWeight');
+    if (!el) return;
+    
+    const start = 0;
+    const duration = 800; // 800ms de animação
+    const startTime = performance.now();
+    
+    function update(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Efeito easeOutQuad para desacelerar perto do fim
+        const easeProgress = progress * (2 - progress);
+        const currentWeight = Math.round(start + easeProgress * (targetWeight - start));
+        
+        // Formata os números com zeros à esquerda (ex: 012430)
+        const formatted = String(currentWeight).padStart(6, '0');
+        el.innerHTML = `${formatted} <span style="font-size: 0.9rem; color: rgba(239, 68, 68, 0.5); font-weight: normal;">KG</span>`;
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
         }
-    }, 4000);
+    }
+    
+    requestAnimationFrame(update);
+};
+
+// Vincula o evento do input do modal de pesagem
+document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'mwPesoNF') {
+        const val = parseFloat(e.target.value) || 0;
+        window.animateLEDWeight(val);
+    }
 });
 
-console.log("Wilson Core: Módulo de funções complementares carregado.");
+// --- DIAGNÓSTICOS DO SERVIDOR (HEALTH CHECK) ---
+window.runDiagnostics = async function() {
+    const btn = document.querySelector('button[onclick*="runDiagnostics"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando Latência...';
+    }
+    
+    const startTime = performance.now();
+    try {
+        const response = await fetch(`${window.API_URL}/api/diagnostics?t=${Date.now()}`, { cache: 'no-store' });
+        const endTime = performance.now();
+        const latency = Math.round(endTime - startTime);
+        
+        const data = await response.json();
+        
+        // Atualiza os displays do card com animações/cores suaves
+        const pingEl = document.getElementById('diagPing');
+        if (pingEl) {
+            pingEl.innerText = `${latency} ms`;
+            if (latency < 30) pingEl.style.color = '#10b981'; // Verde excelente
+            else if (latency < 100) pingEl.style.color = '#f59e0b'; // Laranja ok
+            else pingEl.style.color = '#ef4444'; // Vermelho lento
+        }
+
+        const connsEl = document.getElementById('diagConns');
+        if (connsEl) connsEl.innerText = data.activeConnections || '1';
+
+        const dbSizeEl = document.getElementById('diagDbSize');
+        if (dbSizeEl) dbSizeEl.innerText = `${(data.dbSize / 1024).toFixed(1)} KB`;
+
+        const uptimeEl = document.getElementById('diagUptime');
+        if (uptimeEl) {
+            const ut = data.uptime || 0;
+            const hrs = Math.floor(ut / 3600);
+            const mins = Math.floor((ut % 3600) / 60);
+            const secs = Math.floor(ut % 60);
+            uptimeEl.innerText = `${hrs}h ${mins}m ${secs}s`;
+        }
+    } catch (err) {
+        console.error('Erro no diagnóstico:', err);
+        const pingEl = document.getElementById('diagPing');
+        if (pingEl) {
+            pingEl.innerText = 'Offline';
+            pingEl.style.color = '#ef4444';
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-network-wired"></i> Executar Diagnóstico de Rede';
+        }
+    }
+};
+
+window.saveLinkRelation = function(type, idA, idB) {
+    if (!idA || !idB) {
+        alert("Selecione ambas as entidades para vincular!");
+        return false;
+    }
+    
+    if (type === 'supplier_carrier') {
+        const carrier = window.carriersData.find(c => c.id === idB);
+        if (!carrier) return false;
+        if (!carrier.supplierIds) carrier.supplierIds = [];
+        if (!carrier.supplierIds.includes(idA)) {
+            carrier.supplierIds.push(idA);
+        }
+    } else if (type === 'carrier_driver') {
+        const driver = window.driversData.find(d => d.id === idB);
+        if (!driver) return false;
+        if (!driver.carrierIds) driver.carrierIds = [];
+        if (!driver.carrierIds.includes(idA)) {
+            driver.carrierIds.push(idA);
+        }
+    } else if (type === 'supplier_driver') {
+        const driver = window.driversData.find(d => d.id === idB);
+        if (!driver) return false;
+        if (!driver.supplierIds) driver.supplierIds = [];
+        if (!driver.supplierIds.includes(idA)) {
+            driver.supplierIds.push(idA);
+        }
+    } else if (type === 'driver_plate') {
+        const plate = window.platesData.find(p => p.id === idB);
+        if (!plate) return false;
+        plate.driverId = idA;
+    }
+    
+    window.saveAll();
+    return true;
+};
+
+window.removeLinkRelation = function(type, idA, idB) {
+    if (type === 'supplier_carrier') {
+        const carrier = window.carriersData.find(c => c.id === idB);
+        if (carrier && carrier.supplierIds) {
+            carrier.supplierIds = carrier.supplierIds.filter(id => id !== idA);
+        }
+    } else if (type === 'carrier_driver') {
+        const driver = window.driversData.find(d => d.id === idB);
+        if (driver && driver.carrierIds) {
+            driver.carrierIds = driver.carrierIds.filter(id => id !== idA);
+        }
+    } else if (type === 'supplier_driver') {
+        const driver = window.driversData.find(d => d.id === idB);
+        if (driver && driver.supplierIds) {
+            driver.supplierIds = driver.supplierIds.filter(id => id !== idA);
+        }
+    } else if (type === 'driver_plate') {
+        const plate = window.platesData.find(p => p.id === idB);
+        if (plate && plate.driverId === idA) {
+            plate.driverId = null;
+        }
+    }
+    
+    window.saveAll();
+    return true;
+};
+
+console.log("Wilson Core: Módulo de funções complementares carregado com melhorias premium.");

@@ -45,6 +45,16 @@ window.renderPatio = function() {
         card.className = 'truck-card';
         if (c.isProvisory) card.style.borderLeft = "4px solid #f59e0b";
 
+        // Ativar Arrastar e Soltar (Drag & Drop)
+        card.draggable = true;
+        card.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', c.id);
+            card.style.opacity = '0.5';
+        });
+        card.addEventListener('dragend', () => {
+            card.style.opacity = '1';
+        });
+
         // Menu de contexto no clique direito
         card.oncontextmenu = (e) => { 
             e.preventDefault(); 
@@ -430,3 +440,59 @@ window.validateAndCleanInput = function(el, type) {
         el.value = clean.toUpperCase();
     }
 };
+
+// --- INICIALIZAÇÃO DO ARRASTAR E SOLTAR (DRAG & DROP) ---
+function setupDragAndDrop() {
+    const cols = ['ALM', 'GAVA', 'OUT', 'SAIU'];
+    cols.forEach(colId => {
+        const colEl = document.getElementById('col-' + colId);
+        if (!colEl) return;
+
+        colEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            colEl.classList.add('drag-over');
+        });
+
+        colEl.addEventListener('dragleave', () => {
+            colEl.classList.remove('drag-over');
+        });
+
+        colEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            colEl.classList.remove('drag-over');
+            const truckId = e.dataTransfer.getData('text/plain');
+            if (!truckId) return;
+
+            const i = window.patioData.findIndex(t => t.id === truckId);
+            if (i > -1) {
+                const truck = window.patioData[i];
+                if (colId === 'SAIU') {
+                    if (truck.status !== 'SAIU') {
+                        window.changeStatus(truckId, 'SAIU');
+                    }
+                } else {
+                    const secNames = { 'ALM': 'DOCA (ALM)', 'GAVA': 'GAVA', 'OUT': 'OUTROS SETORES' };
+                    
+                    // Modifica o setor local do caminhão
+                    truck.local = colId;
+                    truck.localSpec = secNames[colId] || 'OUTROS SETORES';
+                    
+                    // Se o status era "SAIU", volta para a fila
+                    if (truck.status === 'SAIU') {
+                        truck.status = 'FILA';
+                        truck.saida = null;
+                    }
+                    
+                    window.saveAll();
+                    window.renderPatio();
+                }
+            }
+        });
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupDragAndDrop);
+} else {
+    setupDragAndDrop();
+}

@@ -9,8 +9,15 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
         input: {
-            main: path.resolve(__dirname, 'frontend/pages/login.html'), // Ponto de entrada
-            // Adicione outras páginas aqui se necessário
+            login: path.resolve(__dirname, 'frontend/pages/login.html'),
+            home: path.resolve(__dirname, 'frontend/pages/home.html')
+        },
+        output: {
+            manualChunks(id) {
+                if (id.includes('node_modules')) {
+                    return 'vendor';
+                }
+            }
         }
     }
   },

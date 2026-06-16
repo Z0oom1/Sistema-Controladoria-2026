@@ -220,6 +220,10 @@ button:hover {
     pointer-events: none;
 }
 
+.loading-screen.hidden * {
+    animation: none !important;
+}
+
 .loader-wrapper {
     position: fixed;
     z-index: 1090;

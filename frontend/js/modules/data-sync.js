@@ -62,6 +62,10 @@ window.loadDataFromServer = async function() {
     if (typeof window.refreshCurrentView === 'function') {
         window.refreshCurrentView();
     }
+
+    if (typeof window.hideLoading === 'function') {
+        window.hideLoading();
+    }
 };
 
 /**

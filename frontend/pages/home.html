@@ -74,6 +74,14 @@
         const isConferente = userSector === 'conferente';
         const isAdmin = userRoleRaw.includes('admin') || userRoleRaw.includes('administrador');
         const isEncarregado = userRoleRaw.includes('encarreg');
+
+        // --- PERMISSÕES GLOBAIS ---
+        window.isRecebimento = isRecebimento;
+        window.isConferente = isConferente;
+        window.isAdmin = isAdmin;
+        window.isEncarregado = isEncarregado;
+        window.userSubType = userSubType;
+        window.loggedUser = safeUser;
     </script>
 
     <nav class="main-sidebar">
@@ -168,45 +176,61 @@
 
         <div id="view-mapas" class="view-section">
             <div class="mc-layout">
+                <!-- Sidebar de Mapas -->
                 <div class="mc-sidebar-list" id="mobileMapList">
-                    <div
-                        style="padding:15px; background:var(--bg-input); font-weight:bold; border-bottom:1px solid var(--border-color);">
-                        Filtrar Mapas
-                        <input type="date" id="mapListDateFilter" onchange="window.renderMapList()"
-                            style="width:100%; margin-top:10px;">
+                    <div class="mc-sidebar-header">
+                        <div class="mc-sidebar-title">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Mapas Cegos</span>
+                        </div>
+                        <div class="mc-filter-wrap">
+                            <i class="fas fa-calendar-alt"></i>
+                            <input type="date" id="mapListDateFilter" onchange="window.renderMapList()" class="mc-date-input">
+                        </div>
                     </div>
-                    <div class="mc-list-items" id="mapList" style="flex:1; overflow-y:auto;"></div>
-                    <div style="padding:10px;"><button onclick="window.modalTruckOpen()" class="btn btn-save"
-                            style="width:100%; justify-content:center;">+ Novo Mapa Manual</button></div>
+                    <div class="mc-list-items" id="mapList"></div>
+                    <div class="mc-sidebar-footer">
+                        <button onclick="window.modalTruckOpen()" class="mc-new-map-btn">
+                            <i class="fas fa-plus-circle"></i> Novo Mapa Manual
+                        </button>
+                    </div>
                 </div>
 
-                <div style="flex:1; overflow-y:auto; padding-bottom:50px; position:relative;">
-
-                    <div id="mapEmptyState"
-                        style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-muted); text-align:center; padding-top:100px;">
-                        <i class="fas fa-wind" style="font-size:3rem; margin-bottom:20px; opacity:0.3;"></i>
-                        <h3 style="margin:0; font-weight:600;">Nenhum mapa cego por aqui...</h3>
-                        <p style="font-size:0.9rem; margin-top:5px; max-width:250px;">Selecione um item na lista ao lado
-                            ou crie um novo mapa.</p>
+                <!-- Área Principal do Mapa -->
+                <div class="mc-main-area">
+                    <div id="mapEmptyState" class="mc-empty-state">
+                        <div class="mc-empty-icon">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </div>
+                        <h3>Nenhum mapa selecionado</h3>
+                        <p>Selecione um item na lista ao lado ou crie um novo mapa cego para começar.</p>
                     </div>
 
                     <div class="sheet" id="mapSheet" style="display:none;">
-                        <div id="divBanner" class="divergence-banner"
-                            style="display:none; background:#ffebee; color:#b71c1c; padding:10px; text-align:center; border:1px solid #b71c1c; margin-bottom:15px;">
-                            <i class="fas fa-exclamation-triangle"></i> <b>MAPA COM DIVERGÊNCIA</b><br>
-                            <span id="divBannerText" style="font-size:0.9rem;"></span>
-                            <div style="margin-top:5px;" id="divResolveBtn"></div>
+                        <!-- Banner de Divergência -->
+                        <div id="divBanner" class="mc-divergence-banner" style="display:none;">
+                            <div class="mc-div-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                            <div class="mc-div-content">
+                                <strong>MAPA COM DIVERGÊNCIA</strong>
+                                <span id="divBannerText"></span>
+                            </div>
+                            <div id="divResolveBtn"></div>
                         </div>
-                        <div class="sheet-header"
-                            style="display:flex; align-items:center; gap:15px; margin-bottom:20px;">
-                            <img src="https://www.alimentoswilson.com.br/imgs/logo-wilson.png" alt="Logo"
-                                class="logo-img" style="width:80px;" />
-                            <div class="title"
-                                style="flex:1; text-align:center; font-weight:bold; font-size:1.2rem; color:black;">MAPA
-                                CEGO DIGITAL</div>
-                            <div class="date-wrap" style="color:black;">Dia: <input type="date" id="mapDate"
-                                    style="color:black; width:auto;"></div>
+
+                        <!-- Cabeçalho Premium da Folha -->
+                        <div class="mc-sheet-header">
+                            <img src="https://www.alimentoswilson.com.br/imgs/logo-wilson.png" alt="Logo" class="mc-logo" />
+                            <div class="mc-sheet-title">
+                                <h2>MAPA CEGO DIGITAL</h2>
+                                <span class="mc-subtitle">Conferência de Recebimento</span>
+                            </div>
+                            <div class="mc-sheet-date">
+                                <label>Data</label>
+                                <input type="date" id="mapDate" class="mc-date-field">
+                            </div>
                         </div>
+
+                        <!-- Tabela do Mapa -->
                         <div class="table-responsive-wrapper">
                             <table class="mc-table">
                                 <thead>
@@ -221,32 +245,64 @@
                                 <tbody id="mapBody"></tbody>
                             </table>
                         </div>
-                        <div class="controls" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
-                            <button class="btn btn-save" onclick="window.saveCurrentMap()">Salvar Alterações</button>
-                            <button class="btn btn-launch" onclick="window.launchMap()" id="btnLaunch">Lançar
-                                Definitivo</button>
-                            <button class="btn btn-edit" id="btnRequestEdit"
-                                style="display:none; background:#ff9800; color:white;"
-                                onclick="window.triggerRequest('edit')">Solicitar Edição</button>
-                            <div id="mapStatus"
-                                style="padding:8px 15px; border-radius:4px; font-weight:bold; margin-left:auto;">
-                                Rascunho</div>
+
+                        <!-- Barra de Controles -->
+                        <div class="mc-controls">
+                            <div class="mc-controls-left">
+                                <button class="mc-btn mc-btn-save" onclick="window.saveCurrentMap()">
+                                    <i class="fas fa-save"></i> Salvar
+                                </button>
+                                <button class="mc-btn mc-btn-launch" onclick="window.launchMap()" id="btnLaunch">
+                                    <i class="fas fa-rocket"></i> Lançar Definitivo
+                                </button>
+                                <button class="mc-btn mc-btn-request" id="btnRequestEdit" style="display:none;" onclick="window.triggerRequest('edit')">
+                                    <i class="fas fa-pen-fancy"></i> Solicitar Edição
+                                </button>
+                                <button class="mc-btn mc-btn-weigh" id="btnGoToWeigh" style="display:none;" onclick="window.goToWeightFromCurrentMap()">
+                                    <i class="fas fa-balance-scale"></i> Ver na Pesagem
+                                </button>
+                                <button class="mc-btn mc-btn-history" id="btnMapHistory" style="display:none;" onclick="window.showMapChangeHistory()">
+                                    <i class="fas fa-history"></i> Histórico
+                                </button>
+                            </div>
+                            <div id="mapStatus" class="mc-status-badge">Rascunho</div>
                         </div>
-                        <div class="extras" style="margin-top:20px; display:flex; gap:15px; flex-wrap:wrap;">
-                            <div style="flex:1;"><label style="font-weight:bold; color:black;">Setor:</label><input
-                                    type="text" id="mapSetor" class="cell"
-                                    style="width:100%; border-bottom:1px solid #ccc; background:#f9f9f9;"></div>
-                            <div style="width:150px;"><label style="font-weight:bold; color:black;">Placa:</label><input
-                                    id="mapPlaca" class="cell" type="text"
-                                    style="width:100%; border-bottom:1px solid #ccc;"></div>
-                            <div style="flex:1; display:flex; gap:10px; justify-content:flex-end;">
-                                <div style="text-align:center;"><button onclick="window.signMap('receb')" class="btn-sign">Ass.
-                                        Recebimento</button>
-                                    <div id="sigReceb" style="color:blue; font-weight:bold; font-size:0.8rem;"></div>
+
+                        <!-- Extras: Setor, Placa, Assinaturas -->
+                        <div class="mc-extras">
+                            <div class="mc-extras-fields">
+                                <div class="mc-field-group">
+                                    <label><i class="fas fa-warehouse"></i> Setor</label>
+                                    <select id="mapSetor" class="mc-field-input" onchange="window.updateMapSetor(this.value)">
+                                        <option value="DOCA (ALM)">DOCA (ALM)</option>
+                                        <option value="GAVA">GAVA</option>
+                                        <option value="MANUTENÇÃO">MANUTENÇÃO</option>
+                                        <option value="INFRAESTRUTURA">INFRAESTRUTURA</option>
+                                        <option value="SALA DE PESAGEM">SALA DE PESAGEM</option>
+                                        <option value="LABORATÓRIO">LABORATÓRIO</option>
+                                        <option value="SST">SST</option>
+                                        <option value="CD">CD</option>
+                                        <option value="COMPRAS">COMPRAS</option>
+                                        <option value="OUTROS">OUTROS</option>
+                                    </select>
                                 </div>
-                                <div style="text-align:center;"><button onclick="window.signMap('conf')"
-                                        class="btn-sign-alm">Ass. Conferencia</button>
-                                    <div id="sigConf" style="color:red; font-weight:bold; font-size:0.8rem;"></div>
+                                <div class="mc-field-group mc-field-sm">
+                                    <label><i class="fas fa-truck"></i> Placa</label>
+                                    <input id="mapPlaca" class="mc-field-input" type="text" placeholder="ABC-1234">
+                                </div>
+                            </div>
+                            <div class="mc-signatures">
+                                <div class="mc-sig-block">
+                                    <button onclick="window.signMap('receb')" class="mc-sig-btn mc-sig-receb">
+                                        <i class="fas fa-signature"></i> Ass. Recebimento
+                                    </button>
+                                    <div id="sigReceb" class="mc-sig-name"></div>
+                                </div>
+                                <div class="mc-sig-block">
+                                    <button onclick="window.signMap('conf')" class="mc-sig-btn mc-sig-conf">
+                                        <i class="fas fa-signature"></i> Ass. Conferência
+                                    </button>
+                                    <div id="sigConf" class="mc-sig-name"></div>
                                 </div>
                             </div>
                         </div>
@@ -283,7 +339,6 @@
                     <tbody id="mpBody"></tbody>
                 </table>
             </div>
-            <div class="fab" onclick="window.openManualWeighingModal()">+</div>
         </div>
 
         <div id="view-carregamento" class="view-section">
@@ -312,38 +367,58 @@
                     <tbody id="carrBody"></tbody>
                 </table>
             </div>
-            <div class="fab" onclick="window.openModalCarregamento()">+</div>
         </div>
 
         <div id="view-relatorios" class="view-section">
-            <div class="settings-card" style="max-width:1100px; margin:0 auto;">
-                <h3 style="margin-top:0; color:var(--text-main); margin-bottom:20px;">Relatórios Gerenciais</h3>
-                <div
-                    style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; background:var(--bg-input); padding:20px; border-radius:var(--radius-sm);">
-                    <div style="flex:1; min-width:200px;"><label
-                            style="font-weight:bold; font-size:0.8rem;">Tipo</label><select id="repType"
-                            style="width:100%;">
-                            <option value="patio">Fila de Caminhões</option>
-                            <option value="mapas">Mapas Cegos Lançados</option>
-                            <option value="carregamento">Carregamento</option>
-                            <option value="materia-prima">Controle de Pesagem</option>
-                            <option value="divergencias">Divergências</option>
-                        </select></div>
-                    <div><label style="font-weight:bold; font-size:0.8rem;">Início</label><input type="date"
-                            id="repDateStart" style="width:auto;"></div>
-                    <div><label style="font-weight:bold; font-size:0.8rem;">Fim</label><input type="date"
-                            id="repDateEnd" style="width:auto;"></div>
-                    <div style="flex:1; min-width:200px;"><label
-                            style="font-weight:bold; font-size:0.8rem;">Busca</label><input type="text"
-                            id="repSearchTerm" placeholder="Placa, NF, Forn..."></div>
-                    <button class="btn btn-save" onclick="window.generateAdvancedReport()"><i class="fas fa-search"></i>
-                        Filtrar</button>
-                    <button class="btn btn-edit" onclick="window.exportReportToPDF()"><i class="fas fa-file-pdf"></i>
-                        PDF</button>
+            <div class="settings-card" style="max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:15px;">
+                <h3 style="margin-top:0; color:var(--text-main); margin-bottom:5px;"><i class="fas fa-print"></i> Relatórios Gerenciais</h3>
+                <small style="color:var(--text-muted); display:block; margin-bottom:15px;">Filtre, pesquise e exporte históricos e movimentações de carga</small>
+                
+                <div id="repTabs" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:5px;">
+                    <button class="rep-tab" data-type="patio" onclick="window.switchRepTab('patio')" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border-color); background:var(--primary); color:white; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s ease;">
+                        <i class="fas fa-truck"></i> Fila de Caminhões
+                    </button>
+                    <button class="rep-tab" data-type="mapas" onclick="window.switchRepTab('mapas')" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s ease;">
+                        <i class="fas fa-map"></i> Mapas Cegos
+                    </button>
+                    <button class="rep-tab" data-type="carregamento" onclick="window.switchRepTab('carregamento')" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s ease;">
+                        <i class="fas fa-dolly"></i> Carregamento
+                    </button>
+                    <button class="rep-tab" data-type="materia-prima" onclick="window.switchRepTab('materia-prima')" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s ease;">
+                        <i class="fas fa-weight-hanging"></i> Controle de Pesagem
+                    </button>
+                    <button class="rep-tab" data-type="divergencias" onclick="window.switchRepTab('divergencias')" style="padding:10px 18px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all 0.2s ease;">
+                        <i class="fas fa-exclamation-triangle"></i> Divergências
+                    </button>
                 </div>
-                <div id="repResultArea" style="margin-top:30px; overflow-x:auto;"></div>
-                <div id="repFooter" style="margin-top:20px; text-align:right; font-weight:bold; display:none;">Total:
-                    <span id="repTotalCount">0</span>
+                <input type="hidden" id="repType" value="patio">
+
+                <div style="display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; background:rgba(0,0,0,0.015); border:1px solid var(--border-color); padding:20px; border-radius:12px; margin-bottom:5px;">
+                    <div style="flex:1; min-width:150px;">
+                        <label style="font-weight:bold; font-size:0.8rem; display:block; margin-bottom:6px; color:var(--text-muted);">Data de Início</label>
+                        <input type="date" id="repDateStart" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-main);">
+                    </div>
+                    <div style="flex:1; min-width:150px;">
+                        <label style="font-weight:bold; font-size:0.8rem; display:block; margin-bottom:6px; color:var(--text-muted);">Data de Fim</label>
+                        <input type="date" id="repDateEnd" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-main);">
+                    </div>
+                    <div style="flex:2; min-width:250px;">
+                        <label style="font-weight:bold; font-size:0.8rem; display:block; margin-bottom:6px; color:var(--text-muted);">Termo de Busca</label>
+                        <input type="text" id="repSearchTerm" placeholder="Buscar por placa, fornecedor, nota fiscal..." style="width:100%; padding:8px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-main);">
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn btn-save" style="padding:10px 20px; font-weight:bold;" onclick="window.generateAdvancedReport()">
+                            <i class="fas fa-filter"></i> Filtrar
+                        </button>
+                        <button class="btn btn-edit" style="padding:10px 20px; font-weight:bold;" onclick="window.exportReportToPDF()">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div id="repResultArea" style="margin-top:15px; overflow-x:auto;"></div>
+                <div id="repFooter" style="margin-top:15px; text-align:right; font-weight:bold; display:none; background:rgba(0,0,0,0.015); padding:10px 15px; border-radius:8px; border:1px solid var(--border-color);">
+                    Registros Encontrados: <span id="repTotalCount" style="color:var(--primary); font-size:1.1rem; margin-left:5px;">0</span>
                 </div>
             </div>
         </div>
@@ -429,33 +504,45 @@
 
         <div id="view-cadastros" class="view-section">
             <div class="settings-card" style="height: 100%; display: flex; flex-direction: column;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px; flex-wrap:wrap; gap:10px;">
                     <h3 style="margin:0"><i class="fas fa-database"></i> Banco de Dados</h3>
-
-                    <div style="display:flex; gap:10px;">
-                        <select id="cadFilterType" onchange="window.renderCadastros()" style="padding:8px; border-radius:6px; background:var(--bg-input);">
-                            <option value="transportadora">Transportadoras</option>
-                            <option value="fornecedor">Fornecedores</option>
-                            <option value="motorista">Motoristas</option>
-                            <option value="placa">Placas</option>
-                            <option value="produto">Produtos</option>
-                            <option value="requests">Requisições (Pendentes)</option>
-                        </select>
-                        <input type="text" id="cadSearch" placeholder="Buscar..." onkeyup="renderCadastros()" style="padding:8px; border-radius:6px; width:200px; background:var(--bg-input);">
-                    </div>
+                    <input type="text" id="cadSearch" placeholder="Buscar..." onkeyup="renderCadastros()" style="padding:8px; border-radius:6px; width:200px; background:var(--bg-input); border:1px solid var(--border-color);">
                 </div>
 
-                <div style="flex:1; overflow-y:auto; position: relative;">
-                    <div style="position:absolute; top:0; right:0; padding:5px; pointer-events: none; text-align: right; width: 100%;">
-                        <span id="badgeReq" class="notification-badge" style="display:none; position:relative; background: orange;">0</span>
-                    </div>
+                <div id="cadTabs" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:15px;">
+                    <button class="cad-tab" data-type="transportadora" onclick="window.switchCadTab('transportadora')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--primary); color:white; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+                        <i class="fas fa-truck"></i> Transportadoras
+                    </button>
+                    <button class="cad-tab" data-type="fornecedor" onclick="window.switchCadTab('fornecedor')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+                        <i class="fas fa-building"></i> Fornecedores
+                    </button>
+                    <button class="cad-tab" data-type="motorista" onclick="window.switchCadTab('motorista')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+                        <i class="fas fa-user"></i> Motoristas
+                    </button>
+                    <button class="cad-tab" data-type="placa" onclick="window.switchCadTab('placa')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+                        <i class="fas fa-id-card"></i> Placas
+                    </button>
+                    <button class="cad-tab" data-type="produto" onclick="window.switchCadTab('produto')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+                        <i class="fas fa-cubes"></i> Produtos
+                    </button>
+                    <button class="cad-tab" data-type="vincular" onclick="window.switchCadTab('vincular')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+                        <i class="fas fa-link"></i> Vínculos & Relacionamentos
+                    </button>
+                    <button class="cad-tab" data-type="requests" onclick="window.switchCadTab('requests')" style="padding:8px 16px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main); font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s ease;">
+                        <i class="fas fa-clipboard-check"></i> Requisições 
+                        <span id="cadBadgeReq" style="background:orange; display:none; padding:2px 6px; border-radius:10px; font-size:0.75rem; color:white; font-weight:bold;">0</span>
+                    </button>
+                </div>
+                <input type="hidden" id="cadFilterType" value="transportadora">
 
+                <div style="flex:1; overflow-y:auto; position: relative;">
                     <div id="cadReqSection" style="display:none; margin-bottom:15px; padding:10px; background:#fffbeb; border-radius:8px; border:1px solid #fcd34d;"></div>
 
-                    <table class="modern-table">
+                    <table id="cadTable" class="modern-table">
                         <thead id="cadTableHead"></thead>
                         <tbody id="cadTableBody"></tbody>
                     </table>
+                    <div id="cadVincularSection" style="display:none; padding:15px;"></div>
                     <div id="requestsList" style="padding:10px;"></div>
                 </div>
             </div>
@@ -546,9 +633,40 @@
                         style="color:var(--status-danger); border-color:var(--status-danger); width:100%; margin-top:15px;"
                         onclick="window.clearAllData()">RESETAR DADOS</button>
                 </div>
+                
+                <div class="settings-card" style="grid-column: 1 / -1; margin-top: 10px;">
+                    <h4><i class="fas fa-server"></i> Diagnóstico e Latência do Servidor</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; margin-top: 15px;">
+                        <div style="background: var(--bg-input); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); text-align: center;">
+                            <small style="color: var(--text-muted); display: block; font-size: 0.75rem; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">Latência de Rede (Ping)</small>
+                            <strong id="diagPing" style="font-size: 1.4rem; color: #10b981; font-family: monospace;">-- ms</strong>
+                        </div>
+                        <div style="background: var(--bg-input); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); text-align: center;">
+                            <small style="color: var(--text-muted); display: block; font-size: 0.75rem; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">Conexões WebSockets</small>
+                            <strong id="diagConns" style="font-size: 1.4rem; color: var(--primary); font-family: monospace;">--</strong>
+                        </div>
+                        <div style="background: var(--bg-input); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); text-align: center;">
+                            <small style="color: var(--text-muted); display: block; font-size: 0.75rem; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">Tamanho do Banco SQLite</small>
+                            <strong id="diagDbSize" style="font-size: 1.4rem; font-family: monospace;">-- KB</strong>
+                        </div>
+                        <div style="background: var(--bg-input); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); text-align: center;">
+                            <small style="color: var(--text-muted); display: block; font-size: 0.75rem; text-transform: uppercase; font-weight: bold; margin-bottom: 5px;">Tempo de Atividade (Uptime)</small>
+                            <strong id="diagUptime" style="font-size: 1.4rem; font-family: monospace;">--</strong>
+                        </div>
+                    </div>
+                    <button class="btn btn-save" onclick="window.runDiagnostics()"><i class="fas fa-network-wired"></i> Executar Diagnóstico de Rede</button>
+                </div>
             </div>
         </div>
     </main>
+
+    <!-- FABs Globais (fora das view-sections para garantir renderização) -->
+    <div id="fabPesagem" class="fab fab-global" style="display:none;" onclick="window.openManualWeighingModal()" title="Nova Pesagem Manual">
+        <i class="fas fa-plus"></i>
+    </div>
+    <div id="fabCarregamento" class="fab fab-global" style="display:none;" onclick="window.openModalCarregamento()" title="Novo Carregamento Manual">
+        <i class="fas fa-plus"></i>
+    </div>
 
     <div id="modalTruck" class="modal-overlay">
         <div class="modal-box" style="width: 600px;">
@@ -654,6 +772,19 @@
 
         <div id="approvalContainer">
             </div>
+
+        <!-- Canvas de Assinatura Digital do Conferente -->
+        <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px; margin-bottom: 15px;">
+            <label class="form-label" style="font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-signature" style="color: var(--primary);"></i> Assinatura Digital do Conferente
+            </label>
+            <div style="border: 1px dashed var(--border-color); border-radius: 6px; padding: 5px; background: #fff; position: relative;">
+                <canvas id="signatureCanvas" width="650" height="150" style="width: 100%; height: 150px; background: #fff; display: block; cursor: crosshair; border-radius: 4px;"></canvas>
+                <button class="btn btn-edit btn-small" type="button" onclick="window.clearSignatureCanvas()" style="position: absolute; bottom: 10px; right: 10px; padding: 4px 8px; font-size: 0.75rem;">
+                    <i class="fas fa-eraser"></i> Limpar
+                </button>
+            </div>
+        </div>
 
         <div class="modal-footer space-between">
             <button class="btn btn-edit" style="color:red; border-color:red;" onclick="window.rejectUnifiedRequest()">Rejeitar Requisição</button>
@@ -844,17 +975,50 @@
             <div id="repDetailActions" style="text-align: right; border-top: 1px solid #eee; padding-top: 15px;"></div>
         </div>
     </div>
-<div id="modalManualWeighing" class="modal-overlay" style="z-index: 7500;">
-        <div class="modal-box" style="width: 600px;">
-            <h3>Nova Pesagem Manual</h3>
+    <div id="modalMapHistory" class="modal-overlay" style="z-index: 9550;">
+        <div class="modal-box" style="width: 650px; max-width: 95%;">
+            <div class="modal-header-styled">
+                <h3><i class="fas fa-history"></i> Histórico de Alterações do Mapa</h3>
+                <button class="btn btn-edit btn-small" onclick="document.getElementById('modalMapHistory').style.display='none'" style="border:none;"><i class="fas fa-times"></i></button>
+            </div>
             
-            <div style="background:#fff3cd; color:#856404; padding:10px; border-radius:6px; font-size:0.8rem; margin-bottom:15px; display:none;" id="mwWarningBox">
-                <i class="fas fa-exclamation-triangle"></i> <b>Atenção:</b> Dados não cadastrados. Será gerada uma <b>Requisição</b>.
+            <div id="mapHistoryContent" style="margin-bottom: 20px; font-size: 0.95rem; line-height: 1.6; max-height: 400px; overflow-y: auto; padding-right: 5px;"></div>
+
+            <div style="text-align: right; border-top: 1px solid #eee; padding-top: 15px;">
+                <button class="btn btn-edit" onclick="document.getElementById('modalMapHistory').style.display='none'">Fechar</button>
+            </div>
+        </div>
+    </div>
+    <div id="modalManualWeighing" class="modal-overlay" style="z-index: 7500;">
+        <div class="modal-box" style="width: 600px; max-width: 95%;">
+            <div class="modal-header-styled" style="margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin:0; color:var(--primary);"><i class="fas fa-weight-hanging"></i> Nova Pesagem Manual</h3>
+                <button class="btn btn-edit btn-small" onclick="document.getElementById('modalManualWeighing').style.display='none'" style="border:none; background:transparent;"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div style="background:#fff3cd; color:#856404; padding:12px; border-radius:8px; font-size:0.8rem; margin-bottom:15px; display:none; border:1px solid #ffeeba;" id="mwWarningBox">
+                <i class="fas fa-exclamation-triangle"></i> <b>Atenção:</b> Dados não cadastrados. Será gerada uma <b>Requisição de Cadastro</b> automática.
+            </div>
+
+            <div style="background: #111827; border: 1px solid #374151; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 15px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <svg width="45" height="30" viewBox="0 0 60 40" style="fill: #9ca3af;">
+                        <rect x="5" y="32" width="50" height="4" rx="2" style="fill: var(--primary);" />
+                        <path d="M10 18 h20 v12 h-20 z M30 20 h10 l5 4 v8 h-15 z" style="fill: #d1d5db;" />
+                        <circle cx="15" cy="30" r="3" style="fill: #111827; stroke: #9ca3af; stroke-width: 2;" />
+                        <circle cx="25" cy="30" r="3" style="fill: #111827; stroke: #9ca3af; stroke-width: 2;" />
+                        <circle cx="38" cy="30" r="3" style="fill: #111827; stroke: #9ca3af; stroke-width: 2;" />
+                    </svg>
+                    <span style="color: #9ca3af; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.2;">Balança<br>Eletromecânica</span>
+                </div>
+                <div id="ledDisplayWeight" style="background: #000; color: #ef4444; font-family: monospace; font-size: 2rem; font-weight: 800; padding: 6px 16px; border-radius: 6px; border: 2px solid #374151; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); text-shadow: 0 0 6px rgba(239, 68, 68, 0.8); letter-spacing: 2px; text-align: right; min-width: 170px; user-select: none;">
+                    000000 <span style="font-size: 0.9rem; color: rgba(239, 68, 68, 0.5); font-weight: normal;">KG</span>
+                </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-full">
-                    <label>Fornecedor</label>
+                    <label><i class="fas fa-building"></i> Fornecedor</label>
                     <div style="position:relative;">
                         <input type="text" id="mwForn" class="form-input-styled" list="dlFornMW" placeholder="Busque o fornecedor..." oninput="window.filterWeighingChain('fornecedor')" autocomplete="off">
                         <datalist id="dlFornMW"></datalist>
@@ -862,14 +1026,14 @@
                 </div>
 
                 <div class="form-full">
-                    <label>Produto</label>
+                    <label><i class="fas fa-boxes"></i> Produto</label>
                     <div style="position:relative;">
                         <input type="text" id="mwProd" class="form-input-styled" list="prodListSuggestions" placeholder="Ex: ACUCAR..." oninput="window.filterWeighingChain('produto')" autocomplete="off">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Placa</label>
+                    <label><i class="fas fa-id-card"></i> Placa</label>
                     <div style="position:relative;">
                         <input type="text" id="mwPlaca" class="form-input-styled" list="dlPlacaMW" placeholder="ABC-1234" maxlength="8" oninput="window.filterWeighingChain('placa')" autocomplete="off">
                         <datalist id="dlPlacaMW"></datalist>
@@ -877,7 +1041,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Motorista (Opcional)</label>
+                    <label><i class="fas fa-user"></i> Motorista (Opcional)</label>
                     <div style="position:relative;">
                         <input type="text" id="mwMot" class="form-input-styled" list="dlMotMW" placeholder="Nome..." oninput="window.filterWeighingChain('motorista')" autocomplete="off">
                         <datalist id="dlMotMW"></datalist>
@@ -885,15 +1049,42 @@
                 </div>
             </div>
 
-            <div class="form-group" style="border-top:1px solid #eee; padding-top:10px;">
-                <label>Dados da Nota (Opcional)</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="mwNF" class="form-input-styled" placeholder="Nº NF" style="width: 120px;">
-                    <input type="number" id="mwPesoNF" class="form-input-styled" placeholder="Peso NF (Kg)">
+            <div class="form-grid" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-truck" style="color: var(--primary);"></i> Peso Bruto (Kg)
+                    </label>
+                    <input type="number" id="mwBruto" class="form-input-styled" placeholder="Ex: 40000" oninput="window.updateMWMiniCalculations()">
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-truck-loading" style="color: #10b981;"></i> Peso Tara (Kg)
+                    </label>
+                    <input type="number" id="mwTara" class="form-input-styled" placeholder="Ex: 15000" oninput="window.updateMWMiniCalculations()">
                 </div>
             </div>
 
-            <div style="text-align:right; margin-top:20px;">
+            <div class="form-grid" style="border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 15px;">
+                <div class="form-group">
+                    <label><i class="fas fa-file-invoice"></i> Nº Nota Fiscal (Opcional)</label>
+                    <input type="text" id="mwNF" class="form-input-styled" placeholder="Nº NF">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-balance-scale"></i> Peso NF (Kg) (Opcional)</label>
+                    <input type="number" id="mwPesoNF" class="form-input-styled" placeholder="Ex: 25000" oninput="window.updateMWMiniCalculations()">
+                </div>
+            </div>
+
+            <div id="mwCalculationsPanel" style="display: none; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px 15px; margin-top: 15px; font-size: 0.85rem; justify-content: space-between; align-items: center; gap: 10px;">
+                <div>
+                    Líquido Real: <b id="mwCalcLiq" style="font-size: 0.95rem; color: var(--text-main);">0 Kg</b>
+                </div>
+                <div>
+                    Divergência: <b id="mwCalcDif" style="font-size: 0.95rem; color: var(--text-muted);">---</b>
+                </div>
+            </div>
+
+            <div style="text-align:right; margin-top:20px; border-top: 1px solid var(--border-color); padding-top:15px;">
                 <button class="btn btn-edit" onclick="document.getElementById('modalManualWeighing').style.display='none'">Cancelar</button>
                 <button class="btn btn-save" id="btnSaveMW" onclick="window.saveManualWeighing()">Lançar Pesagem</button>
                 <button class="btn btn-save" id="btnReqMW" style="display:none; background:#d97706;" onclick="window.submitWeighingRequest()">Solicitar & Lançar</button>
@@ -953,17 +1144,20 @@
             <h3><i class="fas fa-dolly"></i> Novo Carregamento</h3>
             <div class="form-group">
                 <label>Motorista</label>
-                <input type="text" id="carrMotorista" class="form-input-styled" placeholder="Nome do motorista">
+                <input type="text" id="carrMotorista" class="form-input-styled" placeholder="Nome do motorista" list="dlMotCarr" autocomplete="off">
+                <datalist id="dlMotCarr"></datalist>
             </div>
             <div class="form-group">
                 <label>Placa Cavalo</label>
-                <input type="text" id="carrCavalo" class="form-input-styled" placeholder="ABC-1234">
+                <input type="text" id="carrCavalo" class="form-input-styled" placeholder="ABC-1234" list="dlPlacaCavCarr" autocomplete="off">
+                <datalist id="dlPlacaCavCarr"></datalist>
             </div>
             <div class="form-group">
                 <label>Carreta(s)</label>
                 <div id="carretaContainer">
-                    <input type="text" class="carrCarretaInput form-input-styled" placeholder="Placa da carreta">
+                    <input type="text" class="carrCarretaInput form-input-styled" placeholder="Placa da carreta" list="dlPlacaCarrCarr" autocomplete="off">
                 </div>
+                <datalist id="dlPlacaCarrCarr"></datalist>
                 <button class="btn btn-edit btn-small" style="margin-top:5px; width:100%;" onclick="window.addCarretaField()">+ Adicionar Carreta</button>
             </div>
             <div style="text-align:right; margin-top:20px;">
@@ -1047,7 +1241,11 @@
         // Funções visuais de carregamento
         function showLoading() { document.getElementById("loading-screen").classList.remove("hidden"); }
         function hideLoading() { document.getElementById("loading-screen").classList.add("hidden"); }
-        window.onload = () => { showLoading(); setTimeout(hideLoading, 800); };
+        window.onload = () => { 
+            showLoading(); 
+            // Fallback de segurança de 3s caso o servidor demore a responder
+            setTimeout(hideLoading, 3000); 
+        };
 
         if (window.require) {
             const { ipcRenderer } = require('electron');

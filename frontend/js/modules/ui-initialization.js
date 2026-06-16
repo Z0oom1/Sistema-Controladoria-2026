@@ -225,6 +225,12 @@ window.navTo = function(view, el) {
     const handler = VIEW_HANDLERS[view];
     if (handler) handler();
 
+    // --- Controle de visibilidade dos FABs globais ---
+    const fabPesagem = document.getElementById('fabPesagem');
+    const fabCarregamento = document.getElementById('fabCarregamento');
+    if (fabPesagem) fabPesagem.style.display = (view === 'materia-prima') ? 'flex' : 'none';
+    if (fabCarregamento) fabCarregamento.style.display = (view === 'carregamento') ? 'flex' : 'none';
+
     // Salvar última view
     localStorage.setItem('aw_last_view', view);
 };

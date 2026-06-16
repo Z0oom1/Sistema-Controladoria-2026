@@ -95,6 +95,26 @@ window.renderProfileArea = function() {
     }
 };
 
+window.switchRepTab = function(type) {
+    const input = document.getElementById('repType');
+    if (!input) return;
+    input.value = type;
+
+    // Toggle styles of all buttons
+    document.querySelectorAll('.rep-tab').forEach(btn => {
+        const btnType = btn.getAttribute('data-type');
+        if (btnType === type) {
+            btn.style.background = 'var(--primary)';
+            btn.style.color = 'white';
+        } else {
+            btn.style.background = 'var(--bg-card)';
+            btn.style.color = 'var(--text-main)';
+        }
+    });
+
+    window.generateAdvancedReport();
+};
+
 window.generateAdvancedReport = function() {
     const t = document.getElementById('repType').value;
     const s = document.getElementById('repDateStart').value;
@@ -109,12 +129,76 @@ window.generateAdvancedReport = function() {
     else if (t === 'mapas') data = window.mapData;
     else if (t === 'carregamento') data = window.carregamentoData;
     else if (t === 'materia-prima') data = window.mpData;
+    else if (t === 'divergencias') {
+        const groups = {};
+        window.mapData.forEach(m => {
+            if (m.rows && Array.isArray(m.rows)) {
+                m.rows.forEach((r, rowIdx) => {
+                    const qConf = parseFloat(r.qty) || 0;
+                    const qNf = parseFloat(r.qty_nf) || 0;
+                    const diff = qConf - qNf;
+                    if (diff !== 0) {
+                        const fornName = (r.forn || m.rows[0]?.forn || 'Diversos').toUpperCase().trim();
+                        const prodName = (r.desc || 'Desconhecido').toUpperCase().trim();
+                        const key = fornName + '|||' + prodName;
+                        
+                        if (!groups[key]) {
+                            groups[key] = {
+                                forn: r.forn || m.rows[0]?.forn || 'Diversos',
+                                prod: r.desc || 'Desconhecido',
+                                dates: [],
+                                nfs: new Set(),
+                                qnf: 0,
+                                qc: 0,
+                                diff: 0,
+                                rows: []
+                            };
+                        }
+                        groups[key].dates.push(m.date || 'S/D');
+                        if (r.nf && r.nf !== 'S/N') groups[key].nfs.add(r.nf);
+                        groups[key].qnf += qNf;
+                        groups[key].qc += qConf;
+                        groups[key].diff += diff;
+                        groups[key].rows.push({ mapId: m.id, rowIdx });
+                    }
+                });
+            }
+        });
+
+        data = [];
+        Object.keys(groups).forEach(key => {
+            const grp = groups[key];
+            if (Math.abs(grp.diff) >= 0.01) {
+                const sortedDates = grp.dates.filter(d => d !== 'S/D').sort();
+                const latestDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : 'S/D';
+                const nfList = grp.nfs.size > 0 ? Array.from(grp.nfs).join(', ') : 'S/N';
+                data.push({
+                    id: 'DIV_GRP_' + key.replace(/[^a-zA-Z0-9]/g, '_'),
+                    date: latestDate,
+                    placa: 'Consolidado',
+                    forn: grp.forn,
+                    prod: grp.prod,
+                    nf: nfList,
+                    qnf: grp.qnf,
+                    qc: grp.qc,
+                    diff: grp.diff,
+                    isGroup: true,
+                    groupKeys: grp.rows
+                });
+            }
+        });
+    }
 
     window.filteredReportData = data.filter(i => {
+        if (t === 'divergencias') {
+            if (term) return JSON.stringify(i).toUpperCase().includes(term);
+            return true;
+        }
         const d = i.chegada || i.date || i.checkin;
         if (!d) return false;
         const ds = d.slice(0, 10);
-        if (ds < s || ds > e) return false;
+        if (s && ds < s) return false;
+        if (e && ds > e) return false;
         if (term) return JSON.stringify(i).toUpperCase().includes(term);
         return true;
     });
@@ -123,16 +207,34 @@ window.generateAdvancedReport = function() {
     if (t === 'patio') html += '<th>Data</th><th>Empresa</th><th>Placa</th><th>Status</th>';
     else if (t === 'mapas') html += '<th>Data</th><th>Placa</th><th>Fornecedor</th><th>Status</th>';
     else if (t === 'materia-prima') html += '<th>Data</th><th>Produto</th><th>Placa</th><th>Líquido</th>';
+    else if (t === 'divergencias') html += '<th>Data</th><th>Produto</th><th>Nota Fiscal</th><th>Divergência</th>';
     else html += '<th>Data</th><th>Motorista</th><th>Status</th>';
     html += '</tr></thead><tbody>';
 
     window.filteredReportData.forEach((i, idx) => {
         html += `<tr onclick="window.openReportDetails(${idx}, '${t}')" class="interactive-row">`;
         html += `<td><input type="checkbox" class="rep-check" onclick="event.stopPropagation(); window.toggleReportSelection('${i.id}')"></td>`;
-        if (t === 'patio') html += `<td>${new Date(i.chegada).toLocaleString()}</td><td>${i.empresa}</td><td>${i.placa}</td><td>${i.status}</td>`;
-        else if (t === 'mapas') html += `<td>${i.date}</td><td>${i.placa}</td><td>${i.rows[0]?.forn}</td><td>${i.launched ? 'Lançado' : 'Rascunho'}</td>`;
-        else if (t === 'materia-prima') html += `<td>${new Date(i.date).toLocaleDateString()}</td><td>${i.produto}</td><td>${i.placa}</td><td>${i.liq} Kg</td>`;
-        else html += `<td>${new Date(i.checkin).toLocaleString()}</td><td>${i.motorista}</td><td>${i.status}</td>`;
+        
+        if (t === 'patio') {
+            const isSaiu = i.status === 'SAIU';
+            const statusBg = isSaiu ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+            const statusColor = isSaiu ? '#ef4444' : '#10b981';
+            html += `<td>${new Date(i.chegada).toLocaleString('pt-BR')}</td><td>${i.empresa}</td><td><span class="badge-code">${i.placa}</span></td><td><span style="background:${statusBg}; color:${statusColor}; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem;">${i.status}</span></td>`;
+        } else if (t === 'mapas') {
+            const isLaunched = i.launched;
+            const statusBg = isLaunched ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+            const statusColor = isLaunched ? '#10b981' : '#f59e0b';
+            html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td><span class="badge-code">${i.placa}</span></td><td>${i.rows?.[0]?.forn || '---'}</td><td><span style="background:${statusBg}; color:${statusColor}; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem;">${isLaunched ? 'Lançado' : 'Rascunho'}</span></td>`;
+        } else if (t === 'materia-prima') {
+            html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td>${i.produto}</td><td><span class="badge-code">${i.placa}</span></td><td><b style="color:var(--primary);">${(i.liq || 0).toLocaleString()} Kg</b></td>`;
+        } else if (t === 'divergencias') {
+            const diffColor = i.diff > 0 ? '#10b981' : '#ef4444';
+            const signal = i.diff > 0 ? '+' : '';
+            html += `<td>${i.date ? i.date.split('-').reverse().join('/') : '---'}</td><td>${i.prod}</td><td><b>NF: ${i.nf}</b></td><td><b style="color:${diffColor}; font-size:0.95rem;">${signal}${i.diff}</b></td>`;
+        } else {
+            html += `<td>${new Date(i.checkin).toLocaleString('pt-BR')}</td><td>${i.motorista}</td><td><span style="background:rgba(0,0,0,0.05); padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem;">${i.status}</span></td>`;
+        }
+        
         html += '</tr>';
     });
     html += '</tbody></table>';
@@ -175,6 +277,67 @@ window.renderDashboard = function() {
     if (typeof window.initDashboard === 'function') window.initDashboard();
 };
 
+window.toggleLinkDestType = function(val) {
+    const carrDiv = document.getElementById('destCarrierContainer');
+    const supDiv = document.getElementById('destSupplierContainer');
+    if (val === 'carrier') {
+        if (carrDiv) carrDiv.style.display = 'block';
+        if (supDiv) supDiv.style.display = 'none';
+    } else {
+        if (carrDiv) carrDiv.style.display = 'none';
+        if (supDiv) supDiv.style.display = 'block';
+    }
+};
+
+window.handleLinkRelation = function(type) {
+    let idA, idB;
+    if (type === 'supplier_carrier') {
+        idA = document.getElementById('linkSupSelect')?.value;
+        idB = document.getElementById('linkCarrSelect')?.value;
+    } else if (type === 'carrier_driver') {
+        idA = document.getElementById('linkDriverCarrSelect')?.value;
+        idB = document.getElementById('linkDriverSelect')?.value;
+    } else if (type === 'supplier_driver') {
+        idA = document.getElementById('linkDriverSupSelect')?.value;
+        idB = document.getElementById('linkDriverSelect')?.value;
+    } else if (type === 'driver_plate') {
+        idA = document.getElementById('linkDriverPlateSelect')?.value;
+        idB = document.getElementById('linkPlateSelect')?.value;
+    }
+    
+    if (window.saveLinkRelation(type, idA, idB)) {
+        window.renderCadastros();
+    }
+};
+
+window.handleUnlinkRelation = function(type, idA, idB) {
+    if (confirm("Deseja desvincular estas entidades?")) {
+        if (window.removeLinkRelation(type, idA, idB)) {
+            window.renderCadastros();
+        }
+    }
+};
+
+window.switchCadTab = function(type) {
+    const input = document.getElementById('cadFilterType');
+    if (!input) return;
+    input.value = type;
+
+    // Toggle styles of all buttons
+    document.querySelectorAll('.cad-tab').forEach(btn => {
+        const btnType = btn.getAttribute('data-type');
+        if (btnType === type) {
+            btn.style.background = 'var(--primary)';
+            btn.style.color = 'white';
+        } else {
+            btn.style.background = 'var(--bg-card)';
+            btn.style.color = 'var(--text-main)';
+        }
+    });
+
+    window.renderCadastros();
+};
+
 window.renderCadastros = function() {
     const type = document.getElementById('cadFilterType').value;
     const term = document.getElementById('cadSearch').value.toUpperCase();
@@ -182,26 +345,328 @@ window.renderCadastros = function() {
     const body = document.getElementById('cadTableBody');
     if(!head || !body) return;
 
-    // Renderiza requisições pendentes acima da tabela
+    const populateSelectOpts = (selectId, data, labelKey = 'nome') => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.innerHTML = '<option value="">-- Selecione --</option>';
+        data.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item[labelKey] || item.nome || item.numero || item.apelido || 'Sem nome';
+            select.appendChild(opt);
+        });
+    };
+
+    const cadTable = document.getElementById('cadTable');
+    const cadVincularSection = document.getElementById('cadVincularSection');
+    const requestsList = document.getElementById('requestsList');
+    const fab = document.querySelector('#view-cadastros .fab');
+
+    // Update pending requests badge next to tab name
+    const pendingRequests = window.requests.filter(r => r.status === 'PENDENTE');
+    const badgeReq = document.getElementById('cadBadgeReq');
+    if (badgeReq) {
+        if (pendingRequests.length > 0) {
+            badgeReq.innerText = pendingRequests.length;
+            badgeReq.style.display = 'inline-block';
+        } else {
+            badgeReq.style.display = 'none';
+        }
+    }
+
+    if (type === 'vincular') {
+        if (cadTable) cadTable.style.display = 'none';
+        if (fab) fab.style.display = 'none';
+        if (requestsList) requestsList.style.display = 'none';
+        if (cadVincularSection) {
+            cadVincularSection.style.display = 'block';
+            cadVincularSection.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <!-- COLUNA 1: Fornecedor ↔ Transportadora -->
+                    <div style="flex: 1; min-width: 300px; background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;">
+                        <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-handshake"></i> Fornecedores ↔ Transportadoras</h4>
+                        <div style="background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.05); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Fornecedor (Empresa)</label>
+                                <select id="linkSupSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);"></select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Transportadora</label>
+                                <select id="linkCarrSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);"></select>
+                            </div>
+                            <button onclick="window.handleLinkRelation('supplier_carrier')" class="btn btn-save" style="width: 100%; padding: 10px; font-weight: bold; margin-top: 5px;"><i class="fas fa-plus"></i> Criar Vínculo</button>
+                        </div>
+                        <div style="flex: 1; overflow-y: auto; max-height: 250px; border-top: 1px solid #eee; padding-top: 10px;">
+                            <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 8px; color: var(--text-muted);">Vínculos Ativos</label>
+                            <div id="supplier_carrier_list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- COLUNA 2: Motorista ↔ Transportadora / Fornecedor -->
+                    <div style="flex: 1; min-width: 300px; background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;">
+                        <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-user-friends"></i> Motoristas ↔ Vínculos</h4>
+                        <div style="background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.05); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Motorista</label>
+                                <select id="linkDriverSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);"></select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Tipo de Destino</label>
+                                <select id="linkDestType" onchange="window.toggleLinkDestType(this.value)" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                    <option value="carrier">Transportadora</option>
+                                    <option value="supplier">Fornecedor (Direto)</option>
+                                </select>
+                            </div>
+                            <div id="destCarrierContainer">
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Transportadora</label>
+                                <select id="linkDriverCarrSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);"></select>
+                            </div>
+                            <div id="destSupplierContainer" style="display: none;">
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Fornecedor (Empresa)</label>
+                                <select id="linkDriverSupSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);"></select>
+                            </div>
+                            <button onclick="window.handleLinkRelation(document.getElementById('linkDestType').value === 'carrier' ? 'carrier_driver' : 'supplier_driver')" class="btn btn-save" style="width: 100%; padding: 10px; font-weight: bold; margin-top: 5px;"><i class="fas fa-plus"></i> Criar Vínculo</button>
+                        </div>
+                        <div style="flex: 1; overflow-y: auto; max-height: 250px; border-top: 1px solid #eee; padding-top: 10px; display: flex; flex-direction: column; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px; color: var(--text-muted);">Vínculos com Transportadoras</label>
+                                <div id="carrier_driver_list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                            </div>
+                            <div style="margin-top: 5px;">
+                                <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px; color: var(--text-muted);">Vínculos com Fornecedores</label>
+                                <div id="supplier_driver_list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COLUNA 3: Motorista ↔ Placa -->
+                    <div style="flex: 1; min-width: 300px; background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;">
+                        <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-id-card"></i> Motoristas ↔ Placas</h4>
+                        <div style="background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.05); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Motorista</label>
+                                <select id="linkDriverPlateSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);"></select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Placa</label>
+                                <select id="linkPlateSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);"></select>
+                            </div>
+                            <button onclick="window.handleLinkRelation('driver_plate')" class="btn btn-save" style="width: 100%; padding: 10px; font-weight: bold; margin-top: 5px;"><i class="fas fa-plus"></i> Criar Vínculo</button>
+                        </div>
+                        <div style="flex: 1; overflow-y: auto; max-height: 250px; border-top: 1px solid #eee; padding-top: 10px;">
+                            <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 8px; color: var(--text-muted);">Vínculos Ativos</label>
+                            <div id="driver_plate_list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Populate selectors
+            const sortedSuppliers = [...window.suppliersData].sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            const sortedCarriers = [...window.carriersData].sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            const sortedDrivers = [...window.driversData].sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+            const sortedPlates = [...window.platesData].sort((a,b) => (a.numero || '').localeCompare(b.numero || ''));
+
+            populateSelectOpts('linkSupSelect', sortedSuppliers, 'nome');
+            populateSelectOpts('linkCarrSelect', sortedCarriers, 'nome');
+            
+            populateSelectOpts('linkDriverSelect', sortedDrivers, 'nome');
+            populateSelectOpts('linkDriverCarrSelect', sortedCarriers, 'nome');
+            populateSelectOpts('linkDriverSupSelect', sortedSuppliers, 'nome');
+            
+            populateSelectOpts('linkDriverPlateSelect', sortedDrivers, 'nome');
+            populateSelectOpts('linkPlateSelect', sortedPlates, 'numero');
+
+            // Render supplier_carrier list
+            const scList = document.getElementById('supplier_carrier_list');
+            if (scList) {
+                let html = '';
+                sortedCarriers.forEach(c => {
+                    if (c.supplierIds && Array.isArray(c.supplierIds)) {
+                        c.supplierIds.forEach(supId => {
+                            const supplier = window.suppliersData.find(s => s.id === supId);
+                            const sName = supplier ? supplier.nome : 'Fornecedor Desconhecido';
+                            const cName = c.nome || c.apelido || 'Transportadora Desconhecida';
+                            html += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.015); border:1px solid rgba(0,0,0,0.05); padding:8px; border-radius:6px; font-size:0.85rem;">
+                                    <div style="flex:1; padding-right:10px; word-break:break-word;">
+                                        <span style="font-weight:bold; color:var(--text-main);">${sName}</span>
+                                        <span style="color:#888; font-size:0.75rem; display:block;"><i class="fas fa-link"></i> ${cName}</span>
+                                    </div>
+                                    <button onclick="window.handleUnlinkRelation('supplier_carrier', '${supId}', '${c.id}')" class="btn-icon-remove" style="padding:4px 8px; background:#fee2e2; border-radius:4px; border:none; color:#ef4444; cursor:pointer;" title="Desvincular"><i class="fas fa-unlink"></i></button>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+                scList.innerHTML = html || '<div style="color:#999; text-align:center; font-size:0.8rem; padding:10px;">Nenhum vínculo ativo</div>';
+            }
+
+            // Render carrier_driver list
+            const cdList = document.getElementById('carrier_driver_list');
+            if (cdList) {
+                let html = '';
+                sortedDrivers.forEach(d => {
+                    if (d.carrierIds && Array.isArray(d.carrierIds)) {
+                        d.carrierIds.forEach(cId => {
+                            const carrier = window.carriersData.find(c => c.id === cId);
+                            const cName = carrier ? (carrier.nome || carrier.apelido) : 'Transportadora Desconhecida';
+                            const dName = d.nome || 'Motorista Desconhecido';
+                            html += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.015); border:1px solid rgba(0,0,0,0.05); padding:8px; border-radius:6px; font-size:0.85rem;">
+                                    <div style="flex:1; padding-right:10px; word-break:break-word;">
+                                        <span style="font-weight:bold; color:var(--text-main);">${dName}</span>
+                                        <span style="color:#888; font-size:0.75rem; display:block;"><i class="fas fa-truck"></i> Transp: ${cName}</span>
+                                    </div>
+                                    <button onclick="window.handleUnlinkRelation('carrier_driver', '${cId}', '${d.id}')" class="btn-icon-remove" style="padding:4px 8px; background:#fee2e2; border-radius:4px; border:none; color:#ef4444; cursor:pointer;" title="Desvincular"><i class="fas fa-unlink"></i></button>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+                cdList.innerHTML = html || '<div style="color:#999; text-align:center; font-size:0.8rem; padding:5px;">Sem transportadora vinculada</div>';
+            }
+
+            // Render supplier_driver list
+            const sdList = document.getElementById('supplier_driver_list');
+            if (sdList) {
+                let html = '';
+                sortedDrivers.forEach(d => {
+                    if (d.supplierIds && Array.isArray(d.supplierIds)) {
+                        d.supplierIds.forEach(supId => {
+                            const supplier = window.suppliersData.find(s => s.id === supId);
+                            const sName = supplier ? supplier.nome : 'Fornecedor Desconhecido';
+                            const dName = d.nome || 'Motorista Desconhecido';
+                            html += `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.015); border:1px solid rgba(0,0,0,0.05); padding:8px; border-radius:6px; font-size:0.85rem;">
+                                    <div style="flex:1; padding-right:10px; word-break:break-word;">
+                                        <span style="font-weight:bold; color:var(--text-main);">${dName}</span>
+                                        <span style="color:#888; font-size:0.75rem; display:block;"><i class="fas fa-building"></i> Forn: ${sName}</span>
+                                    </div>
+                                    <button onclick="window.handleUnlinkRelation('supplier_driver', '${supId}', '${d.id}')" class="btn-icon-remove" style="padding:4px 8px; background:#fee2e2; border-radius:4px; border:none; color:#ef4444; cursor:pointer;" title="Desvincular"><i class="fas fa-unlink"></i></button>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+                sdList.innerHTML = html || '<div style="color:#999; text-align:center; font-size:0.8rem; padding:5px;">Sem fornecedor vinculado</div>';
+            }
+
+            // Render driver_plate list
+            const dpList = document.getElementById('driver_plate_list');
+            if (dpList) {
+                let html = '';
+                sortedPlates.forEach(p => {
+                    if (p.driverId) {
+                        const driver = window.driversData.find(d => d.id === p.driverId);
+                        const dName = driver ? driver.nome : 'Motorista Desconhecido';
+                        const pNum = p.numero || 'Placa Desconhecida';
+                        html += `
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.015); border:1px solid rgba(0,0,0,0.05); padding:8px; border-radius:6px; font-size:0.85rem;">
+                                <div style="flex:1; padding-right:10px; word-break:break-word;">
+                                    <span style="font-weight:bold; color:var(--text-main);">${pNum}</span>
+                                    <span style="color:#888; font-size:0.75rem; display:block;"><i class="fas fa-user"></i> Motorista: ${dName}</span>
+                                </div>
+                                <button onclick="window.handleUnlinkRelation('driver_plate', '${p.driverId}', '${p.id}')" class="btn-icon-remove" style="padding:4px 8px; background:#fee2e2; border-radius:4px; border:none; color:#ef4444; cursor:pointer;" title="Desvincular"><i class="fas fa-unlink"></i></button>
+                            </div>
+                        `;
+                    }
+                });
+                dpList.innerHTML = html || '<div style="color:#999; text-align:center; font-size:0.8rem; padding:10px;">Nenhum vínculo ativo</div>';
+            }
+        }
+        return;
+    } else if (type === 'requests') {
+        if (cadTable) cadTable.style.display = 'none';
+        if (fab) fab.style.display = 'none';
+        if (cadVincularSection) cadVincularSection.style.display = 'none';
+        if (requestsList) {
+            requestsList.style.display = 'block';
+            
+            const filtered = pendingRequests.filter(r => 
+                (r.requester || r.user || '').toUpperCase().includes(term) ||
+                (r.type || '').toUpperCase().includes(term) ||
+                JSON.stringify(r.data || {}).toUpperCase().includes(term)
+            );
+
+            if (filtered.length === 0) {
+                requestsList.innerHTML = `
+                    <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                        <i class="fas fa-check-circle" style="font-size:3rem; color:#16a34a; margin-bottom:15px; display:block;"></i>
+                        <h4 style="margin:0; font-weight:bold;">Nenhuma requisição pendente!</h4>
+                        <p style="margin:5px 0 0; font-size:0.9rem;">Todas as aprovações de cadastro de entrada já foram processadas.</p>
+                    </div>
+                `;
+            } else {
+                requestsList.innerHTML = `
+                    <h4 style="color: var(--primary); margin-top:0; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-clipboard-check"></i> Aprovações de Cadastro Pendentes (${filtered.length})
+                    </h4>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:15px;">
+                        ${filtered.map(r => {
+                            const dateStr = r.timestamp ? new Date(r.timestamp).toLocaleString('pt-BR') : 'Sem data';
+                            const requester = r.requester || r.user || 'Desconhecido';
+                            
+                            let detailsHtml = '';
+                            if (r.data) {
+                                const sup = r.data.supplier?.name || '---';
+                                const supNew = !r.data.supplier?.id ? '<span style="color:#d97706; font-size:0.75rem; font-weight:bold;">[NOVO]</span>' : '';
+                                
+                                const carr = r.data.carrier?.name || '---';
+                                const carrNew = !r.data.carrier?.id && carr !== '---' ? '<span style="color:#d97706; font-size:0.75rem; font-weight:bold;">[NOVO]</span>' : '';
+                                
+                                const mot = r.data.driver?.name || '---';
+                                const motNew = !r.data.driver?.id ? '<span style="color:#d97706; font-size:0.75rem; font-weight:bold;">[NOVO]</span>' : '';
+                                
+                                const plate = r.data.plate?.number || '---';
+                                const plateNew = !r.data.plate?.id ? '<span style="color:#d97706; font-size:0.75rem; font-weight:bold;">[NOVO]</span>' : '';
+
+                                detailsHtml = `
+                                    <div style="font-size:0.85rem; background:rgba(0,0,0,0.015); border:1px solid rgba(0,0,0,0.05); padding:8px; border-radius:6px; margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+                                        <div><b>Fornecedor:</b> ${sup} ${supNew}</div>
+                                        <div><b>Transportadora:</b> ${carr} ${carrNew}</div>
+                                        <div><b>Motorista:</b> ${mot} ${motNew}</div>
+                                        <div><b>Placa:</b> ${plate} ${plateNew}</div>
+                                    </div>
+                                `;
+                            }
+
+                            return `
+                                <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:15px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
+                                    <div>
+                                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px; margin-bottom:8px;">
+                                            <span style="font-weight:bold; color:var(--primary); font-size:0.8rem; text-transform:uppercase;">
+                                                <i class="fas fa-truck-moving"></i> Entrada de Veículo
+                                            </span>
+                                            <span style="font-size:0.75rem; color:var(--text-muted);">${dateStr}</span>
+                                        </div>
+                                        <div style="font-size:0.9rem; color:var(--text-main);">
+                                            Solicitante: <b>${requester}</b>
+                                        </div>
+                                        ${detailsHtml}
+                                    </div>
+                                    <button class="btn btn-save" style="width:100%; font-weight:bold; padding:8px; margin-top:5px;" onclick="window.openUnifiedApproval('${r.id}')">
+                                        <i class="fas fa-search"></i> Analisar & Aprovar
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+        }
+        return;
+    } else {
+        if (cadTable) cadTable.style.display = '';
+        if (fab) fab.style.display = '';
+        if (cadVincularSection) cadVincularSection.style.display = 'none';
+        if (requestsList) requestsList.style.display = 'none';
+    }
+
+    // Oculta cadReqSection redundante, pois agora as requisições têm uma aba dedicada lindíssima
     const reqSection = document.getElementById('cadReqSection');
     if (reqSection) {
-        const pending = window.requests.filter(r => r.status === 'PENDENTE' && (r.type === 'complex_entry' || r.type === 'entrada_veiculo'));
-        if (pending.length > 0) {
-            reqSection.style.display = 'block';
-            reqSection.innerHTML = `<h4 style="color:#d97706; margin-bottom:10px;"><i class="fas fa-exclamation-triangle"></i> ${pending.length} Requisição(ões) Pendente(s)</h4>` +
-                pending.map(r => `
-                    <div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <b>Solicitado por: ${r.requester || r.user || '---'}</b>
-                            <br><small style="color:#888;">${r.timestamp ? new Date(r.timestamp).toLocaleString() : '--'}</small>
-                        </div>
-                        <button class="btn btn-save btn-small" onclick="window.openUnifiedApproval('${r.id}')"><i class="fas fa-search"></i> Analisar</button>
-                    </div>
-                `).join('');
-        } else {
-            reqSection.style.display = 'none';
-            reqSection.innerHTML = '';
-        }
+        reqSection.style.display = 'none';
     }
 
     let data = [];
@@ -296,13 +761,27 @@ window.renderRequests = function() {
 };
 
 window.openUnifiedApproval = function(id) {
-    // Suporte a ambos os formatos de requisição (novo e antigo)
     const req = window.requests.find(r => r.id === id);
     if (!req) return;
 
-    // Normaliza o formato da requisição para o formato novo (complex_entry)
+    if (req.type === 'edit') {
+        const m = window.mapData.find(x => x.id === req.mapId);
+        const mapDesc = m ? `Placa: ${m.placa || 'Sem placa'} - Setor: ${m.setor || 'Sem setor'}` : `ID: ${req.mapId}`;
+        const decision = confirm(`Solicitação de EDIÇÃO de Mapa Cego por: ${req.requester || 'Conferente'}\nMapa: ${mapDesc}\n\nDeseja APROVAR esta solicitação?\n\n[OK] para APROVAR e liberar edição para ${req.requester}\n[Cancelar] para REJEITAR ou cancelar.`);
+        if (decision) {
+            window.resolveRequest(id, 'approved');
+            alert(`Solicitação de edição APROVADA para o usuário ${req.requester}!`);
+        } else {
+            if (confirm("Deseja realmente REJEITAR esta solicitação de edição?")) {
+                window.resolveRequest(id, 'rejected');
+                alert("Solicitação de edição REJEITADA.");
+            }
+        }
+        return;
+    }
+
+    // Suporte a ambos os formatos de requisição (novo e antigo)
     if (req.type === 'entrada_veiculo' && req.data && req.data.fornecedor) {
-        // Converte formato antigo para novo
         req.data = {
             supplier: { name: req.data.fornecedor.nome, id: req.data.fornecedor.isNew ? null : 'exists' },
             carrier: { name: req.data.transportadora?.nome || '', id: req.data.transportadora?.isNew ? null : (req.data.transportadora?.active ? 'exists' : null) },

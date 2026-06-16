@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 
 // Verifica se estamos rodando pelo comando 'npm run dev'
@@ -10,7 +10,7 @@ const SERVER_IP = "192.168.0.100"; // <--- ALTERE AQUI PARA O SEU IP
 const SERVER_PORT = 2006;
 const VITE_PORT = 5173;
 
-app.disableHardwareAcceleration();
+// app.disableHardwareAcceleration(); // Reativado para aceleração por GPU (melhor performance de renderização)
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -26,6 +26,11 @@ function createWindow() {
             webSecurity: false // Permite carregar recursos locais e remotos misturados
         }
     });
+
+    if (process.platform === 'darwin') {
+        const image = nativeImage.createFromPath(path.join(__dirname, 'Imgs', 'logo.png'));
+        app.dock.setIcon(image);
+    }
 
     if (isDev) {
         // --- MODO DESENVOLVIMENTO (Vite + Hot Reload) ---

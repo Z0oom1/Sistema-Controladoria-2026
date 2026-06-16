@@ -71,9 +71,13 @@ window.sendSystemNotification = function(title, body, targetView, targetId) {
 // Cria a notificação nativa do navegador
 window.createVisualNotification = function(title, body, targetView, targetId) {
     try {
+        const iconPath = window.location.protocol === 'file:' 
+            ? new URL('../Imgs/logo-sf.png', window.location.href).href
+            : `${window.API_URL}/Imgs/logo-sf.png`;
+
         const notif = new Notification(title, { 
             body: body, 
-            icon: '/img/logo-sf.png' 
+            icon: iconPath 
         });
         notif.onclick = function () { 
             window.focus(); 
@@ -99,9 +103,14 @@ window.manualRequestPermission = function() {
     Notification.requestPermission().then(permission => {
         if (permission === "granted") {
             window.playBeep();
+            
+            const iconPath = window.location.protocol === 'file:' 
+                ? new URL('../Imgs/logo-sf.png', window.location.href).href
+                : `${window.API_URL}/Imgs/logo-sf.png`;
+
             new Notification("Configuração", {
                 body: "Notificações ativadas com sucesso!",
-                icon: '../Imgs/logo-sf.png'
+                icon: iconPath
             });
         } else {
             alert("Permissão para notificações foi negada ou bloqueada pelo navegador.");

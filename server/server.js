@@ -5,6 +5,8 @@ const sqlite3 = require('sqlite3').verbose()
 const cors = require('cors')
 const bodyParser = require('body-parser')
 const path = require('path')
+const compression = require('compression')
+const fs = require('fs')
 
 const PORT = 2006
 const DB_FILE = 'database.sqlite'
@@ -16,14 +18,26 @@ const io = new Server(server, {
     cors: { origin: '*', methods: ['GET', 'POST', 'DELETE'] }
 })
 
+// --- MIDDLEWARE ---
+app.use(compression())
 app.use(cors())
-app.use(bodyParser.json({ limit: '50mb' }))
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
+app.use(bodyParser.json({ limit: '10mb' }))
+app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }))
+
+app.use((req, res, next) => {
+    if (req.url.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg)$/)) {
+        res.set('Cache-Control', 'public, max-age=3600')
+    }
+    next()
+})
 
 // --- CONFIGURAÇÃO DE ARQUIVOS ESTÁTICOS ---
-app.use(express.static(path.join(__dirname, '../frontend')))
+app.use(express.static(path.join(__dirname, '../frontend'), {
+    maxAge: '1h',
+    etag: false
+}))
 
-// Rota Raiz: Entrega o LOGIN.HTML
+// --- ROTA RAIZ ---
 app.get('/', (req, res) => {
     const loginPath = path.join(__dirname, '../frontend/pages/login.html')
     res.sendFile(loginPath, (err) => {
@@ -31,7 +45,7 @@ app.get('/', (req, res) => {
     })
 })
 
-// --- Banco de Dados ---
+// --- BANCO DE DADOS ---
 const dbPath = path.resolve(__dirname, DB_FILE)
 const db = new sqlite3.Database(dbPath, (err) => {
     if (!err) initDb()
@@ -39,23 +53,82 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 function initDb() {
     db.run('PRAGMA journal_mode = WAL;')
+    db.run('PRAGMA synchronous = NORMAL;')
+    db.run('PRAGMA cache_size = -64000;')
+    db.run('PRAGMA temp_store = MEMORY;')
     db.run(`CREATE TABLE IF NOT EXISTS app_data (
         key TEXT PRIMARY KEY,
         value TEXT
     )`)
 }
 
-// --- Socket.IO ---
+// --- CACHE EM MEMÓRIA ---
+class DataCache {
+    constructor(ttl = 3000) {
+        this.cache = new Map()
+        this.ttl = ttl
+    }
+
+    set(key, value) {
+        this.cache.set(key, {
+            value,
+            timestamp: Date.now()
+        })
+    }
+
+    get(key) {
+        const item = this.cache.get(key)
+        if (!item) return null
+
+        if (Date.now() - item.timestamp > this.ttl) {
+            this.cache.delete(key)
+            return null
+        }
+
+        return item.value
+    }
+
+    clear() {
+        this.cache.clear()
+    }
+
+    delete(key) {
+        this.cache.delete(key)
+    }
+}
+
+const dataCache = new DataCache(3000)
+
+// --- SOCKET.IO ---
 io.on('connection', (socket) => {
     socket.on('pedir_dados', () => io.emit('atualizar_sistema'))
 })
 
-// --- Rotas API ---
+// --- ROTAS API ---
 app.get('/api/status', (req, res) => {
     res.json({ status: 'online', uptime: process.uptime() })
 })
 
+app.get('/api/diagnostics', (req, res) => {
+    const dbPath = path.resolve(__dirname, DB_FILE)
+    const dbSize = fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0
+    res.json({
+        status: 'online',
+        uptime: process.uptime(),
+        dbSize: dbSize,
+        activeConnections: io.sockets.sockets.size,
+        memoryUsage: process.memoryUsage(),
+        osPlatform: process.platform
+    })
+})
+
 app.get('/api/sync', (req, res) => {
+    const cached = dataCache.get('full_sync')
+    if (cached) {
+        res.set('Cache-Control', 'public, max-age=3')
+        return res.json(cached)
+    }
+
     db.all(`SELECT * FROM app_data`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message })
         const data = {}
@@ -63,6 +136,8 @@ app.get('/api/sync', (req, res) => {
             try { data[row.key] = JSON.parse(row.value) } 
             catch { data[row.key] = row.value }
         })
+        dataCache.set('full_sync', data)
+        res.set('Cache-Control', 'public, max-age=3')
         res.json(data)
     })
 })
@@ -80,6 +155,7 @@ app.post('/api/sync', (req, res) => {
 
     db.run(sql, [key, jsonStr], (err) => {
         if (err) return res.status(500).json({ error: err.message })
+        dataCache.delete('full_sync')
         io.emit('atualizar_sistema', { updatedKey: key })
         res.json({ success: true })
     })
@@ -94,6 +170,7 @@ app.post('/api/restore', (req, res) => {
             stmt.run(key, JSON.stringify(fullData[key]));
         });
         stmt.finalize(() => {
+            dataCache.clear()
             io.emit('atualizar_sistema');
             res.json({ success: true });
         });
@@ -103,10 +180,112 @@ app.post('/api/restore', (req, res) => {
 app.delete('/api/reset', (req, res) => {
     db.run('DELETE FROM app_data', [], (err) => {
         if (err) return res.status(500).json({ error: err.message })
+        dataCache.clear()
         io.emit('atualizar_sistema')
         res.json({ success: true })
     })
 })
+
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Preencha usuário e senha' });
+    }
+
+    db.get(`SELECT value FROM app_data WHERE key = ?`, ['mapa_cego_users'], (err, row) => {
+        let users = [];
+        if (!err && row) {
+            try {
+                users = JSON.parse(row.value);
+            } catch (e) {
+                users = [];
+            }
+        }
+
+        const defaultUsers = [
+            { username: 'Admin', password: '123', role: 'admin', sector: 'recebimento' },
+            { username: 'Caio', password: '123', role: 'user', sector: 'recebimento' },
+            { username: 'Balanca', password: '123', role: 'user', sector: 'recebimento' },
+            { username: 'Recebimento', password: '123', role: 'user', sector: 'recebimento' },
+            { username: 'Wayner', password: '123', role: 'user', sector: 'conferente', subType: 'INFRA' },
+            { username: 'Fabricio', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
+            { username: 'Clodoaldo', password: '123', role: 'user', sector: 'conferente', subType: 'ALM' },
+            { username: 'Guilherme', password: '123', role: 'user', sector: 'conferente', subType: 'GAVA' },
+            { username: 'EncarRec', password: 'enc123', role: 'Encarregado', sector: 'recebimento' },
+            { username: 'EncarConf', password: 'enc123', role: 'Encarregado', sector: 'conferente' }
+        ];
+
+        const allUsers = [...defaultUsers];
+        if (Array.isArray(users)) {
+            users.forEach(u => {
+                if (u && u.username && !allUsers.find(x => x.username.toLowerCase() === u.username.toLowerCase())) {
+                    allUsers.push(u);
+                }
+            });
+        }
+
+        const user = allUsers.find(u => u.username.toLowerCase() === username.toLowerCase() && (u.password === password || (u.username === 'Admin' && password === 'admin')));
+        if (user) {
+            return res.json({
+                success: true,
+                user: {
+                    username: user.username,
+                    sector: user.sector,
+                    subType: user.subType || null,
+                    role: user.role,
+                    label: user.label || `${user.role} - ${user.username}`
+                },
+                token: 'jwt-token-stub-' + user.username
+            });
+        } else {
+            return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+        }
+    });
+});
+
+app.post('/api/account-requests', (req, res) => {
+    const { fullName, displayName, username, password, roleRequested, sectorRequested } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
+    }
+
+    const reqObj = { 
+        id: Date.now().toString(), 
+        fullName, 
+        displayName: displayName || fullName, 
+        username, 
+        password, 
+        roleRequested, 
+        sectorRequested, 
+        status: 'pending', 
+        createdAt: new Date().toISOString() 
+    };
+
+    db.get(`SELECT value FROM app_data WHERE key = ?`, ['aw_requests'], (err, row) => {
+        let requests = [];
+        if (!err && row) {
+            try {
+                requests = JSON.parse(row.value);
+            } catch (e) {
+                requests = [];
+            }
+        }
+
+        requests.push(reqObj);
+
+        db.run(`INSERT INTO app_data (key, value) VALUES (?, ?) 
+                ON CONFLICT(key) DO UPDATE SET value=excluded.value`, 
+            ['aw_requests', JSON.stringify(requests)], 
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                dataCache.delete('full_sync');
+                io.emit('atualizar_sistema', { updatedKey: 'aw_requests' });
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
 
 // --- DASHBOARD (FRONTEND FINAL) ---
 app.get('/dashboard', (req, res) => {

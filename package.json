@@ -19,6 +19,13 @@
       "target": "nsis",
       "icon": "frontend/Imgs/logo.png"
     },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "frontend/Imgs/logo-512.png"
+    },
+    "dmg": {
+      "icon": "frontend/Imgs/logo-512.png"
+    },
     "files": [
       "package.json",
       "frontend/**/*"

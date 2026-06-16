@@ -1,2 +1,6 @@
 node_modules/
-../Sistema-Controladoria-2026/
+node_modules_old/
+dist/
+.DS_Store
+*.sqlite-shm
+*.sqlite-wal
