@@ -10,7 +10,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/pages/login.html"
+      "destination": "/index.html"
     },
     {
       "source": "/login",
