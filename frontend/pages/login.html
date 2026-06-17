@@ -37,6 +37,12 @@
 </head>
 
 <body onclick="closeContextMenu()">
+    <script>
+        (function() {
+            const isElectron = !!(window.require || (window.process && window.process.versions && window.process.versions.electron) || navigator.userAgent.toLowerCase().includes('electron'));
+            document.body.classList.add(isElectron ? 'electron' : 'web');
+        })();
+    </script>
 
     <header id="titlebar">
         <div class="window-controls">

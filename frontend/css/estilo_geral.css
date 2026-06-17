@@ -142,6 +142,14 @@ body {
     letter-spacing: 0.5px;
 }
 
+body.web .window-controls {
+    display: none !important;
+}
+
+body.web .app-title {
+    margin-right: 0 !important;
+}
+
 /* ==========================================================================
       SIDEBAR
       ========================================================================== */
