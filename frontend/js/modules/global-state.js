@@ -25,6 +25,7 @@ class StateManager {
             users: [],
             groups: [],
             chatMessages: [],
+            chatGroups: [],
 
             // Estados de seleção e contexto
             entryState: {
@@ -237,6 +238,11 @@ Object.defineProperty(window, 'usersData', {
 Object.defineProperty(window, 'chatMessagesData', {
     get() { return appState.get('chatMessages'); },
     set(v) { appState.set('chatMessages', v); }
+});
+
+Object.defineProperty(window, 'chatGroupsData', {
+    get() { return appState.get('chatGroups'); },
+    set(v) { appState.set('chatGroups', v); }
 });
 
 Object.defineProperty(window, 'groupsData', {

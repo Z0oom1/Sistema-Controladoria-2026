@@ -95,6 +95,7 @@ function applyDataToState(data) {
         window.appState.set('users', data.mapa_cego_users || []);
         window.appState.set('groups', data.mapa_cego_groups || []);
         window.appState.set('chatMessages', data.aw_chat_messages || []);
+        window.appState.set('chatGroups', data.aw_chat_groups || []);
 
         window.appState.set('suppliers', data.aw_suppliers || []);
         window.appState.set('carriers', data.aw_carriers || []);
@@ -111,6 +112,7 @@ function applyDataToState(data) {
         window.usersData = data.mapa_cego_users || [];
         window.groupsData = data.mapa_cego_groups || [];
         window.chatMessagesData = data.aw_chat_messages || [];
+        window.chatGroupsData = data.aw_chat_groups || [];
 
         window.suppliersData = data.aw_suppliers || [];
         window.carriersData = data.aw_carriers || [];
@@ -154,6 +156,7 @@ window.restoreFromLocal = function() {
         aw_requests: JSON.parse(localStorage.getItem('aw_requests') || '[]'),
         mapa_cego_users: JSON.parse(localStorage.getItem('mapa_cego_users') || '[]'),
         aw_chat_messages: JSON.parse(localStorage.getItem('aw_chat_messages') || '[]'),
+        aw_chat_groups: JSON.parse(localStorage.getItem('aw_chat_groups') || '[]'),
         mapa_cego_groups: JSON.parse(localStorage.getItem('mapa_cego_groups') || '[]'),
         aw_suppliers: JSON.parse(localStorage.getItem('aw_suppliers') || '[]'),
         aw_carriers: JSON.parse(localStorage.getItem('aw_carriers') || '[]'),
@@ -182,6 +185,7 @@ window.saveAll = function() {
         window.saveToServer('aw_requests', window.requests);
         window.saveToServer('mapa_cego_users', window.usersData);
         window.saveToServer('aw_chat_messages', window.chatMessagesData);
+        window.saveToServer('aw_chat_groups', window.chatGroupsData);
         window.saveToServer('mapa_cego_groups', window.groupsData);
 
         // Sincronizar dados de cadastro
@@ -241,6 +245,7 @@ window.saveToLocalOnly = function() {
         localStorage.setItem('aw_requests', JSON.stringify(window.requests));
         localStorage.setItem('mapa_cego_users', JSON.stringify(window.usersData));
         localStorage.setItem('aw_chat_messages', JSON.stringify(window.chatMessagesData));
+        localStorage.setItem('aw_chat_groups', JSON.stringify(window.chatGroupsData));
         localStorage.setItem('mapa_cego_groups', JSON.stringify(window.groupsData));
 
         localStorage.setItem('aw_suppliers', JSON.stringify(window.suppliersData));

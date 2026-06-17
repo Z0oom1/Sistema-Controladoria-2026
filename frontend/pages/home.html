@@ -1321,31 +1321,86 @@
         </div>
     </div>
     
-    <!-- Modal para Seleção de Setor Alternativo (Outros Setores) -->
-    <div id="modalMoveSector" class="modal-overlay" style="z-index: 9999; display:none;">
-        <div class="modal-box" style="width: 400px; padding: 25px;">
-            <h3 style="margin-top:0;"><i class="fas fa-route" style="color:var(--primary);"></i> Selecionar Setor</h3>
-            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:15px;">Selecione o setor de destino específico para o veículo:</p>
-            <input type="hidden" id="moveSectorTruckId">
-            <div class="form-full">
-                <label style="font-weight:bold; font-size:0.8rem; display:block; margin-bottom:5px;">Setor de Destino</label>
-                <select id="moveSectorSelect" class="form-input-styled" style="width:100%; padding:10px; border-radius:6px; background:var(--bg-input); border:1px solid var(--border-color); color:var(--text-main);">
-                    <option value="MANUTENÇÃO">MANUTENÇÃO</option>
-                    <option value="INFRAESTRUTURA">INFRAESTRUTURA</option>
-                    <option value="SALA DE PESAGEM">SALA DE PESAGEM</option>
-                    <option value="LABORATÓRIO">LABORATÓRIO</option>
-                    <option value="SST">SST</option>
-                    <option value="CD">CD</option>
-                    <option value="COMPRAS">COMPRAS</option>
-                    <option value="OUTROS">OUTROS</option>
-                </select>
+    <!-- Modais para Gerenciamento de Grupos do Chat -->
+    <div id="modalCreateGroup" class="modal-overlay" style="z-index: 9999; display: none;">
+        <div class="modal-box" style="width: 450px; padding: 25px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;"><i class="fas fa-users" style="color: var(--primary); margin-right: 8px;"></i> Criar Novo Grupo</h3>
+                <button class="btn-icon-remove" onclick="window.closeCreateGroupModal()" style="background: transparent; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted);"><i class="fas fa-times"></i></button>
             </div>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn btn-edit" style="flex:1;" onclick="document.getElementById('modalMoveSector').style.display='none'">Cancelar</button>
-                <button class="btn btn-save" style="flex:1;" onclick="window.confirmMoveSector()">Confirmar</button>
+            
+            <div class="form-full" style="margin-bottom: 15px;">
+                <label style="font-weight: bold; font-size: 0.85rem; display: block; margin-bottom: 5px; color: var(--text-main);">Nome do Grupo</label>
+                <input type="text" id="newGroupName" placeholder="Ex: Equipe Recebimento" style="width: 100%; padding: 10px; border-radius: 6px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); outline: none;">
+            </div>
+            
+            <label style="font-weight: bold; font-size: 0.85rem; display: block; margin-bottom: 8px; color: var(--text-main);">Selecionar Membros</label>
+            <div id="createGroupUsersList" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; background: var(--bg-input); max-height: 250px; display: flex; flex-direction: column; gap: 6px;">
+                <!-- Lista de contatos com checkbox -->
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+                <button class="btn btn-edit" onclick="window.closeCreateGroupModal()">Cancelar</button>
+                <button class="btn btn-save" onclick="window.submitCreateGroup()">Criar Grupo</button>
             </div>
         </div>
     </div>
+    
+    <div id="modalGroupInfo" class="modal-overlay" style="z-index: 9999; display: none;">
+        <div class="modal-box" style="width: 480px; padding: 25px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;"><i class="fas fa-info-circle" style="color: var(--primary); margin-right: 8px;"></i> Detalhes do Grupo</h3>
+                <button class="btn-icon-remove" onclick="window.closeGroupInfoModal()" style="background: transparent; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted);"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <input type="file" id="groupPhotoInput" accept="image/*" style="display: none;" onchange="window.uploadGroupPhoto(this)">
+
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; position: relative;">
+                <div id="groupInfoAvatarCircle" style="width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.8rem; border: 3px solid var(--border-color); overflow: hidden; cursor: pointer; position: relative; background: rgba(0,0,0,0.05);">
+                    <i class="fas fa-users"></i>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center;">
+                    <input type="text" id="groupInfoNameInput" disabled style="font-size: 1.15rem; font-weight: bold; border: none; background: transparent; text-align: center; color: var(--text-main); outline: none; border-bottom: 1px dashed transparent; max-width: 250px;">
+                    <button id="btnEditGroupName" class="message-action-btn" onclick="window.enableGroupRename()" style="display: none;" title="Renomear Grupo"><i class="fas fa-pen"></i></button>
+                    <button id="btnSaveGroupName" class="message-action-btn" style="display: none; color: #10b981; border-color: rgba(16, 185, 129, 0.2);" onclick="window.saveGroupName()" title="Salvar Nome"><i class="fas fa-check"></i></button>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <label style="font-weight: bold; font-size: 0.85rem; color: var(--text-main); margin: 0;">Membros do Grupo</label>
+                <button id="btnAddMembersBtn" class="btn btn-save" style="padding: 4px 8px; font-size: 0.72rem; display: none;" onclick="window.openAddMembersModal()">+ Adicionar Membros</button>
+            </div>
+            
+            <div id="groupInfoMembersList" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; background: var(--bg-input); max-height: 250px; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Membros renderizados dinamicamente -->
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: space-between;">
+                <button class="btn btn-prod-del" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; font-weight: bold; border: 1px solid rgba(239, 68, 68, 0.2); padding: 8px 16px; border-radius: 8px;" onclick="window.leaveGroupFromModal()"><i class="fas fa-sign-out-alt"></i> Sair do Grupo</button>
+                <button class="btn btn-edit" onclick="window.closeGroupInfoModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modalAddMembers" class="modal-overlay" style="z-index: 10000; display: none; background: rgba(0,0,0,0.6);">
+        <div class="modal-box" style="width: 400px; padding: 25px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;"><i class="fas fa-user-plus" style="color: var(--primary); margin-right: 8px;"></i> Adicionar Membros</h3>
+                <button class="btn-icon-remove" onclick="document.getElementById('modalAddMembers').style.display='none'" style="background: transparent; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted);"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div id="addMembersUsersList" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; background: var(--bg-input); max-height: 200px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px;">
+                <!-- Lista de contatos não adicionados -->
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-edit" onclick="document.getElementById('modalAddMembers').style.display='none'">Cancelar</button>
+                <button class="btn btn-save" onclick="window.submitAddMembers()">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/supabase.js?v=3.7.0"></script>
     <script src="../js/config.js?v=3.7.0"></script>
     <script type="module" src="../js/main.js"></script>
@@ -1452,7 +1507,8 @@
                                     'aw_drivers': 'drivers',
                                     'aw_plates': 'plates',
                                     'aw_products': 'products',
-                                    'aw_chat_messages': 'chatMessages'
+                                    'aw_chat_messages': 'chatMessages',
+                                    'aw_chat_groups': 'chatGroups'
                                 };
                                 const stateKey = keyMap[key];
                                 if (stateKey) {
@@ -1472,7 +1528,8 @@
                                     'aw_drivers': 'driversData',
                                     'aw_plates': 'platesData',
                                     'aw_products': 'productsData',
-                                    'aw_chat_messages': 'chatMessagesData'
+                                    'aw_chat_messages': 'chatMessagesData',
+                                    'aw_chat_groups': 'chatGroupsData'
                                 };
                                 const varName = globalVarMap[key];
                                 if (varName) {
