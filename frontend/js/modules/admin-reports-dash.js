@@ -289,12 +289,19 @@ window.selectProfileAvatar = function(emoji, color) {
     
     // Update in usersData database
     if (window.usersData) {
-        const u = window.usersData.find(x => x.username === window.loggedUser.username);
-        if (u) {
-            u.avatarEmoji = emoji;
-            u.avatarColor = color;
-            delete u.avatarPhoto; // remove custom photo to use emoji
+        let u = window.usersData.find(x => x.username.toLowerCase() === window.loggedUser.username.toLowerCase());
+        if (!u) {
+            u = {
+                username: window.loggedUser.username,
+                role: window.loggedUser.role,
+                sector: window.loggedUser.sector,
+                subType: window.loggedUser.subType
+            };
+            window.usersData.push(u);
         }
+        u.avatarEmoji = emoji;
+        u.avatarColor = color;
+        delete u.avatarPhoto; // remove custom photo to use emoji
     }
     
     // Save
@@ -355,10 +362,19 @@ window.uploadProfilePhoto = async function(input) {
         sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
         
         if (window.usersData) {
-            const u = window.usersData.find(x => x.username === window.loggedUser.username);
-            if (u) {
-                u.avatarPhoto = base64;
+            let u = window.usersData.find(x => x.username.toLowerCase() === window.loggedUser.username.toLowerCase());
+            if (!u) {
+                u = {
+                    username: window.loggedUser.username,
+                    role: window.loggedUser.role,
+                    sector: window.loggedUser.sector,
+                    subType: window.loggedUser.subType
+                };
+                window.usersData.push(u);
             }
+            u.avatarPhoto = base64;
+            delete u.avatarEmoji;
+            delete u.avatarColor;
         }
         
         if (typeof window.saveAll === 'function') {
@@ -384,10 +400,17 @@ window.uploadProfileCover = async function(input) {
         sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
         
         if (window.usersData) {
-            const u = window.usersData.find(x => x.username === window.loggedUser.username);
-            if (u) {
-                u.coverImage = base64;
+            let u = window.usersData.find(x => x.username.toLowerCase() === window.loggedUser.username.toLowerCase());
+            if (!u) {
+                u = {
+                    username: window.loggedUser.username,
+                    role: window.loggedUser.role,
+                    sector: window.loggedUser.sector,
+                    subType: window.loggedUser.subType
+                };
+                window.usersData.push(u);
             }
+            u.coverImage = base64;
         }
         
         if (typeof window.saveAll === 'function') {

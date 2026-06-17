@@ -119,6 +119,21 @@ function applyDataToState(data) {
         window.productsData = data.aw_products || [];
     }
 
+    // Mesclar o usuário logado com o registro correspondente no banco de dados para recuperar avatares/capas
+    if (window.loggedUser) {
+        const users = window.appState ? window.appState.get('users') : window.usersData;
+        if (users && Array.isArray(users)) {
+            const dbUser = users.find(u => u.username.toLowerCase() === window.loggedUser.username.toLowerCase());
+            if (dbUser) {
+                window.loggedUser.avatarEmoji = dbUser.avatarEmoji || window.loggedUser.avatarEmoji;
+                window.loggedUser.avatarColor = dbUser.avatarColor || window.loggedUser.avatarColor;
+                window.loggedUser.avatarPhoto = dbUser.avatarPhoto || null;
+                window.loggedUser.coverImage = dbUser.coverImage || null;
+                sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
+            }
+        }
+    }
+
     if (typeof window.resolveUserPermissions === 'function') {
         window.resolveUserPermissions();
     }

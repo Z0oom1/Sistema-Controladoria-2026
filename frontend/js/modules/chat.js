@@ -197,12 +197,33 @@ window.renderChatSidebar = function() {
     // 2. Direct Messages (Usuários)
     const allUsers = window.getAllUsers();
     
+    // Função auxiliar para obter o timestamp da mensagem mais recente com este contato
+    const getLatestMsgTime = (username) => {
+        const msgs = (window.chatMessagesData || []).filter(m => 
+            (m.sender === loggedInUser && m.recipient === username) ||
+            (m.sender === username && m.recipient === loggedInUser)
+        );
+        if (msgs.length === 0) return 0;
+        return msgs.reduce((max, m) => {
+            const time = new Date(m.timestamp).getTime();
+            return time > max ? time : max;
+        }, 0);
+    };
+    
     // Filtra usuários pelo termo de busca e exclui o próprio usuário logado
+    // Ordena pela data da conversa mais recente e depois alfabeticamente
     const filteredUsers = allUsers.filter(u => {
         if (u.username.toLowerCase() === loggedInUser.toLowerCase()) return false;
         return u.username.toLowerCase().includes(searchTerm) || 
                (u.fullname || '').toLowerCase().includes(searchTerm);
-    }).sort((a, b) => a.username.localeCompare(b.username));
+    }).sort((a, b) => {
+        const timeA = getLatestMsgTime(a.username);
+        const timeB = getLatestMsgTime(b.username);
+        if (timeA !== timeB) {
+            return timeB - timeA; // Mais recente primeiro
+        }
+        return a.username.localeCompare(b.username);
+    });
     
     if (filteredUsers.length === 0) {
         html += `<div style="padding: 20px; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Nenhum contato encontrado</div>`;
@@ -210,13 +231,15 @@ window.renderChatSidebar = function() {
         filteredUsers.forEach(u => {
             const isActive = window.activeChatId === u.username;
             const unread = window.chatUnreadCounts[u.username] || 0;
+            const latestTime = getLatestMsgTime(u.username);
+            const hasChatted = latestTime > 0;
             
             // Preview da última mensagem
             const dmMsgs = (window.chatMessagesData || []).filter(m => 
                 (m.sender === loggedInUser && m.recipient === u.username) ||
                 (m.sender === u.username && m.recipient === loggedInUser)
             );
-            const lastDm = dmMsgs[dmMsgs.length - 1];
+            const lastDm = dmMsgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[dmMsgs.length - 1];
             let DmPreview = u.role ? `${u.role.toUpperCase()} - ${(u.sector || 'Geral').toUpperCase()}` : 'Sem cargo';
             if (lastDm) {
                 const prefix = lastDm.sender === loggedInUser ? 'Você: ' : '';
@@ -236,8 +259,11 @@ window.renderChatSidebar = function() {
             // Indicador de "Online" Mockado (Admin e usuários com atividade recente)
             const isOnline = u.username.toLowerCase() === 'admin' || u.username.toLowerCase() === 'caio' || u.firstLogin === false;
             
+            // Caso nunca tenha conversado com a pessoa ela fica levemente mais acinzentada e translúcida
+            const contactStyle = hasChatted ? '' : 'opacity: 0.55; filter: grayscale(35%); transition: all 0.2s ease;';
+            
             html += `
-                <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="window.openChat('${u.username}')">
+                <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="window.openChat('${u.username}')" style="${contactStyle}">
                     <div class="chat-avatar">
                         ${avatarHtml}
                         <div class="chat-avatar-status ${isOnline ? 'online' : ''}"></div>

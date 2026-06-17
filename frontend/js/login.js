@@ -300,6 +300,14 @@ function createAccountItem(acc) {
         display: flex;
         align-items: center;
     `;
+    
+    // Tenta achar avatar na lista local
+    const dbUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const matchedUser = dbUsers.find(u => u.username.toLowerCase() === acc.username.toLowerCase());
+    
+    let avatarStyle = '';
+    let avatarContent = acc.username[0];
+
     const roleColors = {
         'Encarregado': { bg: '#8a57e0ff', color: '#fff' },
         'admin': { bg: '#474747ff', color: '#fff' },
@@ -309,11 +317,25 @@ function createAccountItem(acc) {
 
     const colors = roleColors[acc.role] || 
                    (acc.sector === 'conferente' ? roleColors['conferente'] : roleColors['recebimento']);
+                   
+    let bg = colors.bg;
+    let color = colors.color;
+    
+    if (matchedUser) {
+        if (matchedUser.avatarPhoto) {
+            avatarStyle = `background-image: url('${matchedUser.avatarPhoto}'); background-size: cover; background-position: center;`;
+            avatarContent = '';
+            bg = 'transparent';
+        } else if (matchedUser.avatarEmoji && matchedUser.avatarColor) {
+            bg = matchedUser.avatarColor;
+            avatarContent = matchedUser.avatarEmoji;
+        }
+    }
 
     item.innerHTML = `
-        <div style="background:${colors.bg}; color:${colors.color}; width:35px; height:35px; border-radius:50%; display:flex; justify-content:center; align-items:center; font-weight:bold; margin-right:10px;">${acc.username[0]}</div>
+        <div style="background:${bg}; color:${color}; width:35px; height:35px; border-radius:50%; display:flex; justify-content:center; align-items:center; font-weight:bold; margin-right:10px; overflow:hidden; font-size:1.1rem; ${avatarStyle}">${avatarContent}</div>
         <div>
-            <div style="font-weight:bold; font-size:0.95rem;">${acc.username}</div>
+            <div style="font-weight:bold; font-size:0.95rem; color:#333;">${acc.username}</div>
             <div style="font-size:0.75rem; color:#666;">${acc.label || acc.role}</div>
         </div>
     `;
