@@ -110,7 +110,8 @@
             <a class="menu-item" onclick="window.navTo('produtos', this)"><i class="fas fa-boxes"></i> Produtos</a>
             <a class="menu-item" id="menuNotif" onclick="window.navTo('notificacoes', this)"><i class="fas fa-bell"></i>
                 Notificações <span class="notification-badge" id="badgeNotif">0</span></a>
-            <a class="menu-item" onclick="window.navTo('perfil', this)"><i class="fas fa-user-circle"></i> Perfil / Admin</a>
+            <a class="menu-item" id="menuPerfil" onclick="window.navTo('perfil', this)"><i class="fas fa-user-circle"></i> Meu Perfil</a>
+            <a class="menu-item" id="menuAdmin" onclick="window.navTo('admin', this)" style="display: none;"><i class="fas fa-user-shield"></i> Painel Admin</a>
             <div style="margin-top:auto; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1)">
                 <a class="menu-item" onclick="window.navTo('configuracoes', this)"><i class="fas fa-cog"></i> Configurações</a>
             </div>
@@ -659,6 +660,28 @@
                 <div class="settings-card">
                     <h4><i class="fas fa-history"></i> Histórico</h4>
                     <div id="historyList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-admin" class="view-section">
+            <h2 style="margin-bottom:20px;">Painel Administrativo</h2>
+            <div class="admin-layout" style="display: flex; gap: 20px; height: 100%; min-height: calc(100vh - 170px);">
+                <!-- Sidebar lateral interna de submenus -->
+                <div class="admin-sidebar" style="width: 240px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-sm); height: fit-content;">
+                    <button id="btnAdminSubFunc" class="admin-menu-btn active" onclick="window.switchAdminSubmenu('funcionarios', this)">
+                        <i class="fas fa-user-cog"></i> Funcionários
+                    </button>
+                    <button id="btnAdminSubGrupos" class="admin-menu-btn" onclick="window.switchAdminSubmenu('grupos', this)">
+                        <i class="fas fa-users-cog"></i> Grupos de Acesso
+                    </button>
+                    <button id="btnAdminSubPerms" class="admin-menu-btn" onclick="window.switchAdminSubmenu('permissoes', this)">
+                        <i class="fas fa-shield-alt"></i> Visão Geral
+                    </button>
+                </div>
+                <!-- Conteúdo dinâmico do submenu selecionado -->
+                <div class="admin-main-content" style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+                    <div id="adminPanelContainer"></div>
                 </div>
             </div>
         </div>

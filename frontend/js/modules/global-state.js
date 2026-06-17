@@ -324,3 +324,86 @@ Object.defineProperty(window, 'defaultProducts', {
 window.closeContextMenu = function() {
     document.querySelectorAll('.context-menu').forEach(x => x.style.display = 'none');
 };
+
+/**
+ * Dynamic User Permissions Resolver
+ * Resolves permissions using inheritance from groups, user overrides, or role defaults.
+ */
+window.resolveUserPermissions = function() {
+    const user = window.loggedUser;
+    if (!user) return;
+
+    // Default permissions structure
+    window.userPermissions = {
+        canSignMap: false,
+        canEditTruck: false,
+        canDeleteTruck: false,
+        canMoveTruck: false,
+        canManageCatalogs: false,
+        canViewNotifications: false,
+        canViewReports: false
+    };
+
+    const usernameLower = (user.username || '').toLowerCase();
+    const isAdm = usernameLower === 'admin' || (user.role || '').toLowerCase().includes('admin') || (user.role || '').toLowerCase().includes('administrador');
+
+    // 1. Admin gets all privileges
+    if (isAdm) {
+        window.userPermissions = {
+            canSignMap: true,
+            canEditTruck: true,
+            canDeleteTruck: true,
+            canMoveTruck: true,
+            canManageCatalogs: true,
+            canViewNotifications: true,
+            canViewReports: true
+        };
+        return;
+    }
+
+    // 2. Resolve based on Database Users and Groups
+    const users = window.usersData || [];
+    const groups = window.groupsData || [];
+
+    const dbUser = users.find(u => u.username.toLowerCase() === usernameLower);
+    
+    let groupObj = null;
+    if (dbUser && dbUser.group) {
+        groupObj = groups.find(g => g.id === dbUser.group || g.name === dbUser.group);
+    } else if (user.group) {
+        groupObj = groups.find(g => g.id === user.group || g.name === user.group);
+    }
+
+    if (groupObj) {
+        // Inherit group permissions
+        if (groupObj.permissions) {
+            window.userPermissions = { ...window.userPermissions, ...groupObj.permissions };
+        } else {
+            // Legacy group sector/role fallbacks
+            const sector = (groupObj.sector || '').toLowerCase();
+            const role = (groupObj.role || '').toLowerCase();
+            window.userPermissions.canSignMap = sector === 'conferente';
+            window.userPermissions.canEditTruck = sector === 'recebimento';
+            window.userPermissions.canDeleteTruck = sector === 'recebimento';
+            window.userPermissions.canMoveTruck = sector === 'recebimento';
+            window.userPermissions.canManageCatalogs = sector === 'recebimento';
+            window.userPermissions.canViewNotifications = sector === 'recebimento';
+            window.userPermissions.canViewReports = role.includes('encarreg') || role.includes('admin');
+        }
+    } else if (dbUser && dbUser.permissions) {
+        // Individual override permissions
+        window.userPermissions = { ...window.userPermissions, ...dbUser.permissions };
+    } else {
+        // 3. Fallback defaults based on user sector & role
+        const sector = (user.sector || '').toLowerCase();
+        const role = (user.role || '').toLowerCase();
+
+        window.userPermissions.canSignMap = sector === 'conferente';
+        window.userPermissions.canEditTruck = sector === 'recebimento';
+        window.userPermissions.canDeleteTruck = sector === 'recebimento';
+        window.userPermissions.canMoveTruck = sector === 'recebimento';
+        window.userPermissions.canManageCatalogs = sector === 'recebimento';
+        window.userPermissions.canViewNotifications = sector === 'recebimento';
+        window.userPermissions.canViewReports = role.includes('encarreg') || role.includes('admin');
+    }
+};

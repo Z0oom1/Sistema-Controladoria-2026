@@ -54,10 +54,11 @@ window.renderPatio = function() {
         card.className = 'truck-card';
         if (c.isProvisory) card.style.borderLeft = "4px solid #f59e0b";
 
-        // Ativar Arrastar e Soltar (Drag & Drop) - Apenas Recebimento e Admin
-        card.draggable = window.isRecebimento || window.isAdmin;
+        // Ativar Arrastar e Soltar (Drag & Drop) - Apenas Usuários com Permissão
+        const canMove = window.userPermissions ? window.userPermissions.canMoveTruck : (window.isRecebimento || window.isAdmin);
+        card.draggable = canMove;
         card.addEventListener('dragstart', (e) => {
-            if (!(window.isRecebimento || window.isAdmin)) {
+            if (!canMove) {
                 e.preventDefault();
                 return;
             }
@@ -70,7 +71,7 @@ window.renderPatio = function() {
 
         // Permite reordenação arrastando um card sobre o outro
         card.addEventListener('dragover', (e) => {
-            if (window.isRecebimento || window.isAdmin) {
+            if (canMove) {
                 e.preventDefault();
                 card.classList.add('drag-over-card');
             }
@@ -148,6 +149,10 @@ window.renderPatio = function() {
  * Altera o status de um veículo e registra os horários correspondentes.
  */
 window.changeStatus = function(id, st) {
+    const p = window.userPermissions || { canMoveTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canMoveTruck) {
+        return alert("Acesso negado: Você não tem permissão para mover/alterar status de veículos.");
+    }
     const i = window.patioData.findIndex(c => c.id === id); 
     if (i > -1) {
         window.patioData[i].status = st;
@@ -179,15 +184,20 @@ window.openTruckContextMenu = function(x, y, id) {
     const truck = window.patioData.find(t => t.id === id);
     if(!m || !truck) return;
 
-    const canEditOrDelete = window.isRecebimento || window.isAdmin;
+    const p = window.userPermissions || {
+        canEditTruck: window.isRecebimento || window.isAdmin,
+        canDeleteTruck: window.isRecebimento || window.isAdmin,
+        canViewNotifications: window.isRecebimento || window.isAdmin
+    };
+    
     let items = '';
-    if (canEditOrDelete) {
+    if (p.canEditTruck) {
         items += `<div class="ctx-item" onclick="window.openEditTruck('${id}')"><i class="fas fa-edit"></i> Editar Veículo</div>`;
     }
-    if (truck.isProvisory && canEditOrDelete) {
+    if (truck.isProvisory && p.canViewNotifications) {
         items += `<div class="ctx-item" style="color:orange" onclick="window.navTo('notificacoes')"><i class="fas fa-key"></i> Ver Requisição</div>`;
     }
-    if (canEditOrDelete) {
+    if (p.canDeleteTruck) {
         items += `<div class="ctx-item" onclick="window.confirmDeleteTruck('${id}')" style="color:red"><i class="fas fa-trash"></i> Excluir...</div>`;
     }
 
@@ -510,9 +520,10 @@ function setupDragAndDrop() {
             e.preventDefault();
             colEl.classList.remove('drag-over');
             
-            // Permissão: Apenas recebimento e admin podem mover veículos
-            if (!(window.isRecebimento || window.isAdmin)) {
-                return alert("Acesso negado: Apenas o Recebimento e Administradores podem mover veículos.");
+            // Permissão: Apenas usuários autorizados podem mover veículos
+            const p = window.userPermissions || { canMoveTruck: window.isRecebimento || window.isAdmin };
+            if (!p.canMoveTruck) {
+                return alert("Acesso negado: Você não tem permissão para mover veículos.");
             }
 
             const truckId = e.dataTransfer.getData('text/plain');
@@ -594,8 +605,9 @@ window.confirmMoveSector = function() {
 window.reorderTruck = function(draggedId, targetId) {
     if (draggedId === targetId) return;
 
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem reordenar veículos.");
+    const p = window.userPermissions || { canMoveTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canMoveTruck) {
+        alert("Acesso negado: Você não tem permissão para reordenar veículos.");
         return;
     }
 

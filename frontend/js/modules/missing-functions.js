@@ -196,8 +196,9 @@ window.evaluateRequestNecessity = function() {
 // =========================================================
 
 window.openEditTruck = function(id) {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar veículos.");
+    const p = window.userPermissions || { canEditTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canEditTruck) {
+        alert("Acesso negado: Você não tem permissão para editar veículos.");
         return;
     }
     const truck = window.patioData.find(t => t.id === id);
@@ -266,8 +267,9 @@ window.openProdSelectForEdit = function() {
 };
 
 window.saveEditTruck = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar veículos.");
+    const p = window.userPermissions || { canEditTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canEditTruck) {
+        alert("Acesso negado: Você não tem permissão para editar veículos.");
         return;
     }
     const id = document.getElementById('editTruckId').value;
@@ -336,8 +338,9 @@ window.saveEditTruck = function() {
 };
 
 window.deleteTruck = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir veículos.");
+    const p = window.userPermissions || { canDeleteTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canDeleteTruck) {
+        alert("Acesso negado: Você não tem permissão para excluir veículos.");
         return;
     }
     const id = document.getElementById('editTruckId').value;
@@ -352,8 +355,9 @@ window.deleteTruck = function() {
 };
 
 window.confirmDeleteTruck = function(id) {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir veículos.");
+    const p = window.userPermissions || { canDeleteTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canDeleteTruck) {
+        alert("Acesso negado: Você não tem permissão para excluir veículos.");
         return;
     }
     window.contextTruckId = id;
@@ -379,8 +383,9 @@ window.selectDeleteOption = function(opt) {
 };
 
 window.executeDeleteTruck = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir veículos.");
+    const p = window.userPermissions || { canDeleteTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canDeleteTruck) {
+        alert("Acesso negado: Você não tem permissão para excluir veículos.");
         return;
     }
     const id = window.contextTruckId;
@@ -417,8 +422,9 @@ window.openCadSelectModal = function() {
 };
 
 window.openCadModal = function(type, editId = null) {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem cadastrar ou editar informações.");
+    const p = window.userPermissions || { canManageCatalogs: window.isRecebimento || window.isAdmin };
+    if (!p.canManageCatalogs) {
+        alert("Acesso negado: Você não tem permissão para gerenciar cadastros.");
         return;
     }
     const modalSel = document.getElementById('modalCadSelect');
@@ -584,8 +590,9 @@ window.populateSelect = function(elId, data, displayField) {
 };
 
 window.saveOfficialCadastro = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem cadastrar ou editar informações.");
+    const p = window.userPermissions || { canManageCatalogs: window.isRecebimento || window.isAdmin };
+    if (!p.canManageCatalogs) {
+        alert("Acesso negado: Você não tem permissão para gerenciar cadastros.");
         return;
     }
     const type = document.getElementById('cadFormType').value;
@@ -655,8 +662,9 @@ window.saveOfficialCadastro = function() {
 };
 
 window.deleteCadastro = function(type, id) {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir registros.");
+    const p = window.userPermissions || { canManageCatalogs: window.isRecebimento || window.isAdmin };
+    if (!p.canManageCatalogs) {
+        alert("Acesso negado: Você não tem permissão para excluir cadastros.");
         return;
     }
     if (!confirm("Tem certeza que deseja excluir este registro?\nIsso pode afetar históricos antigos.")) return;
@@ -714,8 +722,9 @@ window.renderRequestsTable = function(term) {
 };
 
 window.openUnifiedApprovalModal = function(reqId) {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem analisar ou aprovar requisições.");
+    const p = window.userPermissions || { canViewNotifications: window.isRecebimento || window.isAdmin };
+    if (!p.canViewNotifications) {
+        alert("Acesso negado: Você não tem permissão para analisar ou aprovar requisições.");
         return;
     }
     const req = window.requests.find(r => r.id === reqId);
@@ -944,8 +953,9 @@ window.goToMapFromContext = function(id) {
 };
 
 window.deleteMateriaPrima = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir registros.");
+    const p = window.userPermissions || { canDeleteTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canDeleteTruck) {
+        alert("Acesso negado: Você não tem permissão para excluir registros de pesagem.");
         return;
     }
     if (confirm("Deseja excluir este registro de pesagem?")) {
@@ -988,8 +998,9 @@ window.saveManualMP = function() {
 };
 
 window.openEditMPModal = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+    const p = window.userPermissions || { canEditTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canEditTruck) {
+        alert("Acesso negado: Você não tem permissão para editar registros.");
         return;
     }
     const m = window.mpData.find(x => x.id === window.contextMPId);
@@ -1003,8 +1014,9 @@ window.openEditMPModal = function() {
 };
 
 window.saveEditMP = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+    const p = window.userPermissions || { canEditTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canEditTruck) {
+        alert("Acesso negado: Você não tem permissão para editar registros.");
         return;
     }
     const id = document.getElementById('editMPId').value;
@@ -1131,13 +1143,16 @@ window.updateCarrWeight = function(id, f, v) {
 window.openCarrContextMenu = function(x, y) {
     const m = document.getElementById('ctxMenuCarr');
     if (!m) return;
-    const canEditOrDelete = window.isRecebimento || window.isAdmin;
+    const p = window.userPermissions || {
+        canEditTruck: window.isRecebimento || window.isAdmin,
+        canDeleteTruck: window.isRecebimento || window.isAdmin
+    };
     let items = '';
-    if (canEditOrDelete) {
+    if (p.canEditTruck) {
         items += `<div class="ctx-item" onclick="window.openEditCarrModal()"><i class="fas fa-edit"></i> Editar</div>`;
     }
     items += `<div class="ctx-item" onclick="window.openNoteCarrModal()"><i class="fas fa-sticky-note"></i> Nota</div>`;
-    if (canEditOrDelete) {
+    if (p.canDeleteTruck) {
         items += `<div class="ctx-item" style="color:red" onclick="window.deleteCarregamento()"><i class="fas fa-trash"></i> Excluir</div>`;
     }
     m.innerHTML = items;
@@ -1147,8 +1162,9 @@ window.openCarrContextMenu = function(x, y) {
 };
 
 window.openEditCarrModal = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+    const p = window.userPermissions || { canEditTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canEditTruck) {
+        alert("Acesso negado: Você não tem permissão para editar registros.");
         return;
     }
     const c = window.carregamentoData.find(x => x.id === window.contextCarrId);
@@ -1161,8 +1177,9 @@ window.openEditCarrModal = function() {
 };
 
 window.saveEditCarr = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+    const p = window.userPermissions || { canEditTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canEditTruck) {
+        alert("Acesso negado: Você não tem permissão para editar registros.");
         return;
     }
     const id = document.getElementById('editCarrId').value;
@@ -1177,8 +1194,9 @@ window.saveEditCarr = function() {
 };
 
 window.deleteCarregamento = function() {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir registros.");
+    const p = window.userPermissions || { canDeleteTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canDeleteTruck) {
+        alert("Acesso negado: Você não tem permissão para excluir registros.");
         return;
     }
     if (confirm('Excluir?')) {
@@ -1214,7 +1232,8 @@ window.saveNoteCarr = function() {
 // =========================================================
 
 window.updateBadge = function() {
-    const isAuthorized = window.isRecebimento || window.isAdmin;
+    const p = window.userPermissions || { canViewNotifications: window.isRecebimento || window.isAdmin };
+    const isAuthorized = p.canViewNotifications;
     const pending = isAuthorized ? window.requests.filter(r => r.status === 'PENDENTE').length : 0;
     const b = document.getElementById('badgeNotif');
     if (b) {
@@ -1267,7 +1286,8 @@ window.checkForNotifications = function() {
         (c.chegada || '').startsWith(todayStr)
     );
 
-    if (call && window.isRecebimento) {
+    const pCheck = window.userPermissions || { canViewNotifications: window.isRecebimento || window.isAdmin };
+    if (call && pCheck.canViewNotifications) {
         if (!window.notifiedEvents.has(call.id)) {
             const releaser = call.releasedBy || 'Operador';
             const msg = `${releaser} liberou ${call.empresa} para descarga\nPlaca: ${call.placa}`;
@@ -1904,14 +1924,17 @@ window.submitWeighingRequest = function() {
 window.openMPContextMenu = function(x, y) {
     const m = document.getElementById('ctxMenuMP');
     if (!m) return;
-    const canEditOrDelete = window.isRecebimento || window.isAdmin;
+    const p = window.userPermissions || {
+        canEditTruck: window.isRecebimento || window.isAdmin,
+        canDeleteTruck: window.isRecebimento || window.isAdmin
+    };
     let items = '';
-    if (canEditOrDelete) {
+    if (p.canEditTruck) {
         items += `<div class="ctx-item" onclick="window.openEditMPModal()"><i class="fas fa-edit"></i> Editar</div>`;
     }
     items += `<div class="ctx-item" onclick="window.openNoteMPModal()"><i class="fas fa-sticky-note"></i> Nota</div>`;
     items += `<div class="ctx-item" onclick="window.goToMapFromContext(window.contextMPId)"><i class="fas fa-map"></i> Ver Mapa</div>`;
-    if (canEditOrDelete) {
+    if (p.canDeleteTruck) {
         items += `<div class="ctx-item" style="color:red" onclick="window.deleteMateriaPrima()"><i class="fas fa-trash"></i> Excluir</div>`;
     }
     m.innerHTML = items;
@@ -2268,7 +2291,8 @@ window.saveCurrentMap = function() {
         });
         m.changeCount = (m.changeCount || 0) + 1;
         
-        if (m.authorizedEditor === window.loggedUser.username && !window.isAdmin && !window.isRecebimento) {
+        const p = window.userPermissions || { canEditTruck: window.isRecebimento || window.isAdmin };
+        if (m.authorizedEditor === window.loggedUser.username && !p.canEditTruck) {
             m.authorizedEditor = null;
             m.forceUnlock = false;
         }
@@ -2544,8 +2568,9 @@ window.runDiagnostics = async function() {
 };
 
 window.saveLinkRelation = function(type, idA, idB) {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem vincular entidades.");
+    const p = window.userPermissions || { canManageCatalogs: window.isRecebimento || window.isAdmin };
+    if (!p.canManageCatalogs) {
+        alert("Acesso negado: Você não tem permissão para vincular entidades.");
         return false;
     }
     if (!idA || !idB) {

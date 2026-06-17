@@ -341,6 +341,9 @@ window.updateRow = function(rid, f, v) {
 };
 
 window.signMap = function(role) {
+    if (window.userPermissions && !window.userPermissions.canSignMap) {
+        return alert("Você não tem permissão para assinar o mapa cego.");
+    }
     const m = window.mapData.find(x => x.id === window.currentMapId);
     if (!m) return;
     if (m.launched && !m.forceUnlock) return alert("Mapa lançado e bloqueado.");

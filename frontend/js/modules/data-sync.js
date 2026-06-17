@@ -116,6 +116,13 @@ function applyDataToState(data) {
         window.platesData = data.aw_plates || [];
         window.productsData = data.aw_products || [];
     }
+
+    if (typeof window.resolveUserPermissions === 'function') {
+        window.resolveUserPermissions();
+    }
+    if (typeof window.initRoleBasedUI === 'function') {
+        window.initRoleBasedUI();
+    }
 }
 
 /**
@@ -256,6 +263,7 @@ window.refreshCurrentView = function() {
             'materia-prima': () => typeof window.renderMateriaPrima === 'function' && window.renderMateriaPrima(),
             'carregamento': () => typeof window.renderCarregamento === 'function' && window.renderCarregamento(),
             'notificacoes': () => typeof window.renderRequests === 'function' && window.renderRequests(),
+            'admin': () => typeof window.renderAdminDashboard === 'function' && window.renderAdminDashboard(),
             'dashboard': () => typeof window.renderDashboard === 'function' && window.renderDashboard()
         };
 

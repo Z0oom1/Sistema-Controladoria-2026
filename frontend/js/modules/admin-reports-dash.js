@@ -79,16 +79,7 @@ window.renderProfileArea = function() {
 
     let rightColumnContent = '';
 
-    if (window.isAdmin) {
-        rightColumnContent = `
-            <div id="profilePerfisContainer" style="width: 100%;"></div>
-        `;
-        setTimeout(() => {
-            if (typeof window.renderPerfisDashboardInElement === 'function') {
-                window.renderPerfisDashboardInElement('profilePerfisContainer');
-            }
-        }, 0);
-    } else if (window.isEncarregado) {
+    if (window.isEncarregado) {
         rightColumnContent = `
             <div class="settings-card">
                 <h4><i class="fas fa-user-cog"></i> Controle de Contas (Encarregado)</h4>
@@ -208,15 +199,19 @@ window.renderProfileArea = function() {
                     <div class="profile-permissions">
                         <h5><i class="fas fa-key"></i> Permissões Ativas</h5>
                         <div class="permission-grid">
-                            ${renderPermissionItem('Acesso ao Pátio', hasPermission('patio'))}
-                            ${renderPermissionItem('Arrastar Caminhões', hasPermission('drag_truck'))}
-                            ${renderPermissionItem('Registrar Entrada/Saída', hasPermission('register_truck'))}
-                            ${renderPermissionItem('Assinar Notas (Mapa)', hasPermission('sign_notes'))}
-                            ${renderPermissionItem('Pesagem de Carga', hasPermission('weighing'))}
-                            ${renderPermissionItem('Gerenciar Usuários (Admin)', hasPermission('user_management'))}
-                            ${renderPermissionItem('Criar Contas (Encarregado)', hasPermission('staff_creation'))}
-                            ${renderPermissionItem('Relatórios & Dashboard', hasPermission('reports_dash'))}
-                            ${renderPermissionItem('Aprovar Requisições', hasPermission('approve_requests'))}
+                            ${(() => {
+                                if (typeof window.resolveUserPermissions === 'function') window.resolveUserPermissions();
+                                const p = window.userPermissions || {};
+                                return [
+                                    renderPermissionItem('Assinar Mapa Cego', p.canSignMap),
+                                    renderPermissionItem('Editar Caminhão', p.canEditTruck),
+                                    renderPermissionItem('Excluir Caminhão', p.canDeleteTruck),
+                                    renderPermissionItem('Mover Fila', p.canMoveTruck),
+                                    renderPermissionItem('Cadastros Gerais', p.canManageCatalogs),
+                                    renderPermissionItem('Ver Notificações', p.canViewNotifications),
+                                    renderPermissionItem('Relatórios & Dashboard', p.canViewReports)
+                                ].join('');
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -1349,44 +1344,270 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================
-// CONTROLES DE PERFIS E GRUPOS DE ACESSO (APENAS ADMIN)
+// CONTROLES DE PERFIS E GRUPOS DE ACESSO (APENAS ADMIN V2)
 // =========================================================
 
 function getActiveContainer() {
-    const viewCadastros = document.getElementById('view-cadastros');
-    if (viewCadastros && viewCadastros.classList.contains('active')) {
-        return document.getElementById('cadPerfisSection');
-    }
-    const viewPerfil = document.getElementById('view-perfil');
-    if (viewPerfil && viewPerfil.classList.contains('active')) {
-        return document.getElementById('profilePerfisContainer');
-    }
-    const p = document.getElementById('profilePerfisContainer');
-    const c = document.getElementById('cadPerfisSection');
-    if (p && p.offsetParent !== null) return p;
-    if (c && c.offsetParent !== null) return c;
-    return c || p;
+    return document.getElementById('adminPanelContainer');
 }
 
-window.renderPerfisDashboard = function() {
-    window.renderPerfisDashboardInElement('cadPerfisSection');
-    window.renderPerfisDashboardInElement('profilePerfisContainer');
+window.activeAdminSubmenu = 'funcionarios';
+window.activeMatrixTab = 'users';
+
+window.switchAdminSubmenu = function(submenuName, button) {
+    window.activeAdminSubmenu = submenuName;
+    
+    // Manage active state on buttons
+    const sidebar = document.querySelector('.admin-sidebar');
+    if (sidebar) {
+        sidebar.querySelectorAll('.admin-menu-btn').forEach(btn => btn.classList.remove('active'));
+    }
+    if (button) {
+        button.classList.add('active');
+    } else {
+        // Fallback search
+        const btnIdMap = {
+            'funcionarios': 'btnAdminSubFunc',
+            'grupos': 'btnAdminSubGrupos',
+            'permissoes': 'btnAdminSubPerms'
+        };
+        const activeBtn = document.getElementById(btnIdMap[submenuName]);
+        if (activeBtn) activeBtn.classList.add('active');
+    }
+    
+    window.renderAdminDashboard();
 };
 
-window.renderPerfisDashboardInElement = function(containerId) {
-    const container = document.getElementById(containerId);
+window.renderPerfisDashboard = function() {
+    window.renderAdminDashboard();
+};
+
+window.renderAdminDashboard = function() {
+    const container = document.getElementById('adminPanelContainer');
     if (!container) return;
 
-    if (!container.querySelector('.perfis-grid')) {
+    const groups = window.groupsData || [];
+    const dbUsers = window.usersData || [];
+
+    const permissionDefinitions = [
+        { key: 'canSignMap', label: 'Assinar Mapa Cego', desc: 'Assinar notas fiscais e conferências' },
+        { key: 'canEditTruck', label: 'Editar Caminhão', desc: 'Editar pátio, MP e carregamento' },
+        { key: 'canDeleteTruck', label: 'Excluir Caminhão', desc: 'Remover pátio, MP e carregamento' },
+        { key: 'canMoveTruck', label: 'Mover Caminhão na Fila', desc: 'Reordenar e movimentar cards de setor' },
+        { key: 'canManageCatalogs', label: 'Gerenciar Cadastros', desc: 'Inserir/editar/deletar catalogos gerais' },
+        { key: 'canViewNotifications', label: 'Ver Notificações', desc: 'Acessar tela de notificações e badges' },
+        { key: 'canViewReports', label: 'Visualizar Relatórios', desc: 'Visualizar relatórios e dashboard' }
+    ];
+
+    if (window.activeAdminSubmenu === 'funcionarios') {
         container.innerHTML = `
-            <div class="perfis-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-wrap: wrap;">
-                <!-- COLUNA 1: GESTÃO DE GRUPOS -->
+            <div class="perfis-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; width: 100%;">
+                <!-- COLUNA 1: LISTA DE USUÁRIOS -->
+                <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px;">
+                    <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-user-cog"></i> Usuários Cadastrados</h4>
+                    
+                    <div style="position: relative;">
+                        <input type="text" id="userSearchInput" class="form-input-styled" style="width: 100%; padding: 8px 10px 8px 30px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main);" placeholder="Buscar usuário..." oninput="window.filterUsersList(this.value)">
+                        <i class="fas fa-search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem;"></i>
+                    </div>
+
+                    <div id="users_list_container" style="flex: 1; overflow-y: auto; max-height: 500px; display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Usuários injetados aqui -->
+                    </div>
+                </div>
+
+                <!-- COLUNA 2: FORMULÁRIO -->
+                <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px;">
+                    <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;" id="userFormTitle"><i class="fas fa-user-plus"></i> Novo Usuário</h4>
+                    <div id="userFormContainer" style="display: flex; flex-direction: column; gap: 12px;">
+                        <input type="hidden" id="editUserId" value="">
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Nome de Usuário (Login)</label>
+                                <input type="text" id="userUsernameInput" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" placeholder="Ex: joao">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Senha</label>
+                                <input type="password" id="userPasswordInput" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" placeholder="Senha">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Grupo de Acesso (Herança)</label>
+                            <select id="userGroupSelect" onchange="window.toggleUserPermissionsEdit(this.value)" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                <option value="">Sem Grupo (Permissões Manuais)</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos Manuais -->
+                        <div id="manualPermissionsArea" style="display: block;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Função (Role)</label>
+                                    <select id="userRoleSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                        <option value="user">User</option>
+                                        <option value="Encarregado">Encarregado</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Setor (Sector)</label>
+                                    <select id="userSectorSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                        <option value="conferente">Conferente</option>
+                                        <option value="recebimento">Recebimento</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Subtipo (SubType)</label>
+                                <select id="userSubTypeSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
+                                    <option value="">Nenhum (Geral)</option>
+                                    <option value="ALM">ALM (Doca/Almoxarifado)</option>
+                                    <option value="GAVA">GAVA (Portaria Gava)</option>
+                                    <option value="INFRA">INFRA (Infraestrutura)</option>
+                                    <option value="MANUT">MANUT (Manutenção)</option>
+                                    <option value="OUT">OUTROS</option>
+                                </select>
+                            </div>
+
+                            <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 6px; display: block; color: var(--text-main);">Permissões Manuais</label>
+                            <div class="perm-switch-grid">
+                                ${permissionDefinitions.map(p => `
+                                    <div class="perm-switch-card">
+                                        <div class="perm-switch-info">
+                                            <span class="perm-switch-title">${p.label}</span>
+                                            <span class="perm-switch-desc">${p.desc}</span>
+                                        </div>
+                                        <label class="switch">
+                                            <input type="checkbox" class="perm-checkbox" data-perm="${p.key}">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Aviso de Herança -->
+                        <div id="groupInheritanceNotice" style="display: none; padding: 12px; background: rgba(185, 28, 28, 0.05); border-radius: 8px; border: 1px solid rgba(185, 28, 28, 0.15); color: var(--primary); font-size: 0.8rem; line-height: 1.4;">
+                            <i class="fas fa-info-circle"></i> Este usuário herdará as permissões do grupo selecionado. As configurações manuais de acesso estão desabilitadas.
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <button onclick="window.saveUser()" class="btn btn-save" style="flex: 1; padding: 10px; font-weight: bold;"><i class="fas fa-save"></i> Salvar Usuário</button>
+                            <button onclick="window.clearUserForm()" class="btn" style="padding: 10px; background: #94a3b8; color: white;"><i class="fas fa-times"></i> Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Populate Group Select in User form
+        const userGroupSelect = container.querySelector('#userGroupSelect');
+        if (userGroupSelect) {
+            userGroupSelect.innerHTML = '<option value="">Sem Grupo (Permissões Manuais)</option>';
+            groups.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.id;
+                opt.textContent = `${g.name} (${g.role}/${g.sector}/${g.subType || 'Geral'})`;
+                userGroupSelect.appendChild(opt);
+            });
+        }
+
+        // Render Users List
+        const defaultUsers = [
+            { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
+            { username: 'Caio', role: 'user', sector: 'recebimento', subType: null },
+            { username: 'Balanca', role: 'user', sector: 'recebimento', subType: null },
+            { username: 'Recebimento', role: 'user', sector: 'recebimento', subType: null },
+            { username: 'Wayner', role: 'user', sector: 'conferente', subType: 'INFRA' },
+            { username: 'Manutencao', role: 'user', sector: 'conferente', subType: 'MANUT' },
+            { username: 'Fabricio', role: 'user', sector: 'conferente', subType: 'ALM' },
+            { username: 'Clodoaldo', role: 'user', sector: 'conferente', subType: 'ALM' },
+            { username: 'Guilherme', role: 'user', sector: 'conferente', subType: 'GAVA' },
+            { username: 'EncarRec', role: 'Encarregado', sector: 'recebimento', subType: null },
+            { username: 'EncarConf', role: 'Encarregado', sector: 'conferente', subType: null }
+        ];
+
+        const allDisplayUsers = defaultUsers.map(du => {
+            const custom = dbUsers.find(u => u.username.toLowerCase() === du.username.toLowerCase());
+            return custom ? { ...du, ...custom, isDefault: true } : { ...du, password: '123', isDefault: true };
+        });
+
+        dbUsers.forEach(u => {
+            if (!allDisplayUsers.find(du => du.username.toLowerCase() === u.username.toLowerCase())) {
+                allDisplayUsers.push({ ...u, isDefault: false });
+            }
+        });
+
+        const usersList = container.querySelector('#users_list_container');
+        if (usersList) {
+            usersList.innerHTML = allDisplayUsers.map(u => {
+                let badgeText = u.isDefault ? 'Padrão' : 'Customizado';
+                let badgeColor = u.isDefault ? 'var(--text-muted)' : 'var(--primary)';
+                
+                const hasOverride = !u.isDefault || dbUsers.some(dbu => dbu.username.toLowerCase() === u.username.toLowerCase());
+                if (hasOverride && u.isDefault) {
+                    badgeText = 'Padrão (Alterado)';
+                    badgeColor = '#d97706';
+                }
+
+                let resolvedRole = u.role;
+                let resolvedSector = u.sector;
+                let resolvedSubType = u.subType || 'Nenhum';
+                let grpLabel = 'Sem Grupo';
+
+                if (u.group) {
+                    const grp = groups.find(g => g.id === u.group || g.name === u.group);
+                    if (grp) {
+                        resolvedRole = grp.role;
+                        resolvedSector = grp.sector;
+                        resolvedSubType = grp.subType || 'Nenhum';
+                        grpLabel = `<span style="color:var(--primary); font-weight:bold;">${grp.name}</span>`;
+                    }
+                }
+
+                return `
+                    <div class="user-list-item" data-username="${u.username}" style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:8px; font-size:0.85rem; box-shadow: var(--shadow-sm);">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <span style="font-weight:bold; color:var(--text-main); font-size:0.95rem;">${u.username}</span>
+                                <span style="font-size:0.65rem; background:${badgeColor}; color:white; padding:1px 6px; border-radius:10px; font-weight:bold;">${badgeText}</span>
+                            </div>
+                            <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">
+                                <span>Grupo: <b>${grpLabel}</b></span> | 
+                                <span>Role: <b>${resolvedRole}</b></span> | 
+                                <span>Setor: <b>${resolvedSector}</b></span> | 
+                                <span>Sub: <b>${resolvedSubType}</b></span>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button onclick="window.editUser('${u.username}')" class="btn btn-save btn-small" style="padding:6px 10px;" title="Editar"><i class="fas fa-edit"></i></button>
+                            ${u.isDefault ? 
+                                (hasOverride ? `<button onclick="window.deleteUser('${u.username}')" class="btn-icon-remove" style="padding:6px 10px; background:#fef3c7; color:#d97706;" title="Restaurar Padrão"><i class="fas fa-undo"></i></button>` : '') 
+                                : `<button onclick="window.deleteUser('${u.username}')" class="btn-icon-remove" style="padding:6px 10px;" title="Excluir"><i class="fas fa-trash"></i></button>`
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    } 
+    else if (window.activeAdminSubmenu === 'grupos') {
+        container.innerHTML = `
+            <div class="perfis-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; width: 100%;">
+                <!-- COLUNA 1: LISTA DE GRUPOS -->
                 <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px;">
                     <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-users"></i> Grupos de Acesso</h4>
-                    
-                    <!-- Formulário do Grupo (Criar / Editar) -->
-                    <div id="groupFormContainer" style="background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.05); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
-                        <h5 id="groupFormTitle" style="margin: 0; font-weight: bold; color: var(--text-main);">Novo Grupo</h5>
+                    <div id="groups_list_container" style="flex: 1; overflow-y: auto; max-height: 500px; display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Lista de grupos injetada -->
+                    </div>
+                </div>
+
+                <!-- COLUNA 2: FORMULÁRIO -->
+                <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px;">
+                    <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;" id="groupFormTitle"><i class="fas fa-users-cog"></i> Novo Grupo</h4>
+                    <div id="groupFormContainer" style="display: flex; flex-direction: column; gap: 12px;">
                         <input type="hidden" id="editGroupId" value="">
                         <div>
                             <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Nome do Grupo</label>
@@ -1420,139 +1641,112 @@ window.renderPerfisDashboardInElement = function(containerId) {
                                 <option value="OUT">OUTROS</option>
                             </select>
                         </div>
-                        <div style="display: flex; gap: 8px; margin-top: 5px;">
-                            <button onclick="window.saveGroup()" class="btn btn-save" style="flex: 1; padding: 10px; font-weight: bold;"><i class="fas fa-save"></i> Salvar</button>
+
+                        <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 6px; display: block; color: var(--text-main);">Permissões do Grupo</label>
+                        <div class="perm-switch-grid">
+                            ${permissionDefinitions.map(p => `
+                                <div class="perm-switch-card">
+                                    <div class="perm-switch-info">
+                                        <span class="perm-switch-title">${p.label}</span>
+                                        <span class="perm-switch-desc">${p.desc}</span>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" class="perm-checkbox" data-perm="${p.key}">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <button onclick="window.saveGroup()" class="btn btn-save" style="flex: 1; padding: 10px; font-weight: bold;"><i class="fas fa-save"></i> Salvar Grupo</button>
                             <button onclick="window.clearGroupForm()" class="btn" style="padding: 10px; background: #94a3b8; color: white;"><i class="fas fa-times"></i> Cancelar</button>
                         </div>
-                    </div>
-
-                    <!-- Lista de Grupos -->
-                    <div style="flex: 1; overflow-y: auto; max-height: 300px; border-top: 1px solid #eee; padding-top: 10px;">
-                        <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 8px; color: var(--text-muted);">Grupos Cadastrados</label>
-                        <div id="groups_list_container" style="display: flex; flex-direction: column; gap: 8px;"></div>
-                    </div>
-                </div>
-
-                <!-- COLUNA 2: GESTÃO DE PERFIS -->
-                <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px;">
-                    <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-user-cog"></i> Perfis de Usuários</h4>
-                    
-                    <!-- Formulário do Usuário (Criar / Editar) -->
-                    <div id="userFormContainer" style="background: rgba(0,0,0,0.015); border: 1px solid rgba(0,0,0,0.05); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
-                        <h5 id="userFormTitle" style="margin: 0; font-weight: bold; color: var(--text-main);">Novo Usuário</h5>
-                        <input type="hidden" id="editUserId" value="">
-                        
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <div>
-                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Nome de Usuário (Login)</label>
-                                <input type="text" id="userUsernameInput" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" placeholder="Ex: joao">
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Senha</label>
-                                <input type="password" id="userPasswordInput" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);" placeholder="Senha">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Grupo de Acesso (Herança)</label>
-                            <select id="userGroupSelect" onchange="window.toggleUserPermissionsEdit(this.value)" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
-                                <option value="">Sem Grupo (Permissões Manuais)</option>
-                            </select>
-                        </div>
-
-                        <!-- Campos Manuais (ocultados/desabilitados se tiver grupo) -->
-                        <div id="manualPermissionsArea" style="display: block;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                                <div>
-                                    <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Função (Role)</label>
-                                    <select id="userRoleSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
-                                        <option value="user">User</option>
-                                        <option value="Encarregado">Encarregado</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Setor (Sector)</label>
-                                    <select id="userSectorSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
-                                        <option value="conferente">Conferente</option>
-                                        <option value="recebimento">Recebimento</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; font-weight: bold; margin-bottom: 4px; display: block; color: var(--text-main);">Subtipo (SubType)</label>
-                                <select id="userSubTypeSelect" class="form-input-styled" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);">
-                                    <option value="">Nenhum (Geral)</option>
-                                    <option value="ALM">ALM (Doca/Almoxarifado)</option>
-                                    <option value="GAVA">GAVA (Portaria Gava)</option>
-                                    <option value="INFRA">INFRA (Infraestrutura)</option>
-                                    <option value="MANUT">MANUT (Manutenção)</option>
-                                    <option value="OUT">OUTROS</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Aviso de Herança -->
-                        <div id="groupInheritanceNotice" style="display: none; padding: 10px; background: #e0f2fe; border-radius: 6px; border: 1px solid #bae6fd; color: #0369a1; font-size: 0.8rem; line-height: 1.3;">
-                            <i class="fas fa-info-circle"></i> Este usuário herdará as permissões do grupo selecionado. As configurações manuais de acesso estão desabilitadas.
-                        </div>
-
-                        <div style="display: flex; gap: 8px; margin-top: 5px;">
-                            <button onclick="window.saveUser()" class="btn btn-save" style="flex: 1; padding: 10px; font-weight: bold;"><i class="fas fa-save"></i> Salvar</button>
-                            <button onclick="window.clearUserForm()" class="btn" style="padding: 10px; background: #94a3b8; color: white;"><i class="fas fa-times"></i> Cancelar</button>
-                        </div>
-                    </div>
-
-                    <!-- Lista de Usuários -->
-                    <div style="flex: 1; overflow-y: auto; max-height: 300px; border-top: 1px solid #eee; padding-top: 10px;">
-                        <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 8px; color: var(--text-muted);">Usuários Cadastrados</label>
-                        <div id="users_list_container" style="display: flex; flex-direction: column; gap: 8px;"></div>
                     </div>
                 </div>
             </div>
         `;
+
+        const groupsList = container.querySelector('#groups_list_container');
+        if (groupsList) {
+            groupsList.innerHTML = groups.map(g => {
+                const subName = g.subType || 'Nenhum';
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:8px; font-size:0.85rem; box-shadow: var(--shadow-sm);">
+                        <div>
+                            <span style="font-weight:bold; color:var(--text-main); font-size:0.95rem;">${g.name}</span>
+                            <div style="color:var(--text-muted); font-size:0.75rem; margin-top:4px;">
+                                <span>Função: <b>${g.role}</b></span> | 
+                                <span>Setor: <b>${g.sector}</b></span> | 
+                                <span>Sub: <b>${subName}</b></span>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button onclick="window.editGroup('${g.id}')" class="btn btn-save btn-small" style="padding:6px 10px;" title="Editar"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteGroup('${g.id}')" class="btn-icon-remove" style="padding:6px 10px;" title="Excluir"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('') || '<div style="color:#999; text-align:center; padding:10px; font-size:0.85rem;">Nenhum grupo cadastrado</div>';
+        }
+    } 
+    else if (window.activeAdminSubmenu === 'permissoes') {
+        container.innerHTML = `
+            <div class="perfis-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 15px; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <h4 style="margin: 0; color: var(--primary); display: flex; align-items: center; gap: 8px;"><i class="fas fa-shield-alt"></i> Visão Geral de Permissões</h4>
+                    <div class="matrix-tabs-bar">
+                        <button id="btnMatrixTabUsers" class="matrix-tab-btn ${window.activeMatrixTab === 'users' ? 'active' : ''}" onclick="window.switchMatrixTab('users')">Usuários</button>
+                        <button id="btnMatrixTabGroups" class="matrix-tab-btn ${window.activeMatrixTab === 'groups' ? 'active' : ''}" onclick="window.switchMatrixTab('groups')">Grupos de Acesso</button>
+                    </div>
+                </div>
+                
+                <div id="matrixTableContainer" class="matrix-table-wrapper">
+                    <!-- Tabela Matricial Renderizada via JS -->
+                </div>
+            </div>
+        `;
+        window.renderPermissionsMatrix();
     }
+};
+
+window.filterUsersList = function(searchTerm) {
+    const container = document.getElementById('users_list_container');
+    if (!container) return;
+    const items = container.querySelectorAll('.user-list-item');
+    const term = searchTerm.toLowerCase();
+    items.forEach(item => {
+        const username = item.getAttribute('data-username').toLowerCase();
+        if (username.includes(term)) {
+            item.style.setProperty('display', 'flex', 'important');
+        } else {
+            item.style.setProperty('display', 'none', 'important');
+        }
+    });
+};
+
+window.switchMatrixTab = function(tab) {
+    window.activeMatrixTab = tab;
+    const btnU = document.getElementById('btnMatrixTabUsers');
+    const btnG = document.getElementById('btnMatrixTabGroups');
+    if (btnU && btnG) {
+        if (tab === 'users') {
+            btnU.classList.add('active');
+            btnG.classList.remove('active');
+        } else {
+            btnU.classList.remove('active');
+            btnG.classList.add('active');
+        }
+    }
+    window.renderPermissionsMatrix();
+};
+
+window.renderPermissionsMatrix = function() {
+    const container = document.getElementById('matrixTableContainer');
+    if (!container) return;
 
     const groups = window.groupsData || [];
     const dbUsers = window.usersData || [];
-
-    // Populando o select de grupos no formulário de usuários
-    const userGroupSelect = container.querySelector('#userGroupSelect');
-    if (userGroupSelect) {
-        userGroupSelect.innerHTML = '<option value="">Sem Grupo (Permissões Manuais)</option>';
-        groups.forEach(g => {
-            const opt = document.createElement('option');
-            opt.value = g.id;
-            opt.textContent = `${g.name} (${g.role}/${g.sector}/${g.subType || 'Geral'})`;
-            userGroupSelect.appendChild(opt);
-        });
-    }
-
-    // Renderizando a Lista de Grupos
-    const groupsList = container.querySelector('#groups_list_container');
-    if (groupsList) {
-        groupsList.innerHTML = groups.map(g => {
-            const subName = g.subType || 'Nenhum';
-            return `
-                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:8px; font-size:0.85rem;">
-                    <div>
-                        <span style="font-weight:bold; color:var(--text-main); font-size:0.95rem;">${g.name}</span>
-                        <div style="color:var(--text-muted); font-size:0.75rem; margin-top:2px;">
-                            <span>Função: <b>${g.role}</b></span> | 
-                            <span>Setor: <b>${g.sector}</b></span> | 
-                            <span>Sub: <b>${subName}</b></span>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:4px;">
-                        <button onclick="window.editGroup('${g.id}')" class="btn btn-save btn-small" style="padding:4px 8px;" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button onclick="window.deleteGroup('${g.id}')" class="btn-icon-remove" style="padding:4px 8px;" title="Excluir"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
-            `;
-        }).join('') || '<div style="color:#999; text-align:center; padding:10px; font-size:0.85rem;">Nenhum grupo cadastrado</div>';
-    }
-
-    // Montando todos os usuários (Padrão + Customizados)
     const defaultUsers = [
         { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
         { username: 'Caio', role: 'user', sector: 'recebimento', subType: null },
@@ -1567,70 +1761,79 @@ window.renderPerfisDashboardInElement = function(containerId) {
         { username: 'EncarConf', role: 'Encarregado', sector: 'conferente', subType: null }
     ];
 
-    const allDisplayUsers = defaultUsers.map(du => {
-        const custom = dbUsers.find(u => u.username.toLowerCase() === du.username.toLowerCase());
-        return custom ? { ...du, ...custom, isDefault: true } : { ...du, password: '123', isDefault: true };
+    const permissionCols = [
+        { label: 'Assinar Mapa', key: 'canSignMap' },
+        { label: 'Editar Veículo', key: 'canEditTruck' },
+        { label: 'Excluir Veículo', key: 'canDeleteTruck' },
+        { label: 'Mover Fila', key: 'canMoveTruck' },
+        { label: 'Cadastros', key: 'canManageCatalogs' },
+        { label: 'Notificações', key: 'canViewNotifications' },
+        { label: 'Relatórios', key: 'canViewReports' }
+    ];
+
+    let headersHtml = `<th>Nome / Descrição</th>`;
+    permissionCols.forEach(col => {
+        headersHtml += `<th style="text-align: center;">${col.label}</th>`;
     });
 
-    dbUsers.forEach(u => {
-        if (!allDisplayUsers.find(du => du.username.toLowerCase() === u.username.toLowerCase())) {
-            allDisplayUsers.push({ ...u, isDefault: false });
+    let rowsHtml = '';
+
+    if (window.activeMatrixTab === 'groups') {
+        if (groups.length === 0) {
+            rowsHtml = `<tr><td colspan="${permissionCols.length + 1}" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum grupo cadastrado</td></tr>`;
+        } else {
+            groups.forEach(g => {
+                const perms = g.permissions || {};
+                let cells = `<td><strong>${g.name}</strong> <span style="font-size: 0.7rem; color: var(--text-muted); display:block; margin-top:2px;">${g.role} / ${g.sector}</span></td>`;
+                permissionCols.forEach(col => {
+                    const isAllowed = !!perms[col.key];
+                    const badgeClass = isAllowed ? 'perm-badge-allow' : 'perm-badge-deny';
+                    const icon = isAllowed ? '<i class="fas fa-check"></i> Sim' : '<i class="fas fa-times"></i> Não';
+                    cells += `<td style="text-align: center;"><span class="perm-badge ${badgeClass}">${icon}</span></td>`;
+                });
+                rowsHtml += `<tr>${cells}</tr>`;
+            });
         }
-    });
-
-    // Renderizando a Lista de Usuários
-    const usersList = container.querySelector('#users_list_container');
-    if (usersList) {
-        usersList.innerHTML = allDisplayUsers.map(u => {
-            let badgeText = u.isDefault ? 'Padrão' : 'Customizado';
-            let badgeColor = u.isDefault ? '#64748b' : '#3b82f6';
-            
-            const hasOverride = !u.isDefault || dbUsers.some(dbu => dbu.username.toLowerCase() === u.username.toLowerCase());
-            if (hasOverride && u.isDefault) {
-                badgeText = 'Padrão (Alterado)';
-                badgeColor = '#d97706';
+    } else {
+        const allUsers = defaultUsers.map(du => {
+            const custom = dbUsers.find(u => u.username.toLowerCase() === du.username.toLowerCase());
+            return custom ? { ...du, ...custom } : du;
+        });
+        dbUsers.forEach(u => {
+            if (!allUsers.some(du => du.username.toLowerCase() === u.username.toLowerCase())) {
+                allUsers.push(u);
             }
+        });
 
-            let resolvedRole = u.role;
-            let resolvedSector = u.sector;
-            let resolvedSubType = u.subType || 'Nenhum';
-            let grpLabel = 'Sem Grupo';
+        allUsers.forEach(u => {
+            const prevLogged = window.loggedUser;
+            window.loggedUser = u;
+            window.resolveUserPermissions();
+            const resolved = { ...window.userPermissions };
+            window.loggedUser = prevLogged;
+            if (prevLogged) window.resolveUserPermissions();
 
-            if (u.group) {
-                const grp = groups.find(g => g.id === u.group || g.name === u.group);
-                if (grp) {
-                    resolvedRole = grp.role;
-                    resolvedSector = grp.sector;
-                    resolvedSubType = grp.subType || 'Nenhum';
-                    grpLabel = `<span style="color:var(--primary); font-weight:bold;">${grp.name}</span>`;
-                }
-            }
-
-            return `
-                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:8px; font-size:0.85rem;">
-                    <div>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <span style="font-weight:bold; color:var(--text-main); font-size:0.95rem;">${u.username}</span>
-                            <span style="font-size:0.65rem; background:${badgeColor}; color:white; padding:1px 5px; border-radius:10px; font-weight:bold;">${badgeText}</span>
-                        </div>
-                        <div style="color:var(--text-muted); font-size:0.75rem; margin-top:2px;">
-                            <span>Grupo: <b>${grpLabel}</b></span> | 
-                            <span>Role: <b>${resolvedRole}</b></span> | 
-                            <span>Setor: <b>${resolvedSector}</b></span> | 
-                            <span>Sub: <b>${resolvedSubType}</b></span>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap:4px;">
-                        <button onclick="window.editUser('${u.username}')" class="btn btn-save btn-small" style="padding:4px 8px;" title="Editar"><i class="fas fa-edit"></i></button>
-                        ${u.isDefault ? 
-                            (hasOverride ? `<button onclick="window.deleteUser('${u.username}')" class="btn-icon-remove" style="padding:4px 8px; background:#fef3c7; color:#d97706;" title="Restaurar Padrão"><i class="fas fa-undo"></i></button>` : '') 
-                            : `<button onclick="window.deleteUser('${u.username}')" class="btn-icon-remove" style="padding:4px 8px;" title="Excluir"><i class="fas fa-trash"></i></button>`
-                        }
-                    </div>
-                </div>
-            `;
-        }).join('') || '<div style="color:#999; text-align:center; padding:10px; font-size:0.85rem;">Nenhum usuário cadastrado</div>';
+            let cells = `<td><strong>${u.username}</strong> <span style="font-size: 0.7rem; color: var(--text-muted); display:block; margin-top:2px;">${u.group ? 'Grupo: ' + u.group : 'Manual / Default'}</span></td>`;
+            permissionCols.forEach(col => {
+                const isAllowed = resolved[col.key];
+                const badgeClass = isAllowed ? 'perm-badge-allow' : 'perm-badge-deny';
+                const icon = isAllowed ? '<i class="fas fa-check"></i> Sim' : '<i class="fas fa-times"></i> Não';
+                cells += `<td style="text-align: center;"><span class="perm-badge ${badgeClass}">${icon}</span></td>`;
+            });
+            rowsHtml += `<tr>${cells}</tr>`;
+        });
     }
+
+    container.innerHTML = `
+        <table class="matrix-table">
+            <thead>
+                <tr>${headersHtml}</tr>
+            </thead>
+            <tbody>
+                ${rowsHtml}
+            </tbody>
+        </table>
+    `;
 };
 
 window.toggleUserPermissionsEdit = function(groupId) {
@@ -1662,7 +1865,9 @@ window.clearGroupForm = function() {
     if (roleSel) roleSel.value = 'user';
     if (sectorSel) sectorSel.value = 'conferente';
     if (subSel) subSel.value = '';
-    if (title) title.innerText = 'Novo Grupo';
+    if (title) title.innerHTML = `<i class="fas fa-users-cog"></i> Novo Grupo`;
+
+    container?.querySelectorAll('.perm-checkbox').forEach(cb => cb.checked = false);
 };
 
 window.clearUserForm = function() {
@@ -1686,8 +1891,9 @@ window.clearUserForm = function() {
     if (roleSel) roleSel.value = 'user';
     if (sectorSel) sectorSel.value = 'conferente';
     if (subSel) subSel.value = '';
-    if (title) title.innerText = 'Novo Usuário';
+    if (title) title.innerHTML = `<i class="fas fa-user-plus"></i> Novo Usuário`;
 
+    container?.querySelectorAll('.perm-checkbox').forEach(cb => cb.checked = false);
     window.toggleUserPermissionsEdit('');
 };
 
@@ -1704,6 +1910,12 @@ window.saveGroup = function() {
         return;
     }
 
+    const permissions = {};
+    container.querySelectorAll('.perm-checkbox').forEach(cb => {
+        const key = cb.getAttribute('data-perm');
+        permissions[key] = cb.checked;
+    });
+
     if (!window.groupsData) window.groupsData = [];
 
     if (editGroupId) {
@@ -1713,6 +1925,7 @@ window.saveGroup = function() {
             window.groupsData[idx].role = roleVal;
             window.groupsData[idx].sector = sectorVal;
             window.groupsData[idx].subType = subVal;
+            window.groupsData[idx].permissions = permissions;
         }
     } else {
         const newGrp = {
@@ -1720,13 +1933,14 @@ window.saveGroup = function() {
             name: nameVal,
             role: roleVal,
             sector: sectorVal,
-            subType: subVal
+            subType: subVal,
+            permissions: permissions
         };
         window.groupsData.push(newGrp);
     }
 
     window.saveAll();
-    window.renderPerfisDashboard();
+    window.renderAdminDashboard();
     window.clearGroupForm();
 };
 
@@ -1734,6 +1948,8 @@ window.editGroup = function(groupId) {
     const grp = (window.groupsData || []).find(g => g.id === groupId);
     if (!grp) return;
 
+    window.switchAdminSubmenu('grupos');
+    
     const container = getActiveContainer();
     const editGroupId = container?.querySelector('#editGroupId');
     const nameIn = container?.querySelector('#groupNameInput');
@@ -1747,7 +1963,13 @@ window.editGroup = function(groupId) {
     if (roleSel) roleSel.value = grp.role;
     if (sectorSel) sectorSel.value = grp.sector;
     if (subSel) subSel.value = grp.subType || '';
-    if (title) title.innerText = `Editar Grupo: ${grp.name}`;
+    if (title) title.innerHTML = `<i class="fas fa-edit"></i> Editar Grupo: ${grp.name}`;
+
+    const grpPerms = grp.permissions || {};
+    container.querySelectorAll('.perm-checkbox').forEach(cb => {
+        const key = cb.getAttribute('data-perm');
+        cb.checked = !!grpPerms[key];
+    });
 };
 
 window.deleteGroup = function(groupId) {
@@ -1767,7 +1989,7 @@ window.deleteGroup = function(groupId) {
     }
 
     window.saveAll();
-    window.renderPerfisDashboard();
+    window.renderAdminDashboard();
 };
 
 window.saveUser = function() {
@@ -1785,75 +2007,90 @@ window.saveUser = function() {
         return;
     }
 
+    const permissions = {};
+    container.querySelectorAll('.perm-checkbox').forEach(cb => {
+        const key = cb.getAttribute('data-perm');
+        permissions[key] = cb.checked;
+    });
+
     if (!window.usersData) window.usersData = [];
 
     const normalizedUsername = usernameVal.toLowerCase();
 
-    if (editUserId) {
-        let uIdx = window.usersData.findIndex(u => u.username.toLowerCase() === editUserId.toLowerCase());
-        if (uIdx > -1) {
-            if (passwordVal) window.usersData[uIdx].password = passwordVal;
-            window.usersData[uIdx].group = groupVal;
-            if (!groupVal) {
-                window.usersData[uIdx].role = roleVal;
-                window.usersData[uIdx].sector = sectorVal;
-                window.usersData[uIdx].subType = subVal;
-            }
+    let uIdx = window.usersData.findIndex(u => u.username.toLowerCase() === normalizedUsername);
+    if (uIdx > -1) {
+        if (passwordVal) window.usersData[uIdx].password = passwordVal;
+        window.usersData[uIdx].group = groupVal;
+        if (!groupVal) {
+            window.usersData[uIdx].role = roleVal;
+            window.usersData[uIdx].sector = sectorVal;
+            window.usersData[uIdx].subType = subVal;
+            window.usersData[uIdx].permissions = permissions;
         } else {
-            const defaultUsersList = [
-                { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
-                { username: 'Caio', role: 'user', sector: 'recebimento', subType: null },
-                { username: 'Balanca', role: 'user', sector: 'recebimento', subType: null },
-                { username: 'Recebimento', role: 'user', sector: 'recebimento', subType: null },
-                { username: 'Wayner', role: 'user', sector: 'conferente', subType: 'INFRA' },
-                { username: 'Manutencao', role: 'user', sector: 'conferente', subType: 'MANUT' },
-                { username: 'Fabricio', role: 'user', sector: 'conferente', subType: 'ALM' },
-                { username: 'Clodoaldo', role: 'user', sector: 'conferente', subType: 'ALM' },
-                { username: 'Guilherme', role: 'user', sector: 'conferente', subType: 'GAVA' },
-                { username: 'EncarRec', role: 'Encarregado', sector: 'recebimento', subType: null },
-                { username: 'EncarConf', role: 'Encarregado', sector: 'conferente', subType: null }
-            ];
-            const defUser = defaultUsersList.find(du => du.username.toLowerCase() === editUserId.toLowerCase());
+            delete window.usersData[uIdx].permissions;
+        }
+    } else {
+        const defaultUsersList = [
+            { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
+            { username: 'Caio', role: 'user', sector: 'recebimento', subType: null },
+            { username: 'Balanca', role: 'user', sector: 'recebimento', subType: null },
+            { username: 'Recebimento', role: 'user', sector: 'recebimento', subType: null },
+            { username: 'Wayner', role: 'user', sector: 'conferente', subType: 'INFRA' },
+            { username: 'Manutencao', role: 'user', sector: 'conferente', subType: 'MANUT' },
+            { username: 'Fabricio', role: 'user', sector: 'conferente', subType: 'ALM' },
+            { username: 'Clodoaldo', role: 'user', sector: 'conferente', subType: 'ALM' },
+            { username: 'Guilherme', role: 'user', sector: 'conferente', subType: 'GAVA' },
+            { username: 'EncarRec', role: 'Encarregado', sector: 'recebimento', subType: null },
+            { username: 'EncarConf', role: 'Encarregado', sector: 'conferente', subType: null }
+        ];
+
+        const defUser = defaultUsersList.find(du => du.username.toLowerCase() === normalizedUsername);
+        
+        if (editUserId && editUserId.toLowerCase() === normalizedUsername) {
             const newOverride = {
                 username: defUser ? defUser.username : usernameVal,
                 password: passwordVal || '123',
                 group: groupVal,
                 role: groupVal ? undefined : roleVal,
                 sector: groupVal ? undefined : sectorVal,
-                subType: groupVal ? undefined : subVal
+                subType: groupVal ? undefined : subVal,
+                permissions: groupVal ? undefined : permissions
             };
             window.usersData.push(newOverride);
-        }
-    } else {
-        const defaultUsersNames = ['admin', 'caio', 'balanca', 'recebimento', 'wayner', 'manutencao', 'fabricio', 'clodoaldo', 'guilherme', 'encarrec', 'encarconf'];
-        const exists = defaultUsersNames.includes(normalizedUsername) || window.usersData.some(u => u.username.toLowerCase() === normalizedUsername);
-        if (exists) {
-            alert(`O usuário "${usernameVal}" já existe.`);
-            return;
-        }
+        } else {
+            const defaultUsersNames = ['admin', 'caio', 'balanca', 'recebimento', 'wayner', 'manutencao', 'fabricio', 'clodoaldo', 'guilherme', 'encarrec', 'encarconf'];
+            const exists = defaultUsersNames.includes(normalizedUsername) || window.usersData.some(u => u.username.toLowerCase() === normalizedUsername);
+            if (exists) {
+                alert(`O usuário "${usernameVal}" já existe.`);
+                return;
+            }
 
-        if (!passwordVal) {
-            alert("A senha é obrigatória para novos usuários.");
-            return;
-        }
+            if (!passwordVal) {
+                alert("A senha é obrigatória para novos usuários.");
+                return;
+            }
 
-        const newUserObj = {
-            username: usernameVal,
-            password: passwordVal,
-            group: groupVal,
-            role: groupVal ? undefined : roleVal,
-            sector: groupVal ? undefined : sectorVal,
-            subType: groupVal ? undefined : subVal
-        };
-        window.usersData.push(newUserObj);
+            const newUserObj = {
+                username: usernameVal,
+                password: passwordVal,
+                group: groupVal,
+                role: groupVal ? undefined : roleVal,
+                sector: groupVal ? undefined : sectorVal,
+                subType: groupVal ? undefined : subVal,
+                permissions: groupVal ? undefined : permissions
+            };
+            window.usersData.push(newUserObj);
+        }
     }
 
     window.saveAll();
-    window.renderPerfisDashboard();
+    window.renderAdminDashboard();
     window.clearUserForm();
 };
 
 window.editUser = function(username) {
+    window.switchAdminSubmenu('funcionarios');
+
     const dbUsers = window.usersData || [];
     const defaultUsers = [
         { username: 'Admin', role: 'admin', sector: 'recebimento', subType: null },
@@ -1899,9 +2136,15 @@ window.editUser = function(username) {
         if (roleSel) roleSel.value = user.role || 'user';
         if (sectorSel) sectorSel.value = user.sector || 'conferente';
         if (subSel) subSel.value = user.subType || '';
+
+        const userPerms = user.permissions || {};
+        container.querySelectorAll('.perm-checkbox').forEach(cb => {
+            const key = cb.getAttribute('data-perm');
+            cb.checked = !!userPerms[key];
+        });
     }
 
-    if (title) title.innerText = `Editar Usuário: ${user.username}`;
+    if (title) title.innerHTML = `<i class="fas fa-edit"></i> Editar Usuário: ${user.username}`;
 };
 
 window.deleteUser = function(username) {
@@ -1916,5 +2159,5 @@ window.deleteUser = function(username) {
     }
 
     window.saveAll();
-    window.renderPerfisDashboard();
+    window.renderAdminDashboard();
 };

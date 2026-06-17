@@ -56,27 +56,39 @@ window.initRoleBasedUI = function() {
     if (mmp) mmp.style.display = isRec ? 'flex' : 'none';
 
     // Visibilidade do Dashboard (Encarregados e Admins)
+    const perms = window.userPermissions || {};
     const menuDash = domCache.get('menuDashboard');
     const isEnc = typeof isEncarregado !== 'undefined' ? isEncarregado : false;
     const isAdm = typeof isAdmin !== 'undefined' ? isAdmin : false;
-    const canViewDash = isEnc || isAdm;
-    if (menuDash) menuDash.style.display = canViewDash ? 'flex' : 'none';
+    const canViewReports = perms.canViewReports !== undefined ? perms.canViewReports : (isEnc || isAdm);
+    if (menuDash) menuDash.style.display = canViewReports ? 'flex' : 'none';
 
-    // Controle de acesso ao menu de cadastros (apenas Recebimento e Admin)
+    const menuRelatorios = domCache.get('menuRelatorios');
+    if (menuRelatorios) menuRelatorios.style.display = canViewReports ? 'flex' : 'none';
+
+    // Controle de acesso ao menu de cadastros
     const menuCadastros = domCache.get('menuCadastros');
+    const canManageCatalogs = perms.canManageCatalogs !== undefined ? perms.canManageCatalogs : (isRec || isAdm);
     if (menuCadastros) {
-        menuCadastros.style.display = (isRec || isAdm) ? 'flex' : 'none';
+        menuCadastros.style.display = canManageCatalogs ? 'flex' : 'none';
     }
 
-    // Controle de acesso ao menu de notificações (apenas Recebimento e Admin)
+    // Controle de acesso ao menu de notificações
     const menuNotif = domCache.get('menuNotif');
+    const canViewNotifications = perms.canViewNotifications !== undefined ? perms.canViewNotifications : (isRec || isAdm);
     if (menuNotif) {
-        menuNotif.style.display = (isRec || isAdm) ? 'flex' : 'none';
+        menuNotif.style.display = canViewNotifications ? 'flex' : 'none';
     }
 
-    // Controle de acesso à aba de Perfis e Permissões (apenas Admin)
+    // Controle de acesso ao Painel Admin
+    const menuAdmin = domCache.get('menuAdmin');
+    if (menuAdmin) {
+        menuAdmin.style.display = isAdm ? 'flex' : 'none';
+    }
+
+    // Antigo botão de Perfis desabilitado
     const tabPerfis = document.getElementById('tabPerfis');
-    if (tabPerfis) tabPerfis.style.display = isAdm ? 'flex' : 'none';
+    if (tabPerfis) tabPerfis.style.display = 'none';
 
     // Lógica de colunas por Subtipo de utilizador
     if (isConf && typeof userSubType !== 'undefined' && userSubType) {
@@ -161,6 +173,7 @@ const VIEW_TITLES = {
     'carregamento': 'Carregamento',
     'configuracoes': 'Configurações',
     'perfil': 'Área do Usuário',
+    'admin': 'Painel Administrativo',
     'dashboard': 'Dashboard'
 };
 
@@ -188,6 +201,7 @@ const VIEW_HANDLERS = {
     'carregamento': () => typeof window.renderCarregamento === 'function' && window.renderCarregamento(),
     'notificacoes': () => typeof window.renderRequests === 'function' && window.renderRequests(),
     'perfil': () => typeof window.renderProfileArea === 'function' && window.renderProfileArea(),
+    'admin': () => typeof window.renderAdminDashboard === 'function' && window.renderAdminDashboard(),
     'dashboard': () => typeof window.renderDashboard === 'function' && window.renderDashboard(),
     'produtos': () => typeof window.renderProductsView === 'function' && window.renderProductsView(),
     'configuracoes': () => typeof window.updatePermissionStatus === 'function' && window.updatePermissionStatus()
@@ -198,14 +212,34 @@ const VIEW_HANDLERS = {
  * Otimizada com cache e menos manipulação de DOM
  */
 window.navTo = function(view, el) {
-    // Bloqueia acesso ao cadastro e notificações para quem não for Recebimento ou Admin
-    if (view === 'cadastros' && !(window.isRecebimento || window.isAdmin)) {
-        alert('Acesso negado: Apenas o Recebimento e Administradores têm permissão para aceder a cadastros.');
-        return;
+    const perms = window.userPermissions || {};
+
+    if (view === 'cadastros') {
+        const canAccess = perms.canManageCatalogs !== undefined ? perms.canManageCatalogs : (window.isRecebimento || window.isAdmin);
+        if (!canAccess) {
+            alert('Acesso negado: Você não tem permissão para acessar cadastros.');
+            return;
+        }
     }
-    if (view === 'notificacoes' && !(window.isRecebimento || window.isAdmin)) {
-        alert('Acesso negado: Apenas o Recebimento e Administradores têm permissão para aceder a notificações.');
-        return;
+    if (view === 'notificacoes') {
+        const canAccess = perms.canViewNotifications !== undefined ? perms.canViewNotifications : (window.isRecebimento || window.isAdmin);
+        if (!canAccess) {
+            alert('Acesso negado: Você não tem permissão para acessar notificações.');
+            return;
+        }
+    }
+    if (view === 'relatorios' || view === 'dashboard') {
+        const canAccess = perms.canViewReports !== undefined ? perms.canViewReports : (window.isAdmin || window.isEncarregado);
+        if (!canAccess) {
+            alert('Acesso negado: Você não tem permissão para acessar relatórios ou dashboards.');
+            return;
+        }
+    }
+    if (view === 'admin') {
+        if (!window.isAdmin) {
+            alert('Acesso negado: Apenas Administradores têm permissão para acessar o Painel Admin.');
+            return;
+        }
     }
 
     // Remover classe active de todas as views e menu items
