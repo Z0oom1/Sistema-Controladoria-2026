@@ -50,6 +50,8 @@ window.renderProfileArea = function() {
     const u = (window.usersData || []).find(x => x.username === window.loggedUser.username);
     const avatarEmoji = window.loggedUser.avatarEmoji || (u ? u.avatarEmoji : null) || '👤';
     const avatarColor = window.loggedUser.avatarColor || (u ? u.avatarColor : null) || '#3b82f6';
+    const avatarPhoto = window.loggedUser.avatarPhoto || (u ? u.avatarPhoto : null) || null;
+    const coverImage = window.loggedUser.coverImage || (u ? u.coverImage : null) || null;
 
     const AVATARS = [
         { emoji: '👤', color: '#3b82f6' },
@@ -166,24 +168,38 @@ window.renderProfileArea = function() {
     }
 
     container.innerHTML = `
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;" onchange="window.uploadProfilePhoto(this)">
+        <input type="file" id="profileCoverInput" accept="image/*" style="display: none;" onchange="window.uploadProfileCover(this)">
+
         <div class="profile-dashboard">
             <!-- COLUNA ESQUERDA: PERFIL + SENHA -->
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 <!-- CARD MEU PERFIL -->
-                <div class="settings-card">
-                    <h4><i class="fas fa-id-card"></i> Meu Perfil</h4>
-                    
-                    <div class="profile-avatar-wrapper">
-                        <div class="profile-avatar-circle" id="profileAvatarCircle" onclick="window.toggleAvatarSelector()" style="background-color: ${avatarColor};">
-                            ${avatarEmoji}
+                <div class="settings-card" style="position: relative; overflow: hidden; padding-top: 0;">
+                    <!-- Banner de Capa -->
+                    <div class="profile-cover-wrapper" id="profileCoverWrapper" onclick="document.getElementById('profileCoverInput').click()" 
+                         style="height: 120px; background-size: cover; background-position: center; 
+                                background-image: ${coverImage ? `url('${coverImage}')` : 'linear-gradient(135deg, #1e293b, #334155)'}; 
+                                position: relative; cursor: pointer; border-bottom: 1px solid var(--border-color); width: calc(100% + 40px); margin-left: -20px; transition: all 0.2s;">
+                        <div class="profile-cover-overlay">
+                            <i class="fas fa-camera"></i> Alterar Capa
+                        </div>
+                    </div>
+
+                    <div class="profile-avatar-wrapper" style="margin-top: -45px; z-index: 10;">
+                        <div class="profile-avatar-circle" id="profileAvatarCircle" onclick="window.toggleAvatarSelector()" style="background-color: ${avatarPhoto ? 'transparent' : avatarColor}; overflow: hidden;">
+                            ${avatarPhoto ? `<img src="${avatarPhoto}" style="width: 100%; height: 100%; object-fit: cover;" />` : avatarEmoji}
                             <div class="profile-avatar-badge"><i class="fas fa-camera"></i></div>
                         </div>
                         
                         <div class="avatar-selector-container" id="avatarSelectorContainer" style="display: none;">
-                            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted);">Escolha seu Avatar</span>
+                            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 5px;">Escolha seu Avatar</span>
                             <div class="avatar-selector-grid">
                                 ${avatarSelectorHtml}
                             </div>
+                            <button class="btn btn-edit" style="width: 100%; margin-top: 10px; font-size: 0.75rem; font-weight: bold; padding: 6px 12px; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('profilePhotoInput').click()">
+                                <i class="fas fa-upload"></i> Carregar Foto
+                            </button>
                         </div>
                     </div>
 
@@ -268,6 +284,7 @@ window.selectProfileAvatar = function(emoji, color) {
     // Update loggedUser state
     window.loggedUser.avatarEmoji = emoji;
     window.loggedUser.avatarColor = color;
+    delete window.loggedUser.avatarPhoto; // remove custom photo to use emoji
     sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
     
     // Update in usersData database
@@ -276,6 +293,7 @@ window.selectProfileAvatar = function(emoji, color) {
         if (u) {
             u.avatarEmoji = emoji;
             u.avatarColor = color;
+            delete u.avatarPhoto; // remove custom photo to use emoji
         }
     }
     
@@ -286,6 +304,122 @@ window.selectProfileAvatar = function(emoji, color) {
     
     // Re-render
     window.renderProfileArea();
+    if (typeof window.updateSidebarAvatar === 'function') window.updateSidebarAvatar();
+};
+
+window.compressImageFile = function(file, maxWidth, maxHeight, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
+window.uploadProfilePhoto = async function(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    
+    try {
+        const base64 = await window.compressImageFile(file, 150, 150, 0.75);
+        
+        window.loggedUser.avatarPhoto = base64;
+        sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
+        
+        if (window.usersData) {
+            const u = window.usersData.find(x => x.username === window.loggedUser.username);
+            if (u) {
+                u.avatarPhoto = base64;
+            }
+        }
+        
+        if (typeof window.saveAll === 'function') {
+            window.saveAll();
+        }
+        
+        window.renderProfileArea();
+        if (typeof window.updateSidebarAvatar === 'function') window.updateSidebarAvatar();
+    } catch (err) {
+        console.error("Erro ao processar foto de perfil:", err);
+        alert("Erro ao processar imagem de perfil. Tente outro arquivo.");
+    }
+};
+
+window.uploadProfileCover = async function(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    
+    try {
+        const base64 = await window.compressImageFile(file, 600, 200, 0.75);
+        
+        window.loggedUser.coverImage = base64;
+        sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
+        
+        if (window.usersData) {
+            const u = window.usersData.find(x => x.username === window.loggedUser.username);
+            if (u) {
+                u.coverImage = base64;
+            }
+        }
+        
+        if (typeof window.saveAll === 'function') {
+            window.saveAll();
+        }
+        
+        window.renderProfileArea();
+    } catch (err) {
+        console.error("Erro ao processar foto de capa:", err);
+        alert("Erro ao processar imagem de capa. Tente outro arquivo.");
+    }
+};
+
+window.updateSidebarAvatar = function() {
+    const sidebarAvatar = document.getElementById('sidebarUserAvatar');
+    if (!sidebarAvatar) return;
+    
+    const user = window.loggedUser;
+    if (!user) return;
+    
+    const u = (window.usersData || []).find(x => x.username === user.username);
+    const photo = user.avatarPhoto || (u ? u.avatarPhoto : null) || null;
+    const emoji = user.avatarEmoji || (u ? u.avatarEmoji : null) || '👤';
+    const color = user.avatarColor || (u ? u.avatarColor : null) || '#3b82f6';
+    
+    if (photo) {
+        sidebarAvatar.style.backgroundColor = 'transparent';
+        sidebarAvatar.innerHTML = `<img src="${photo}" style="width: 100%; height: 100%; object-fit: cover;" />`;
+    } else {
+        sidebarAvatar.style.backgroundColor = color;
+        sidebarAvatar.innerHTML = `<span style="font-size: 1.25rem;">${emoji}</span>`;
+    }
 };
 
 window.changeProfilePassword = function() {

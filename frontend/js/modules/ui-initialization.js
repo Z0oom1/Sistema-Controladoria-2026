@@ -133,6 +133,11 @@ window.initRoleBasedUI = function() {
         if (el) el.value = brazilDate;
     });
 
+    // Atualizar avatar do rodapé da barra lateral se disponível
+    if (typeof window.updateSidebarAvatar === 'function') {
+        window.updateSidebarAvatar();
+    }
+
     // Relógio do Servidor (com interval otimizado)
     let clockInterval = null;
     const startClock = () => {
@@ -174,6 +179,7 @@ const VIEW_TITLES = {
     'configuracoes': 'Configurações',
     'perfil': 'Área do Usuário',
     'admin': 'Painel Administrativo',
+    'chat': 'Chat',
     'dashboard': 'Dashboard'
 };
 
@@ -202,6 +208,7 @@ const VIEW_HANDLERS = {
     'notificacoes': () => typeof window.renderRequests === 'function' && window.renderRequests(),
     'perfil': () => typeof window.renderProfileArea === 'function' && window.renderProfileArea(),
     'admin': () => typeof window.renderAdminDashboard === 'function' && window.renderAdminDashboard(),
+    'chat': () => typeof window.renderChat === 'function' && window.renderChat(),
     'dashboard': () => typeof window.renderDashboard === 'function' && window.renderDashboard(),
     'produtos': () => typeof window.renderProductsView === 'function' && window.renderProductsView(),
     'configuracoes': () => typeof window.updatePermissionStatus === 'function' && window.updatePermissionStatus()
