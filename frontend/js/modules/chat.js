@@ -86,7 +86,7 @@ window.markActiveChatAsRead = function() {
     
     if (changed) {
         if (typeof window.saveAll === 'function') {
-            window.saveAll();
+            window.saveAll(true);
         }
     }
 };
@@ -839,9 +839,9 @@ window.sendChatMessage = function() {
     inputEl.value = '';
     inputEl.style.height = 'auto';
     
-    // Salva local e sincroniza com servidor
+    // Salva local e sincroniza com servidor imediatamente
     if (typeof window.saveAll === 'function') {
-        window.saveAll();
+        window.saveAll(true);
     }
     
     // Re-renderiza localmente
@@ -889,9 +889,9 @@ window.deleteChatMessage = function(msgId) {
         msg.deletedAt = new Date().toISOString();
         msg.text = ''; // limpa texto original por privacidade
         
-        // Salva local e sincroniza com servidor
+        // Salva local e sincroniza com servidor imediatamente
         if (typeof window.saveAll === 'function') {
-            window.saveAll();
+            window.saveAll(true);
         }
         
         window.renderChatWindow();
@@ -915,9 +915,9 @@ window.deleteChatMessageForMe = function(msgId) {
             msg.deletedFor.push(loggedInUser);
         }
         
-        // Salva local e sincroniza com servidor
+        // Salva local e sincroniza com servidor imediatamente
         if (typeof window.saveAll === 'function') {
-            window.saveAll();
+            window.saveAll(true);
         }
         
         window.renderChatWindow();

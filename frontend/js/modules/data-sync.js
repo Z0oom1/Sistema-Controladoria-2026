@@ -172,11 +172,10 @@ window.restoreFromLocal = function() {
  * Salva todos os dados atuais tanto localmente quanto no servidor
  * Com debounce para evitar múltiplas requisições
  */
-window.saveAll = function() {
+window.saveAll = function(immediate = false) {
     window.saveToLocalOnly();
     
-    // Usar debounce para evitar múltiplas requisições simultâneas
-    syncDebouncer.execute('save_all', () => {
+    const performSync = () => {
         // Sincronizar dados transacionais
         window.saveToServer('aw_caminhoes_v2', window.patioData);
         window.saveToServer('mapas_cegos_v3', window.mapData);
@@ -194,9 +193,14 @@ window.saveAll = function() {
         window.saveToServer('aw_drivers', window.driversData);
         window.saveToServer('aw_plates', window.platesData);
         window.saveToServer('aw_products', window.productsData);
+    };
 
-        // Cache removido - dados sempre frescos
-    });
+    if (immediate) {
+        syncDebouncer.cancel('save_all');
+        performSync();
+    } else {
+        syncDebouncer.execute('save_all', performSync);
+    }
 };
 
 /**
