@@ -179,11 +179,19 @@ window.openTruckContextMenu = function(x, y, id) {
     const truck = window.patioData.find(t => t.id === id);
     if(!m || !truck) return;
 
-    m.innerHTML = `
-        <div class="ctx-item" onclick="window.openEditTruck('${id}')"><i class="fas fa-edit"></i> Editar Veículo</div>
-        ${truck.isProvisory ? `<div class="ctx-item" style="color:orange" onclick="window.navTo('notificacoes')"><i class="fas fa-key"></i> Ver Requisição</div>` : ''}
-        <div class="ctx-item" onclick="window.confirmDeleteTruck('${id}')" style="color:red"><i class="fas fa-trash"></i> Excluir...</div>
-    `;
+    const canEditOrDelete = window.isRecebimento || window.isAdmin;
+    let items = '';
+    if (canEditOrDelete) {
+        items += `<div class="ctx-item" onclick="window.openEditTruck('${id}')"><i class="fas fa-edit"></i> Editar Veículo</div>`;
+    }
+    if (truck.isProvisory && canEditOrDelete) {
+        items += `<div class="ctx-item" style="color:orange" onclick="window.navTo('notificacoes')"><i class="fas fa-key"></i> Ver Requisição</div>`;
+    }
+    if (canEditOrDelete) {
+        items += `<div class="ctx-item" onclick="window.confirmDeleteTruck('${id}')" style="color:red"><i class="fas fa-trash"></i> Excluir...</div>`;
+    }
+
+    m.innerHTML = items || `<div class="ctx-item" style="color:var(--text-muted); cursor:default; font-style:italic;"><i class="fas fa-ban"></i> Sem ações</div>`;
 
     let posX = x;
     let posY = y;

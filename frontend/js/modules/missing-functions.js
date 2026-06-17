@@ -196,6 +196,10 @@ window.evaluateRequestNecessity = function() {
 // =========================================================
 
 window.openEditTruck = function(id) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar veículos.");
+        return;
+    }
     const truck = window.patioData.find(t => t.id === id);
     if (!truck) return;
 
@@ -262,6 +266,10 @@ window.openProdSelectForEdit = function() {
 };
 
 window.saveEditTruck = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar veículos.");
+        return;
+    }
     const id = document.getElementById('editTruckId').value;
     const placa = document.getElementById('editTruckPlaca').value.toUpperCase();
     const dest = document.getElementById('editTruckDestino').value;
@@ -328,6 +336,10 @@ window.saveEditTruck = function() {
 };
 
 window.deleteTruck = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir veículos.");
+        return;
+    }
     const id = document.getElementById('editTruckId').value;
     if (confirm('ATENÇÃO: Isso apaga o registro do pátio, mapa cego e pesagem. Confirmar?')) {
         window.patioData = window.patioData.filter(x => x.id !== id);
@@ -340,6 +352,10 @@ window.deleteTruck = function() {
 };
 
 window.confirmDeleteTruck = function(id) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir veículos.");
+        return;
+    }
     window.contextTruckId = id;
     window.deleteOptionSelected = 'queue';
     document.querySelectorAll('.del-option').forEach(el => el.classList.remove('selected'));
@@ -363,6 +379,10 @@ window.selectDeleteOption = function(opt) {
 };
 
 window.executeDeleteTruck = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir veículos.");
+        return;
+    }
     const id = window.contextTruckId;
     if (!id) return;
 
@@ -397,6 +417,10 @@ window.openCadSelectModal = function() {
 };
 
 window.openCadModal = function(type, editId = null) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem cadastrar ou editar informações.");
+        return;
+    }
     const modalSel = document.getElementById('modalCadSelect');
     if (modalSel) modalSel.style.display = 'none';
     const modal = document.getElementById('modalCadForm');
@@ -560,6 +584,10 @@ window.populateSelect = function(elId, data, displayField) {
 };
 
 window.saveOfficialCadastro = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem cadastrar ou editar informações.");
+        return;
+    }
     const type = document.getElementById('cadFormType').value;
     const idField = document.getElementById('cadFormId').value;
     const nameInput = document.getElementById('cadName').value;
@@ -585,7 +613,7 @@ window.saveOfficialCadastro = function() {
         updateList(window.suppliersData, {
             nome: name,
             apelido: cadNick ? cadNick.value.toUpperCase().trim() : '',
-            cnpj: cadDoc ? cadDoc.value : ''
+            cnpj: cadDoc ? cadDoc.docVal || cadDoc.value : ''
         });
     } else if (type === 'transportadora') {
         const cadNick = document.getElementById('cadNick');
@@ -627,6 +655,10 @@ window.saveOfficialCadastro = function() {
 };
 
 window.deleteCadastro = function(type, id) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir registros.");
+        return;
+    }
     if (!confirm("Tem certeza que deseja excluir este registro?\nIsso pode afetar históricos antigos.")) return;
 
     if (type === 'fornecedor') window.suppliersData = window.suppliersData.filter(x => x.id !== id);
@@ -682,6 +714,10 @@ window.renderRequestsTable = function(term) {
 };
 
 window.openUnifiedApprovalModal = function(reqId) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem analisar ou aprovar requisições.");
+        return;
+    }
     const req = window.requests.find(r => r.id === reqId);
     if (!req) return;
 
@@ -908,6 +944,10 @@ window.goToMapFromContext = function(id) {
 };
 
 window.deleteMateriaPrima = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir registros.");
+        return;
+    }
     if (confirm("Deseja excluir este registro de pesagem?")) {
         window.mpData = window.mpData.filter(x => x.id !== window.contextMPId);
         window.saveAll();
@@ -948,6 +988,10 @@ window.saveManualMP = function() {
 };
 
 window.openEditMPModal = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+        return;
+    }
     const m = window.mpData.find(x => x.id === window.contextMPId);
     if (!m) return;
     document.getElementById('editMPId').value = m.id;
@@ -959,6 +1003,10 @@ window.openEditMPModal = function() {
 };
 
 window.saveEditMP = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+        return;
+    }
     const id = document.getElementById('editMPId').value;
     const i = window.mpData.findIndex(x => x.id === id);
     if (i > -1) {
@@ -1083,17 +1131,26 @@ window.updateCarrWeight = function(id, f, v) {
 window.openCarrContextMenu = function(x, y) {
     const m = document.getElementById('ctxMenuCarr');
     if (!m) return;
-    m.innerHTML = `
-        <div class="ctx-item" onclick="window.openEditCarrModal()"><i class="fas fa-edit"></i> Editar</div>
-        <div class="ctx-item" onclick="window.openNoteCarrModal()"><i class="fas fa-sticky-note"></i> Nota</div>
-        <div class="ctx-item" style="color:red" onclick="window.deleteCarregamento()"><i class="fas fa-trash"></i> Excluir</div>
-    `;
+    const canEditOrDelete = window.isRecebimento || window.isAdmin;
+    let items = '';
+    if (canEditOrDelete) {
+        items += `<div class="ctx-item" onclick="window.openEditCarrModal()"><i class="fas fa-edit"></i> Editar</div>`;
+    }
+    items += `<div class="ctx-item" onclick="window.openNoteCarrModal()"><i class="fas fa-sticky-note"></i> Nota</div>`;
+    if (canEditOrDelete) {
+        items += `<div class="ctx-item" style="color:red" onclick="window.deleteCarregamento()"><i class="fas fa-trash"></i> Excluir</div>`;
+    }
+    m.innerHTML = items;
     m.style.left = x + 'px';
     m.style.top = y + 'px';
     m.style.display = 'block';
 };
 
 window.openEditCarrModal = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+        return;
+    }
     const c = window.carregamentoData.find(x => x.id === window.contextCarrId);
     if (!c) return;
     document.getElementById('editCarrId').value = c.id;
@@ -1104,6 +1161,10 @@ window.openEditCarrModal = function() {
 };
 
 window.saveEditCarr = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem editar registros.");
+        return;
+    }
     const id = document.getElementById('editCarrId').value;
     const i = window.carregamentoData.findIndex(x => x.id === id);
     if (i > -1) {
@@ -1116,6 +1177,10 @@ window.saveEditCarr = function() {
 };
 
 window.deleteCarregamento = function() {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir registros.");
+        return;
+    }
     if (confirm('Excluir?')) {
         window.carregamentoData = window.carregamentoData.filter(x => x.id !== window.contextCarrId);
         window.saveAll();
@@ -1149,15 +1214,17 @@ window.saveNoteCarr = function() {
 // =========================================================
 
 window.updateBadge = function() {
-    const pending = window.requests.filter(r => r.status === 'PENDENTE').length;
+    const isAuthorized = window.isRecebimento || window.isAdmin;
+    const pending = isAuthorized ? window.requests.filter(r => r.status === 'PENDENTE').length : 0;
     const b = document.getElementById('badgeNotif');
     if (b) {
-        if (pending > 0) { b.innerText = pending; b.style.display = 'inline-block'; }
-        else b.style.display = 'none';
+        if (pending > 0) {
+            b.innerText = pending;
+            b.style.display = 'inline-block';
+        } else {
+            b.style.display = 'none';
+        }
     }
-    // Badge no menu de notificações
-    const badgeNotif = document.getElementById('badgeNotif');
-    if (badgeNotif) badgeNotif.innerText = pending;
 };
 
 window.checkForNotifications = function() {
@@ -1837,12 +1904,17 @@ window.submitWeighingRequest = function() {
 window.openMPContextMenu = function(x, y) {
     const m = document.getElementById('ctxMenuMP');
     if (!m) return;
-    m.innerHTML = `
-        <div class="ctx-item" onclick="window.openEditMPModal()"><i class="fas fa-edit"></i> Editar</div>
-        <div class="ctx-item" onclick="window.openNoteMPModal()"><i class="fas fa-sticky-note"></i> Nota</div>
-        <div class="ctx-item" onclick="window.goToMapFromContext(window.contextMPId)"><i class="fas fa-map"></i> Ver Mapa</div>
-        <div class="ctx-item" style="color:red" onclick="window.deleteMateriaPrima()"><i class="fas fa-trash"></i> Excluir</div>
-    `;
+    const canEditOrDelete = window.isRecebimento || window.isAdmin;
+    let items = '';
+    if (canEditOrDelete) {
+        items += `<div class="ctx-item" onclick="window.openEditMPModal()"><i class="fas fa-edit"></i> Editar</div>`;
+    }
+    items += `<div class="ctx-item" onclick="window.openNoteMPModal()"><i class="fas fa-sticky-note"></i> Nota</div>`;
+    items += `<div class="ctx-item" onclick="window.goToMapFromContext(window.contextMPId)"><i class="fas fa-map"></i> Ver Mapa</div>`;
+    if (canEditOrDelete) {
+        items += `<div class="ctx-item" style="color:red" onclick="window.deleteMateriaPrima()"><i class="fas fa-trash"></i> Excluir</div>`;
+    }
+    m.innerHTML = items;
     let posX = x;
     let posY = y;
     if (x + 200 > window.innerWidth) posX = window.innerWidth - 220;
@@ -2472,6 +2544,10 @@ window.runDiagnostics = async function() {
 };
 
 window.saveLinkRelation = function(type, idA, idB) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem vincular entidades.");
+        return false;
+    }
     if (!idA || !idB) {
         alert("Selecione ambas as entidades para vincular!");
         return false;

@@ -265,6 +265,7 @@ window.refreshCurrentView = function() {
 
     if (typeof window.updateBadge === 'function') window.updateBadge();
     if (typeof window.updateAccountRequestBadge === 'function') window.updateAccountRequestBadge();
+    if (typeof window.checkForNotifications === 'function') window.checkForNotifications();
 };
 
 /**

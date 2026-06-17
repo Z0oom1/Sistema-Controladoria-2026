@@ -81,42 +81,13 @@ window.renderProfileArea = function() {
 
     if (window.isAdmin) {
         rightColumnContent = `
-            <div class="settings-card">
-                <h4><i class="fas fa-users-cog"></i> Gerenciamento de Usuários (Administrador)</h4>
-                <div style="margin-bottom:20px; background:rgba(0,0,0,0.02); padding:15px; border-radius:6px; border:1px solid var(--border-color);">
-                    <h5 style="margin-top:0;">Adicionar Novo Usuário</h5>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap:10px; align-items:end;">
-                        <div><label style="font-size:0.8rem">Usuário</label><input type="text" id="newUsername" placeholder="Ex: Joao" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);"></div>
-                        <div><label style="font-size:0.8rem">Senha</label><input type="text" id="newPassword" placeholder="***" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);"></div>
-                        <div><label style="font-size:0.8rem">Função</label>
-                            <select id="newRole" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);"><option value="user">Usuário</option><option value="admin">Administrador</option></select>
-                        </div>
-                        <div><label style="font-size:0.8rem">Setor/Subtipo</label>
-                            <select id="newSector" style="width:100%; padding:6px; background:var(--bg-input); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);">
-                                <option value="recebimento">Recebimento</option>
-                                <option value="conferente">Conferente (Geral)</option>
-                                <option value="ALM">Conferente ALM</option>
-                                <option value="GAVA">Conferente GAVA</option>
-                                <option value="INFRA">Conferente INFRA</option>
-                                <option value="MANUT">Conferente MANUT</option>
-                                <option value="LAB">Laboratório</option>
-                                <option value="SST">SST</option>
-                                <option value="CD">CD</option>
-                                <option value="COMPRAS">Compras</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-save" onclick="window.addNewUser()" style="height:32px;">Adicionar</button>
-                    </div>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table class="modern-table" style="width: 100%;">
-                        <thead><tr><th>Usuário</th><th>Função</th><th>Setor/Subtipo</th><th>Ações</th></tr></thead>
-                        <tbody id="adminUserList"></tbody>
-                    </table>
-                </div>
-            </div>
+            <div id="profilePerfisContainer" style="width: 100%;"></div>
         `;
-        setTimeout(() => { if (typeof window.renderUserList === 'function') window.renderUserList(); }, 0);
+        setTimeout(() => {
+            if (typeof window.renderPerfisDashboardInElement === 'function') {
+                window.renderPerfisDashboardInElement('profilePerfisContainer');
+            }
+        }, 0);
     } else if (window.isEncarregado) {
         rightColumnContent = `
             <div class="settings-card">
@@ -1202,6 +1173,7 @@ window.openEditProduct = function(id) {
 };
 
 window.renderRequests = function() {
+    if (!(window.isRecebimento || window.isAdmin)) return;
     const list = document.getElementById('reqList');
     const historyList = document.getElementById('historyList');
     const badge = document.getElementById('badgeNotif');
@@ -1308,6 +1280,10 @@ window.renderRequests = function() {
 };
 
 window.openUnifiedApproval = function(id) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem analisar ou aprovar requisições.");
+        return;
+    }
     const req = window.requests.find(r => r.id === id);
     if (!req) return;
 
@@ -1353,6 +1329,10 @@ if (typeof window.confirmUnifiedApproval !== 'function') {
 }
 
 window.deleteCad = function(type, id) {
+    if (!(window.isRecebimento || window.isAdmin)) {
+        alert("Acesso negado: Apenas o Recebimento e Administradores podem excluir informações.");
+        return;
+    }
     if(!confirm("Excluir este cadastro?")) return;
     if(type === 'fornecedor') window.suppliersData = window.suppliersData.filter(x => x.id !== id);
     else if(type === 'motorista') window.driversData = window.driversData.filter(x => x.id !== id);
@@ -1372,8 +1352,29 @@ document.addEventListener('DOMContentLoaded', () => {
 // CONTROLES DE PERFIS E GRUPOS DE ACESSO (APENAS ADMIN)
 // =========================================================
 
+function getActiveContainer() {
+    const viewCadastros = document.getElementById('view-cadastros');
+    if (viewCadastros && viewCadastros.classList.contains('active')) {
+        return document.getElementById('cadPerfisSection');
+    }
+    const viewPerfil = document.getElementById('view-perfil');
+    if (viewPerfil && viewPerfil.classList.contains('active')) {
+        return document.getElementById('profilePerfisContainer');
+    }
+    const p = document.getElementById('profilePerfisContainer');
+    const c = document.getElementById('cadPerfisSection');
+    if (p && p.offsetParent !== null) return p;
+    if (c && c.offsetParent !== null) return c;
+    return c || p;
+}
+
 window.renderPerfisDashboard = function() {
-    const container = document.getElementById('cadPerfisSection');
+    window.renderPerfisDashboardInElement('cadPerfisSection');
+    window.renderPerfisDashboardInElement('profilePerfisContainer');
+};
+
+window.renderPerfisDashboardInElement = function(containerId) {
+    const container = document.getElementById(containerId);
     if (!container) return;
 
     if (!container.querySelector('.perfis-grid')) {
@@ -1516,7 +1517,7 @@ window.renderPerfisDashboard = function() {
     const dbUsers = window.usersData || [];
 
     // Populando o select de grupos no formulário de usuários
-    const userGroupSelect = document.getElementById('userGroupSelect');
+    const userGroupSelect = container.querySelector('#userGroupSelect');
     if (userGroupSelect) {
         userGroupSelect.innerHTML = '<option value="">Sem Grupo (Permissões Manuais)</option>';
         groups.forEach(g => {
@@ -1528,7 +1529,7 @@ window.renderPerfisDashboard = function() {
     }
 
     // Renderizando a Lista de Grupos
-    const groupsList = document.getElementById('groups_list_container');
+    const groupsList = container.querySelector('#groups_list_container');
     if (groupsList) {
         groupsList.innerHTML = groups.map(g => {
             const subName = g.subType || 'Nenhum';
@@ -1578,7 +1579,7 @@ window.renderPerfisDashboard = function() {
     });
 
     // Renderizando a Lista de Usuários
-    const usersList = document.getElementById('users_list_container');
+    const usersList = container.querySelector('#users_list_container');
     if (usersList) {
         usersList.innerHTML = allDisplayUsers.map(u => {
             let badgeText = u.isDefault ? 'Padrão' : 'Customizado';
@@ -1633,8 +1634,9 @@ window.renderPerfisDashboard = function() {
 };
 
 window.toggleUserPermissionsEdit = function(groupId) {
-    const manualArea = document.getElementById('manualPermissionsArea');
-    const noticeArea = document.getElementById('groupInheritanceNotice');
+    const container = getActiveContainer();
+    const manualArea = container?.querySelector('#manualPermissionsArea');
+    const noticeArea = container?.querySelector('#groupInheritanceNotice');
     if (!manualArea || !noticeArea) return;
 
     if (groupId) {
@@ -1647,12 +1649,13 @@ window.toggleUserPermissionsEdit = function(groupId) {
 };
 
 window.clearGroupForm = function() {
-    const editGroupId = document.getElementById('editGroupId');
-    const nameIn = document.getElementById('groupNameInput');
-    const roleSel = document.getElementById('groupRoleSelect');
-    const sectorSel = document.getElementById('groupSectorSelect');
-    const subSel = document.getElementById('groupSubTypeSelect');
-    const title = document.getElementById('groupFormTitle');
+    const container = getActiveContainer();
+    const editGroupId = container?.querySelector('#editGroupId');
+    const nameIn = container?.querySelector('#groupNameInput');
+    const roleSel = container?.querySelector('#groupRoleSelect');
+    const sectorSel = container?.querySelector('#groupSectorSelect');
+    const subSel = container?.querySelector('#groupSubTypeSelect');
+    const title = container?.querySelector('#groupFormTitle');
 
     if (editGroupId) editGroupId.value = '';
     if (nameIn) nameIn.value = '';
@@ -1663,14 +1666,15 @@ window.clearGroupForm = function() {
 };
 
 window.clearUserForm = function() {
-    const editUserId = document.getElementById('editUserId');
-    const userIn = document.getElementById('userUsernameInput');
-    const passIn = document.getElementById('userPasswordInput');
-    const grpSel = document.getElementById('userGroupSelect');
-    const roleSel = document.getElementById('userRoleSelect');
-    const sectorSel = document.getElementById('userSectorSelect');
-    const subSel = document.getElementById('userSubTypeSelect');
-    const title = document.getElementById('userFormTitle');
+    const container = getActiveContainer();
+    const editUserId = container?.querySelector('#editUserId');
+    const userIn = container?.querySelector('#userUsernameInput');
+    const passIn = container?.querySelector('#userPasswordInput');
+    const grpSel = container?.querySelector('#userGroupSelect');
+    const roleSel = container?.querySelector('#userRoleSelect');
+    const sectorSel = container?.querySelector('#userSectorSelect');
+    const subSel = container?.querySelector('#userSubTypeSelect');
+    const title = container?.querySelector('#userFormTitle');
 
     if (editUserId) editUserId.value = '';
     if (userIn) {
@@ -1688,11 +1692,12 @@ window.clearUserForm = function() {
 };
 
 window.saveGroup = function() {
-    const editGroupId = document.getElementById('editGroupId')?.value;
-    const nameVal = document.getElementById('groupNameInput')?.value.trim();
-    const roleVal = document.getElementById('groupRoleSelect')?.value;
-    const sectorVal = document.getElementById('groupSectorSelect')?.value;
-    const subVal = document.getElementById('groupSubTypeSelect')?.value || null;
+    const container = getActiveContainer();
+    const editGroupId = container?.querySelector('#editGroupId')?.value;
+    const nameVal = container?.querySelector('#groupNameInput')?.value.trim();
+    const roleVal = container?.querySelector('#groupRoleSelect')?.value;
+    const sectorVal = container?.querySelector('#groupSectorSelect')?.value;
+    const subVal = container?.querySelector('#groupSubTypeSelect')?.value || null;
 
     if (!nameVal) {
         alert("O nome do grupo é obrigatório.");
@@ -1721,7 +1726,7 @@ window.saveGroup = function() {
     }
 
     window.saveAll();
-    window.renderCadastros();
+    window.renderPerfisDashboard();
     window.clearGroupForm();
 };
 
@@ -1729,12 +1734,13 @@ window.editGroup = function(groupId) {
     const grp = (window.groupsData || []).find(g => g.id === groupId);
     if (!grp) return;
 
-    const editGroupId = document.getElementById('editGroupId');
-    const nameIn = document.getElementById('groupNameInput');
-    const roleSel = document.getElementById('groupRoleSelect');
-    const sectorSel = document.getElementById('groupSectorSelect');
-    const subSel = document.getElementById('groupSubTypeSelect');
-    const title = document.getElementById('groupFormTitle');
+    const container = getActiveContainer();
+    const editGroupId = container?.querySelector('#editGroupId');
+    const nameIn = container?.querySelector('#groupNameInput');
+    const roleSel = container?.querySelector('#groupRoleSelect');
+    const sectorSel = container?.querySelector('#groupSectorSelect');
+    const subSel = container?.querySelector('#groupSubTypeSelect');
+    const title = container?.querySelector('#groupFormTitle');
 
     if (editGroupId) editGroupId.value = grp.id;
     if (nameIn) nameIn.value = grp.name;
@@ -1761,17 +1767,18 @@ window.deleteGroup = function(groupId) {
     }
 
     window.saveAll();
-    window.renderCadastros();
+    window.renderPerfisDashboard();
 };
 
 window.saveUser = function() {
-    const editUserId = document.getElementById('editUserId')?.value;
-    const usernameVal = document.getElementById('userUsernameInput')?.value.trim();
-    const passwordVal = document.getElementById('userPasswordInput')?.value;
-    const groupVal = document.getElementById('userGroupSelect')?.value || null;
-    const roleVal = document.getElementById('userRoleSelect')?.value;
-    const sectorVal = document.getElementById('userSectorSelect')?.value;
-    const subVal = document.getElementById('userSubTypeSelect')?.value || null;
+    const container = getActiveContainer();
+    const editUserId = container?.querySelector('#editUserId')?.value;
+    const usernameVal = container?.querySelector('#userUsernameInput')?.value.trim();
+    const passwordVal = container?.querySelector('#userPasswordInput')?.value;
+    const groupVal = container?.querySelector('#userGroupSelect')?.value || null;
+    const roleVal = container?.querySelector('#userRoleSelect')?.value;
+    const sectorVal = container?.querySelector('#userSectorSelect')?.value;
+    const subVal = container?.querySelector('#userSubTypeSelect')?.value || null;
 
     if (!usernameVal) {
         alert("Preencha o nome do usuário.");
@@ -1842,7 +1849,7 @@ window.saveUser = function() {
     }
 
     window.saveAll();
-    window.renderCadastros();
+    window.renderPerfisDashboard();
     window.clearUserForm();
 };
 
@@ -1868,14 +1875,15 @@ window.editUser = function(username) {
 
     if (!user.username) return;
 
-    const editUserId = document.getElementById('editUserId');
-    const userIn = document.getElementById('userUsernameInput');
-    const passIn = document.getElementById('userPasswordInput');
-    const grpSel = document.getElementById('userGroupSelect');
-    const roleSel = document.getElementById('userRoleSelect');
-    const sectorSel = document.getElementById('userSectorSelect');
-    const subSel = document.getElementById('userSubTypeSelect');
-    const title = document.getElementById('userFormTitle');
+    const container = getActiveContainer();
+    const editUserId = container?.querySelector('#editUserId');
+    const userIn = container?.querySelector('#userUsernameInput');
+    const passIn = container?.querySelector('#userPasswordInput');
+    const grpSel = container?.querySelector('#userGroupSelect');
+    const roleSel = container?.querySelector('#userRoleSelect');
+    const sectorSel = container?.querySelector('#userSectorSelect');
+    const subSel = container?.querySelector('#userSubTypeSelect');
+    const title = container?.querySelector('#userFormTitle');
 
     if (editUserId) editUserId.value = user.username;
     if (userIn) {
@@ -1884,7 +1892,7 @@ window.editUser = function(username) {
     }
     if (passIn) passIn.value = user.password || '';
     if (grpSel) grpSel.value = user.group || '';
-    
+
     window.toggleUserPermissionsEdit(user.group || '');
 
     if (!user.group) {
@@ -1898,7 +1906,7 @@ window.editUser = function(username) {
 
 window.deleteUser = function(username) {
     const isDefault = ['admin', 'caio', 'balanca', 'recebimento', 'wayner', 'manutencao', 'fabricio', 'clodoaldo', 'guilherme', 'encarrec', 'encarconf'].includes(username.toLowerCase());
-    
+
     if (isDefault) {
         if (!confirm(`Deseja restaurar o usuário padrão "${username}" para as configurações originais de fábrica?`)) return;
         window.usersData = (window.usersData || []).filter(u => u.username.toLowerCase() !== username.toLowerCase());
@@ -1908,5 +1916,5 @@ window.deleteUser = function(username) {
     }
 
     window.saveAll();
-    window.renderCadastros();
+    window.renderPerfisDashboard();
 };

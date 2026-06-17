@@ -62,10 +62,17 @@ window.initRoleBasedUI = function() {
     const canViewDash = isEnc || isAdm;
     if (menuDash) menuDash.style.display = canViewDash ? 'flex' : 'none';
 
-    // Controle de acesso ao menu de cadastros
+    // Controle de acesso ao menu de cadastros (apenas Recebimento e Admin)
     const menuCadastros = domCache.get('menuCadastros');
-    const isAlmoxarifado = typeof userSubType !== 'undefined' && userSubType === 'ALM';
-    if (menuCadastros) menuCadastros.style.display = isAlmoxarifado ? 'none' : 'flex';
+    if (menuCadastros) {
+        menuCadastros.style.display = (isRec || isAdm) ? 'flex' : 'none';
+    }
+
+    // Controle de acesso ao menu de notificações (apenas Recebimento e Admin)
+    const menuNotif = domCache.get('menuNotif');
+    if (menuNotif) {
+        menuNotif.style.display = (isRec || isAdm) ? 'flex' : 'none';
+    }
 
     // Controle de acesso à aba de Perfis e Permissões (apenas Admin)
     const tabPerfis = document.getElementById('tabPerfis');
@@ -191,9 +198,13 @@ const VIEW_HANDLERS = {
  * Otimizada com cache e menos manipulação de DOM
  */
 window.navTo = function(view, el) {
-    // Bloqueia acesso ao cadastro para utilizadores do almoxarifado
-    if (view === 'cadastros' && typeof userSubType !== 'undefined' && userSubType === 'ALM') {
-        alert('Acesso negado: Utilizadores do almoxarifado não têm permissão para aceder a cadastros.');
+    // Bloqueia acesso ao cadastro e notificações para quem não for Recebimento ou Admin
+    if (view === 'cadastros' && !(window.isRecebimento || window.isAdmin)) {
+        alert('Acesso negado: Apenas o Recebimento e Administradores têm permissão para aceder a cadastros.');
+        return;
+    }
+    if (view === 'notificacoes' && !(window.isRecebimento || window.isAdmin)) {
+        alert('Acesso negado: Apenas o Recebimento e Administradores têm permissão para aceder a notificações.');
         return;
     }
 
