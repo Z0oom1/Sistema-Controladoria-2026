@@ -345,17 +345,6 @@ window.resolveUserPermissions = function() {
     const user = window.loggedUser;
     if (!user) return;
 
-    // Default permissions structure
-    window.userPermissions = {
-        canSignMap: false,
-        canEditTruck: false,
-        canDeleteTruck: false,
-        canMoveTruck: false,
-        canManageCatalogs: false,
-        canViewNotifications: false,
-        canViewReports: false
-    };
-
     const usernameLower = (user.username || '').toLowerCase();
     const isAdm = usernameLower === 'admin' || (user.role || '').toLowerCase().includes('admin') || (user.role || '').toLowerCase().includes('administrador');
 
@@ -368,10 +357,47 @@ window.resolveUserPermissions = function() {
             canMoveTruck: true,
             canManageCatalogs: true,
             canViewNotifications: true,
-            canViewReports: true
+            canViewReports: true,
+
+            showMenuPatio: true,
+            showMenuMapas: true,
+            showMenuMateriaPrima: true,
+            showMenuCarregamento: true,
+            showMenuRelatorios: true,
+            showMenuDashboard: true,
+            showMenuCadastros: true,
+            showMenuProdutos: true,
+            showMenuNotif: true,
+            showMenuChat: true
         };
         return;
     }
+
+    // Determine default legacy/fallback values based on user's current sector/role
+    const sector = (user.sector || '').toLowerCase();
+    const role = (user.role || '').toLowerCase();
+    const isConf = sector === 'conferente';
+    const isRec = sector === 'recebimento';
+    const isEnc = role.includes('encarreg') || role.includes('admin');
+
+    const defCanSignMap = isConf;
+    const defCanEditTruck = isRec;
+    const defCanDeleteTruck = isRec;
+    const defCanMoveTruck = isRec;
+    const defCanManageCatalogs = isRec;
+    const defCanViewNotifications = isRec;
+    const defCanViewReports = isEnc;
+
+    const defShowMenuPatio = true;
+    const defShowMenuMapas = true;
+    const defShowMenuMateriaPrima = isRec;
+    const defShowMenuCarregamento = !isConf;
+    const defShowMenuRelatorios = defCanViewReports;
+    const defShowMenuDashboard = defCanViewReports;
+    const defShowMenuCadastros = defCanManageCatalogs;
+    const defShowMenuProdutos = true;
+    const defShowMenuNotif = defCanViewNotifications;
+    const defShowMenuChat = true;
 
     // 2. Resolve based on Database Users and Groups
     const users = window.usersData || [];
@@ -386,36 +412,51 @@ window.resolveUserPermissions = function() {
         groupObj = groups.find(g => g.id === user.group || g.name === user.group);
     }
 
+    let resolvedPerms = {};
     if (groupObj) {
         // Inherit group permissions
         if (groupObj.permissions) {
-            window.userPermissions = { ...window.userPermissions, ...groupObj.permissions };
+            resolvedPerms = { ...groupObj.permissions };
         } else {
             // Legacy group sector/role fallbacks
-            const sector = (groupObj.sector || '').toLowerCase();
-            const role = (groupObj.role || '').toLowerCase();
-            window.userPermissions.canSignMap = sector === 'conferente';
-            window.userPermissions.canEditTruck = sector === 'recebimento';
-            window.userPermissions.canDeleteTruck = sector === 'recebimento';
-            window.userPermissions.canMoveTruck = sector === 'recebimento';
-            window.userPermissions.canManageCatalogs = sector === 'recebimento';
-            window.userPermissions.canViewNotifications = sector === 'recebimento';
-            window.userPermissions.canViewReports = role.includes('encarreg') || role.includes('admin');
+            const gSector = (groupObj.sector || '').toLowerCase();
+            const gRole = (groupObj.role || '').toLowerCase();
+            const gIsConf = gSector === 'conferente';
+            const gIsRec = gSector === 'recebimento';
+            const gIsEnc = gRole.includes('encarreg') || gRole.includes('admin');
+
+            resolvedPerms.canSignMap = gIsConf;
+            resolvedPerms.canEditTruck = gIsRec;
+            resolvedPerms.canDeleteTruck = gIsRec;
+            resolvedPerms.canMoveTruck = gIsRec;
+            resolvedPerms.canManageCatalogs = gIsRec;
+            resolvedPerms.canViewNotifications = gIsRec;
+            resolvedPerms.canViewReports = gIsEnc;
         }
     } else if (dbUser && dbUser.permissions) {
         // Individual override permissions
-        window.userPermissions = { ...window.userPermissions, ...dbUser.permissions };
-    } else {
-        // 3. Fallback defaults based on user sector & role
-        const sector = (user.sector || '').toLowerCase();
-        const role = (user.role || '').toLowerCase();
-
-        window.userPermissions.canSignMap = sector === 'conferente';
-        window.userPermissions.canEditTruck = sector === 'recebimento';
-        window.userPermissions.canDeleteTruck = sector === 'recebimento';
-        window.userPermissions.canMoveTruck = sector === 'recebimento';
-        window.userPermissions.canManageCatalogs = sector === 'recebimento';
-        window.userPermissions.canViewNotifications = sector === 'recebimento';
-        window.userPermissions.canViewReports = role.includes('encarreg') || role.includes('admin');
+        resolvedPerms = { ...dbUser.permissions };
     }
+
+    // Merge/Fallback resolved permissions with dynamic defaults
+    window.userPermissions = {
+        canSignMap: resolvedPerms.canSignMap !== undefined ? resolvedPerms.canSignMap : defCanSignMap,
+        canEditTruck: resolvedPerms.canEditTruck !== undefined ? resolvedPerms.canEditTruck : defCanEditTruck,
+        canDeleteTruck: resolvedPerms.canDeleteTruck !== undefined ? resolvedPerms.canDeleteTruck : defCanDeleteTruck,
+        canMoveTruck: resolvedPerms.canMoveTruck !== undefined ? resolvedPerms.canMoveTruck : defCanMoveTruck,
+        canManageCatalogs: resolvedPerms.canManageCatalogs !== undefined ? resolvedPerms.canManageCatalogs : defCanManageCatalogs,
+        canViewNotifications: resolvedPerms.canViewNotifications !== undefined ? resolvedPerms.canViewNotifications : defCanViewNotifications,
+        canViewReports: resolvedPerms.canViewReports !== undefined ? resolvedPerms.canViewReports : defCanViewReports,
+
+        showMenuPatio: resolvedPerms.showMenuPatio !== undefined ? resolvedPerms.showMenuPatio : defShowMenuPatio,
+        showMenuMapas: resolvedPerms.showMenuMapas !== undefined ? resolvedPerms.showMenuMapas : defShowMenuMapas,
+        showMenuMateriaPrima: resolvedPerms.showMenuMateriaPrima !== undefined ? resolvedPerms.showMenuMateriaPrima : defShowMenuMateriaPrima,
+        showMenuCarregamento: resolvedPerms.showMenuCarregamento !== undefined ? resolvedPerms.showMenuCarregamento : defShowMenuCarregamento,
+        showMenuRelatorios: resolvedPerms.showMenuRelatorios !== undefined ? resolvedPerms.showMenuRelatorios : defShowMenuRelatorios,
+        showMenuDashboard: resolvedPerms.showMenuDashboard !== undefined ? resolvedPerms.showMenuDashboard : defShowMenuDashboard,
+        showMenuCadastros: resolvedPerms.showMenuCadastros !== undefined ? resolvedPerms.showMenuCadastros : defShowMenuCadastros,
+        showMenuProdutos: resolvedPerms.showMenuProdutos !== undefined ? resolvedPerms.showMenuProdutos : defShowMenuProdutos,
+        showMenuNotif: resolvedPerms.showMenuNotif !== undefined ? resolvedPerms.showMenuNotif : defShowMenuNotif,
+        showMenuChat: resolvedPerms.showMenuChat !== undefined ? resolvedPerms.showMenuChat : defShowMenuChat
+    };
 };

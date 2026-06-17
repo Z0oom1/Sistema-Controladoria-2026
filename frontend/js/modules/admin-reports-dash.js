@@ -1553,7 +1553,17 @@ window.renderAdminDashboard = function() {
         { key: 'canMoveTruck', label: 'Mover Caminhão na Fila', desc: 'Reordenar e movimentar cards de setor' },
         { key: 'canManageCatalogs', label: 'Gerenciar Cadastros', desc: 'Inserir/editar/deletar catalogos gerais' },
         { key: 'canViewNotifications', label: 'Ver Notificações', desc: 'Acessar tela de notificações e badges' },
-        { key: 'canViewReports', label: 'Visualizar Relatórios', desc: 'Visualizar relatórios e dashboard' }
+        { key: 'canViewReports', label: 'Visualizar Relatórios', desc: 'Visualizar relatórios e dashboard' },
+        { key: 'showMenuPatio', label: 'Menu: Pátio', desc: 'Exibir Controle de Pátio no menu lateral' },
+        { key: 'showMenuMapas', label: 'Menu: Mapas Cegos', desc: 'Exibir Mapas Cegos no menu lateral' },
+        { key: 'showMenuMateriaPrima', label: 'Menu: Pesagem', desc: 'Exibir Pesagem (Matéria-Prima) no menu lateral' },
+        { key: 'showMenuCarregamento', label: 'Menu: Carregamento', desc: 'Exibir Carregamento no menu lateral' },
+        { key: 'showMenuRelatorios', label: 'Menu: Relatórios', desc: 'Exibir Relatórios no menu lateral' },
+        { key: 'showMenuDashboard', label: 'Menu: Dashboard', desc: 'Exibir Dashboard no menu lateral' },
+        { key: 'showMenuCadastros', label: 'Menu: Cadastros', desc: 'Exibir Cadastros Gerais no menu lateral' },
+        { key: 'showMenuProdutos', label: 'Menu: Produtos', desc: 'Exibir Catálogo de Produtos no menu lateral' },
+        { key: 'showMenuNotif', label: 'Menu: Notificações', desc: 'Exibir Notificações no menu lateral' },
+        { key: 'showMenuChat', label: 'Menu: Chat', desc: 'Exibir Chat no menu lateral' }
     ];
 
     if (window.activeAdminSubmenu === 'funcionarios') {
@@ -1925,7 +1935,17 @@ window.renderPermissionsMatrix = function() {
         { label: 'Mover Fila', key: 'canMoveTruck' },
         { label: 'Cadastros', key: 'canManageCatalogs' },
         { label: 'Notificações', key: 'canViewNotifications' },
-        { label: 'Relatórios', key: 'canViewReports' }
+        { label: 'Relatórios', key: 'canViewReports' },
+        { label: 'Menu: Pátio', key: 'showMenuPatio' },
+        { label: 'Menu: Mapas', key: 'showMenuMapas' },
+        { label: 'Menu: Pesagem', key: 'showMenuMateriaPrima' },
+        { label: 'Menu: Carreg.', key: 'showMenuCarregamento' },
+        { label: 'Menu: Relat.', key: 'showMenuRelatorios' },
+        { label: 'Menu: Dash', key: 'showMenuDashboard' },
+        { label: 'Menu: Cadastros', key: 'showMenuCadastros' },
+        { label: 'Menu: Produtos', key: 'showMenuProdutos' },
+        { label: 'Menu: Notif.', key: 'showMenuNotif' },
+        { label: 'Menu: Chat', key: 'showMenuChat' }
     ];
 
     let headersHtml = `<th>Nome / Descrição</th>`;

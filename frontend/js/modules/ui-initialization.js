@@ -42,48 +42,60 @@ window.initRoleBasedUI = function() {
         if (ftg) ftg.checked = true;
     }
 
-    // Restrições para Conferentes
-    const isConf = typeof isConferente !== 'undefined' && isConferente;
-    const fabAddTruck = domCache.get('fabAddTruck');
-    const menuCarregamento = domCache.get('menuCarregamento');
-    
-    if (fabAddTruck) fabAddTruck.style.display = isConf ? 'none' : 'flex';
-    if (menuCarregamento) menuCarregamento.style.display = isConf ? 'none' : 'flex';
-
-    // Visibilidade do menu de Matéria-Prima
-    const mmp = domCache.get('menuMateriaPrima');
-    const isRec = typeof isRecebimento !== 'undefined' ? isRecebimento : false;
-    if (mmp) mmp.style.display = isRec ? 'flex' : 'none';
-
-    // Visibilidade do Dashboard (Encarregados e Admins)
     const perms = window.userPermissions || {};
-    const menuDash = domCache.get('menuDashboard');
-    const isEnc = typeof isEncarregado !== 'undefined' ? isEncarregado : false;
+    const isConf = typeof isConferente !== 'undefined' && isConferente;
     const isAdm = typeof isAdmin !== 'undefined' ? isAdmin : false;
-    const canViewReports = perms.canViewReports !== undefined ? perms.canViewReports : (isEnc || isAdm);
-    if (menuDash) menuDash.style.display = canViewReports ? 'flex' : 'none';
+
+    // Restrições de FABs continuam usando as regras de ação
+    const fabAddTruck = domCache.get('fabAddTruck');
+    if (fabAddTruck) fabAddTruck.style.display = isConf ? 'none' : 'flex';
+
+    // Visibilidade dos menus baseada em permissões customizadas
+    const menuPatio = domCache.get('menuPatio');
+    if (menuPatio) menuPatio.style.display = perms.showMenuPatio !== false ? 'flex' : 'none';
+
+    const menuMapas = domCache.get('menuMapas');
+    if (menuMapas) menuMapas.style.display = perms.showMenuMapas !== false ? 'flex' : 'none';
+
+    const menuMateriaPrima = domCache.get('menuMateriaPrima');
+    if (menuMateriaPrima) menuMateriaPrima.style.display = perms.showMenuMateriaPrima !== false ? 'flex' : 'none';
+
+    const menuCarregamento = domCache.get('menuCarregamento');
+    if (menuCarregamento) menuCarregamento.style.display = perms.showMenuCarregamento !== false ? 'flex' : 'none';
 
     const menuRelatorios = domCache.get('menuRelatorios');
-    if (menuRelatorios) menuRelatorios.style.display = canViewReports ? 'flex' : 'none';
+    if (menuRelatorios) menuRelatorios.style.display = perms.showMenuRelatorios !== false ? 'flex' : 'none';
 
-    // Controle de acesso ao menu de cadastros
+    const menuDashboard = domCache.get('menuDashboard');
+    if (menuDashboard) menuDashboard.style.display = perms.showMenuDashboard !== false ? 'flex' : 'none';
+
     const menuCadastros = domCache.get('menuCadastros');
-    const canManageCatalogs = perms.canManageCatalogs !== undefined ? perms.canManageCatalogs : (isRec || isAdm);
-    if (menuCadastros) {
-        menuCadastros.style.display = canManageCatalogs ? 'flex' : 'none';
-    }
+    if (menuCadastros) menuCadastros.style.display = perms.showMenuCadastros !== false ? 'flex' : 'none';
 
-    // Controle de acesso ao menu de notificações
+    const menuProdutos = domCache.get('menuProdutos');
+    if (menuProdutos) menuProdutos.style.display = perms.showMenuProdutos !== false ? 'flex' : 'none';
+
     const menuNotif = domCache.get('menuNotif');
-    const canViewNotifications = perms.canViewNotifications !== undefined ? perms.canViewNotifications : (isRec || isAdm);
-    if (menuNotif) {
-        menuNotif.style.display = canViewNotifications ? 'flex' : 'none';
-    }
+    if (menuNotif) menuNotif.style.display = perms.showMenuNotif !== false ? 'flex' : 'none';
+
+    const menuChat = domCache.get('menuChat');
+    if (menuChat) menuChat.style.display = perms.showMenuChat !== false ? 'flex' : 'none';
 
     // Controle de acesso ao Painel Admin
     const menuAdmin = domCache.get('menuAdmin');
     if (menuAdmin) {
         menuAdmin.style.display = isAdm ? 'flex' : 'none';
+    }
+
+    // Validar se a aba atualmente ativa é permitida, caso contrário redirecionar
+    const activeSection = document.querySelector('.view-section.active');
+    const currentView = activeSection ? activeSection.id.replace('view-', '') : 'patio';
+    if (!window.isViewAllowed(currentView)) {
+        const orderOfViews = ['patio', 'mapas', 'materia-prima', 'carregamento', 'relatorios', 'dashboard', 'cadastros', 'produtos', 'notificacoes', 'chat', 'perfil', 'configuracoes'];
+        const firstAllowed = orderOfViews.find(v => window.isViewAllowed(v));
+        if (firstAllowed) {
+            window.navTo(firstAllowed, null);
+        }
     }
 
     // Antigo botão de Perfis desabilitado
@@ -215,38 +227,53 @@ const VIEW_HANDLERS = {
 };
 
 /**
+ * Verifica se o usuário tem permissão para visualizar uma aba específica
+ */
+window.isViewAllowed = function(view) {
+    const user = window.loggedUser;
+    if (!user) return false;
+
+    const usernameLower = (user.username || '').toLowerCase();
+    const isAdm = usernameLower === 'admin' || (user.role || '').toLowerCase().includes('admin') || (user.role || '').toLowerCase().includes('administrador');
+    if (isAdm) return true;
+
+    const perms = window.userPermissions || {};
+
+    // Configurações e Perfil são sempre permitidos
+    if (view === 'configuracoes' || view === 'perfil') return true;
+
+    if (view === 'admin') return false; // Apenas admins (tratado acima)
+
+    // Mapeamento de views para permissões showMenu
+    const permissionMap = {
+        'patio': 'showMenuPatio',
+        'mapas': 'showMenuMapas',
+        'materia-prima': 'showMenuMateriaPrima',
+        'carregamento': 'showMenuCarregamento',
+        'relatorios': 'showMenuRelatorios',
+        'dashboard': 'showMenuDashboard',
+        'cadastros': 'showMenuCadastros',
+        'produtos': 'showMenuProdutos',
+        'notificacoes': 'showMenuNotif',
+        'chat': 'showMenuChat'
+    };
+
+    const permKey = permissionMap[view];
+    if (permKey) {
+        return perms[permKey] !== false;
+    }
+
+    return true;
+};
+
+/**
  * Função principal de navegação entre as secções da App
  * Otimizada com cache e menos manipulação de DOM
  */
 window.navTo = function(view, el) {
-    const perms = window.userPermissions || {};
-
-    if (view === 'cadastros') {
-        const canAccess = perms.canManageCatalogs !== undefined ? perms.canManageCatalogs : (window.isRecebimento || window.isAdmin);
-        if (!canAccess) {
-            alert('Acesso negado: Você não tem permissão para acessar cadastros.');
-            return;
-        }
-    }
-    if (view === 'notificacoes') {
-        const canAccess = perms.canViewNotifications !== undefined ? perms.canViewNotifications : (window.isRecebimento || window.isAdmin);
-        if (!canAccess) {
-            alert('Acesso negado: Você não tem permissão para acessar notificações.');
-            return;
-        }
-    }
-    if (view === 'relatorios' || view === 'dashboard') {
-        const canAccess = perms.canViewReports !== undefined ? perms.canViewReports : (window.isAdmin || window.isEncarregado);
-        if (!canAccess) {
-            alert('Acesso negado: Você não tem permissão para acessar relatórios ou dashboards.');
-            return;
-        }
-    }
-    if (view === 'admin') {
-        if (!window.isAdmin) {
-            alert('Acesso negado: Apenas Administradores têm permissão para acessar o Painel Admin.');
-            return;
-        }
+    if (!window.isViewAllowed(view)) {
+        alert('Acesso negado: Você não tem permissão para acessar esta área.');
+        return;
     }
 
     // Remover classe active de todas as views e menu items
