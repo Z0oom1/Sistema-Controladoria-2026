@@ -7,6 +7,90 @@ window.activeChatId = 'global'; // Chat Geral por padrão
 window.chatUnreadCounts = {};
 window.editingMessageId = null;
 
+window.calculateUnreadCounts = function() {
+    window.chatUnreadCounts = {};
+    const loggedInUser = window.loggedUser?.username || '';
+    if (!loggedInUser) return;
+
+    const messages = window.chatMessagesData || [];
+    messages.forEach(m => {
+        if (m.sender === loggedInUser) return; // ignore own messages
+        
+        // Skip messages that the user deleted for themselves
+        if (m.deletedFor && Array.isArray(m.deletedFor) && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
+            return;
+        }
+
+        let isForMe = false;
+        let chatKey = '';
+        
+        if (m.recipient === 'global') {
+            isForMe = true;
+            chatKey = 'global';
+        } else if (m.recipient && m.recipient.startsWith('group_')) {
+            const grp = (window.chatGroupsData || []).find(g => g.id === m.recipient);
+            if (grp && grp.members && grp.members.some(mb => mb.toLowerCase() === loggedInUser.toLowerCase())) {
+                isForMe = true;
+                chatKey = m.recipient;
+            }
+        } else if (m.recipient === loggedInUser) {
+            isForMe = true;
+            chatKey = m.sender;
+        }
+        
+        if (!isForMe) return;
+        
+        // We only count it as unread if readBy exists AND does NOT contain the current user
+        if (m.readBy && Array.isArray(m.readBy)) {
+            if (!m.readBy.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
+                window.chatUnreadCounts[chatKey] = (window.chatUnreadCounts[chatKey] || 0) + 1;
+            }
+        }
+    });
+
+    window.updateChatBadges();
+};
+
+window.markActiveChatAsRead = function() {
+    const loggedInUser = window.loggedUser?.username || '';
+    if (!loggedInUser || !window.activeChatId) return;
+    
+    const currentView = localStorage.getItem('aw_last_view');
+    if (currentView !== 'chat') return;
+    
+    let changed = false;
+    const messages = window.chatMessagesData || [];
+    
+    messages.forEach(m => {
+        if (m.sender === loggedInUser) return;
+        
+        let match = false;
+        if (window.activeChatId === 'global' && m.recipient === 'global') {
+            match = true;
+        } else if (window.activeChatId.startsWith('group_') && m.recipient === window.activeChatId) {
+            match = true;
+        } else if (m.recipient === loggedInUser && m.sender === window.activeChatId) {
+            match = true;
+        }
+        
+        if (match) {
+            if (!m.readBy) {
+                m.readBy = [loggedInUser];
+                changed = true;
+            } else if (Array.isArray(m.readBy) && !m.readBy.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
+                m.readBy.push(loggedInUser);
+                changed = true;
+            }
+        }
+    });
+    
+    if (changed) {
+        if (typeof window.saveAll === 'function') {
+            window.saveAll();
+        }
+    }
+};
+
 (function initChatModule() {
     console.log("Wilson Chat: Módulo inicializado.");
     
@@ -16,12 +100,18 @@ window.editingMessageId = null;
             const oldList = oldMsgs || [];
             const newList = newMsgs || [];
             
+            // Recalcula contagem de não lidos dinamicamente baseada nos dados persistidos
+            window.calculateUnreadCounts();
+            
             // Se o número de mensagens aumentou, identifica as novas
-            if (newList.length > oldList.length) {
+            if (newList.length > oldList.length && oldList.length > 0) {
                 const newAdded = newList.filter(m => !oldList.some(o => o.id === m.id));
                 const loggedInUser = window.loggedUser?.username || '';
+                const currentView = localStorage.getItem('aw_last_view');
                 
                 let receivedNew = false;
+                let activeChatChanged = false;
+                
                 newAdded.forEach(m => {
                     // Ignora mensagens enviadas pelo próprio usuário
                     if (m.sender === loggedInUser) return;
@@ -46,17 +136,22 @@ window.editingMessageId = null;
                     
                     if (!isForMe) return;
                     
-                    // Se não estiver visualizando este chat específico ou se a aba ativa não for o chat
-                    const currentView = localStorage.getItem('aw_last_view');
-                    if (window.activeChatId !== chatKey || currentView !== 'chat') {
-                        window.chatUnreadCounts[chatKey] = (window.chatUnreadCounts[chatKey] || 0) + 1;
+                    // Se estiver visualizando este chat específico e a aba ativa for o chat, marcar como lida imediatamente
+                    if (window.activeChatId === chatKey && currentView === 'chat') {
+                        if (!m.readBy) m.readBy = [];
+                        if (!m.readBy.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
+                            m.readBy.push(loggedInUser);
+                            activeChatChanged = true;
+                        }
+                    } else {
+                        // Caso contrário, é uma mensagem realmente nova e não visualizada
                         receivedNew = true;
                         
                         // Notificação de sistema
                         const senderDisplay = m.sender;
                         const bodyMsg = m.deleted ? "Mensagem apagada" : (m.text || "Nova mensagem");
                         
-                        let notificationTitle = `Chat: Mensagem de ${senderDisplay}`;
+                        let notificationTitle = `Chat: Em trânsito de ${senderDisplay}`;
                         if (m.recipient.startsWith('group_')) {
                             const grp = (window.chatGroupsData || []).find(g => g.id === m.recipient);
                             const grpName = grp ? grp.name : 'Grupo';
@@ -73,12 +168,18 @@ window.editingMessageId = null;
                     }
                 });
                 
-                // Toca alerta sonoro e atualiza os badges visuais
+                if (activeChatChanged) {
+                    if (typeof window.saveAll === 'function') {
+                        window.saveAll();
+                    }
+                }
+                
+                // Toca alerta sonoro
                 if (receivedNew) {
                     if (typeof window.playBeep === 'function') window.playBeep();
                 }
                 
-                window.updateChatBadges();
+                window.calculateUnreadCounts();
             }
             
             // Se a visualização do chat estiver aberta, atualiza a janela
@@ -191,7 +292,10 @@ window.renderChatSidebar = function() {
     const globalUnread = window.chatUnreadCounts['global'] || 0;
     
     // Obter última mensagem do chat geral para exibir no preview
-    const globalMsgs = (window.chatMessagesData || []).filter(m => m.recipient === 'global');
+    const globalMsgs = (window.chatMessagesData || []).filter(m => 
+        m.recipient === 'global' && 
+        !(m.deletedFor && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase()))
+    );
     const lastGlobalMsg = globalMsgs[globalMsgs.length - 1];
     let globalPreview = 'Canal Público da Empresa';
     if (lastGlobalMsg) {
@@ -223,7 +327,10 @@ window.renderChatSidebar = function() {
     );
     
     const getGroupLatestMsgTime = (groupId) => {
-        const msgs = (window.chatMessagesData || []).filter(m => m.recipient === groupId);
+        const msgs = (window.chatMessagesData || []).filter(m => 
+            m.recipient === groupId && 
+            !(m.deletedFor && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase()))
+        );
         if (msgs.length === 0) return 0;
         return msgs.reduce((max, m) => {
             const time = new Date(m.timestamp).getTime();
@@ -252,7 +359,10 @@ window.renderChatSidebar = function() {
             const hasChatted = latestTime > 0;
             
             // Preview da última mensagem do grupo
-            const groupMsgs = (window.chatMessagesData || []).filter(m => m.recipient === g.id);
+            const groupMsgs = (window.chatMessagesData || []).filter(m => 
+                m.recipient === g.id && 
+                !(m.deletedFor && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase()))
+            );
             const lastMsg = groupMsgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[groupMsgs.length - 1];
             let previewText = `${g.members.length} membros`;
             if (lastMsg) {
@@ -296,8 +406,9 @@ window.renderChatSidebar = function() {
     // Função auxiliar para obter o timestamp da mensagem mais recente com este contato
     const getLatestMsgTime = (username) => {
         const msgs = (window.chatMessagesData || []).filter(m => 
-            (m.sender === loggedInUser && m.recipient === username) ||
-            (m.sender === username && m.recipient === loggedInUser)
+            ((m.sender === loggedInUser && m.recipient === username) ||
+             (m.sender === username && m.recipient === loggedInUser)) &&
+            !(m.deletedFor && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase()))
         );
         if (msgs.length === 0) return 0;
         return msgs.reduce((max, m) => {
@@ -336,8 +447,9 @@ window.renderChatSidebar = function() {
             
             // Preview da última mensagem
             const dmMsgs = (window.chatMessagesData || []).filter(m => 
-                (m.sender === loggedInUser && m.recipient === u.username) ||
-                (m.sender === u.username && m.recipient === loggedInUser)
+                ((m.sender === loggedInUser && m.recipient === u.username) ||
+                 (m.sender === u.username && m.recipient === loggedInUser)) &&
+                !(m.deletedFor && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase()))
             );
             const lastDm = dmMsgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[dmMsgs.length - 1];
             let DmPreview = u.role ? `${u.role.toUpperCase()} - ${(u.sector || 'Geral').toUpperCase()}` : 'Sem cargo';
@@ -402,6 +514,9 @@ window.renderChatWindow = function() {
         return;
     }
     
+    // Marca mensagens no chat ativo como lidas
+    window.markActiveChatAsRead();
+    
     const loggedInUser = window.loggedUser?.username || '';
     
     let isGroup = false;
@@ -460,6 +575,11 @@ window.renderChatWindow = function() {
         );
     }
     
+    // Ignora mensagens que o usuário ativo excluiu para si mesmo
+    filteredMsgs = filteredMsgs.filter(m => 
+        !(m.deletedFor && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase()))
+    );
+    
     // Ordenar cronologicamente
     filteredMsgs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
@@ -495,13 +615,25 @@ window.renderChatWindow = function() {
             senderNameHtml = `<span style="font-weight:700; font-size:0.75rem; color:var(--primary); display:block; margin-bottom:3px;">${senderUser?.fullname || m.sender}</span>`;
         }
         
-        // Ações da mensagem (editar/excluir) para mensagens próprias que não estejam apagadas
+        // Ações da mensagem (editar/excluir) baseadas na autoria e estado de exclusão global
         let actionsHtml = '';
         if (isSelf && !m.deleted) {
             actionsHtml = `
                 <div class="message-actions-trigger">
                     <button class="message-action-btn" onclick="window.editChatMessage('${m.id}')" title="Editar"><i class="fas fa-pen"></i></button>
-                    <button class="message-action-btn delete" onclick="window.deleteChatMessage('${m.id}')" title="Excluir"><i class="fas fa-trash"></i></button>
+                    <button class="message-action-btn delete" onclick="window.deleteChatMessage('${m.id}')" title="Excluir para todos"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+        } else if (isSelf && m.deleted) {
+            actionsHtml = `
+                <div class="message-actions-trigger">
+                    <button class="message-action-btn delete" onclick="window.deleteChatMessageForMe('${m.id}')" title="Excluir para mim"><i class="fas fa-trash"></i></button>
+                </div>
+            `;
+        } else { // !isSelf
+            actionsHtml = `
+                <div class="message-actions-trigger">
+                    <button class="message-action-btn delete" onclick="window.deleteChatMessageForMe('${m.id}')" title="Excluir para mim"><i class="fas fa-trash"></i></button>
                 </div>
             `;
         }
@@ -640,9 +772,9 @@ window.openChat = function(chatId) {
     window.activeChatId = chatId;
     window.editingMessageId = null; // Cancela edição pendente
     
-    // Zera notificações não lidas para esta conversa
-    window.chatUnreadCounts[chatId] = 0;
-    window.updateChatBadges();
+    // Marca como lidas no banco de dados e sincroniza
+    window.markActiveChatAsRead();
+    window.calculateUnreadCounts();
     
     window.renderChatSidebar();
     window.renderChatWindow();
@@ -696,7 +828,9 @@ window.sendChatMessage = function() {
             edited: false,
             editedAt: null,
             deleted: false,
-            deletedAt: null
+            deletedAt: null,
+            readBy: [loggedInUser],
+            deletedFor: []
         };
         window.chatMessagesData.push(newMsgObj);
     }
@@ -754,6 +888,32 @@ window.deleteChatMessage = function(msgId) {
         msg.deleted = true;
         msg.deletedAt = new Date().toISOString();
         msg.text = ''; // limpa texto original por privacidade
+        
+        // Salva local e sincroniza com servidor
+        if (typeof window.saveAll === 'function') {
+            window.saveAll();
+        }
+        
+        window.renderChatWindow();
+        window.renderChatSidebar();
+    }
+};
+
+window.deleteChatMessageForMe = function(msgId) {
+    if (!confirm("Tem certeza que deseja apagar esta mensagem para você? ela não aparecerá mais neste computador.")) return;
+    
+    const msg = (window.chatMessagesData || []).find(x => x.id === msgId);
+    if (msg) {
+        const loggedInUser = window.loggedUser?.username || '';
+        if (!loggedInUser) return;
+        
+        if (!msg.deletedFor) {
+            msg.deletedFor = [];
+        }
+        
+        if (!msg.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
+            msg.deletedFor.push(loggedInUser);
+        }
         
         // Salva local e sincroniza com servidor
         if (typeof window.saveAll === 'function') {
@@ -914,7 +1074,7 @@ window.openGroupInfoModal = function(groupId) {
     if (!grp) return;
     
     const loggedInUser = window.loggedUser?.username || '';
-    const isAdmin = grp.admins && grp.admins.includes(loggedInUser);
+    const isAdmin = grp.admins && grp.admins.some(a => a.toLowerCase() === loggedInUser.toLowerCase());
     
     const avatarCircle = document.getElementById('groupInfoAvatarCircle');
     if (avatarCircle) {
@@ -960,8 +1120,8 @@ window.openGroupInfoModal = function(groupId) {
             const u = allUsers.find(x => x.username.toLowerCase() === mUsername.toLowerCase());
             const mName = u ? (u.fullname || u.username) : mUsername;
             
-            const isMemAdmin = grp.admins && grp.admins.includes(mUsername);
-            const isCreator = grp.createdBy === mUsername;
+            const isMemAdmin = grp.admins && grp.admins.some(a => a.toLowerCase() === mUsername.toLowerCase());
+            const isCreator = grp.createdBy && grp.createdBy.toLowerCase() === mUsername.toLowerCase();
             
             let badgeHtml = '';
             if (isCreator) {
@@ -1029,7 +1189,7 @@ window.toggleGroupAdmin = function(groupId, username, makeAdmin) {
     if (!grp) return;
     
     const loggedInUser = window.loggedUser?.username || '';
-    if (!grp.admins.includes(loggedInUser)) {
+    if (!grp.admins || !grp.admins.some(a => a.toLowerCase() === loggedInUser.toLowerCase())) {
         alert("Apenas administradores podem gerenciar cargos.");
         return;
     }
@@ -1037,15 +1197,15 @@ window.toggleGroupAdmin = function(groupId, username, makeAdmin) {
     if (!grp.admins) grp.admins = [];
     
     if (makeAdmin) {
-        if (!grp.admins.includes(username)) {
+        if (!grp.admins.some(a => a.toLowerCase() === username.toLowerCase())) {
             grp.admins.push(username);
         }
     } else {
-        if (grp.admins.length === 1 && grp.admins.includes(username)) {
+        if (grp.admins.length === 1 && grp.admins.some(a => a.toLowerCase() === username.toLowerCase())) {
             alert("O grupo deve ter pelo menos um administrador.");
             return;
         }
-        grp.admins = grp.admins.filter(a => a !== username);
+        grp.admins = grp.admins.filter(a => a.toLowerCase() !== username.toLowerCase());
     }
     
     if (typeof window.saveAll === 'function') {
@@ -1060,14 +1220,14 @@ window.removeGroupMember = function(groupId, username) {
     if (!grp) return;
     
     const loggedInUser = window.loggedUser?.username || '';
-    if (!grp.admins.includes(loggedInUser)) {
+    if (!grp.admins || !grp.admins.some(a => a.toLowerCase() === loggedInUser.toLowerCase())) {
         alert("Apenas administradores podem remover membros.");
         return;
     }
     
     if (confirm(`Tem certeza que deseja remover ${username} do grupo?`)) {
-        grp.members = grp.members.filter(m => m !== username);
-        grp.admins = grp.admins.filter(a => a !== username);
+        grp.members = grp.members.filter(m => m.toLowerCase() !== username.toLowerCase());
+        grp.admins = grp.admins.filter(a => a.toLowerCase() !== username.toLowerCase());
         
         if (typeof window.saveAll === 'function') {
             window.saveAll();
@@ -1100,7 +1260,7 @@ window.saveGroupName = function() {
     if (!grp) return;
     
     const loggedInUser = window.loggedUser?.username || '';
-    if (!grp.admins.includes(loggedInUser)) {
+    if (!grp.admins || !grp.admins.some(a => a.toLowerCase() === loggedInUser.toLowerCase())) {
         alert("Apenas administradores podem alterar o nome do grupo.");
         return;
     }
@@ -1142,7 +1302,7 @@ window.uploadGroupPhoto = function(input) {
     if (!grp) return;
     
     const loggedInUser = window.loggedUser?.username || '';
-    if (!grp.admins.includes(loggedInUser)) {
+    if (!grp.admins || !grp.admins.some(a => a.toLowerCase() === loggedInUser.toLowerCase())) {
         alert("Apenas administradores podem alterar a foto do grupo.");
         return;
     }
@@ -1241,7 +1401,7 @@ window.submitAddMembers = function() {
     if (!grp) return;
     
     const loggedInUser = window.loggedUser?.username || '';
-    if (!grp.admins.includes(loggedInUser)) {
+    if (!grp.admins || !grp.admins.some(a => a.toLowerCase() === loggedInUser.toLowerCase())) {
         alert("Apenas administradores podem adicionar membros.");
         return;
     }
@@ -1255,7 +1415,7 @@ window.submitAddMembers = function() {
     }
     
     selectedUsernames.forEach(username => {
-        if (!grp.members.includes(username)) {
+        if (!grp.members.some(m => m.toLowerCase() === username.toLowerCase())) {
             grp.members.push(username);
         }
     });
@@ -1286,7 +1446,7 @@ window.leaveGroup = function(groupId) {
     
     grp.members = grp.members.filter(m => m.toLowerCase() !== loggedInUser.toLowerCase());
     
-    const wasAdmin = grp.admins && grp.admins.includes(loggedInUser);
+    const wasAdmin = grp.admins && grp.admins.some(a => a.toLowerCase() === loggedInUser.toLowerCase());
     if (wasAdmin) {
         grp.admins = grp.admins.filter(a => a.toLowerCase() !== loggedInUser.toLowerCase());
     }
@@ -1294,7 +1454,8 @@ window.leaveGroup = function(groupId) {
     if (grp.members.length === 0) {
         window.chatGroupsData.splice(grpIndex, 1);
     } else {
-        if (grp.admins.length === 0) {
+        if (!grp.admins || grp.admins.length === 0) {
+            grp.admins = [];
             const nextAdmin = grp.members[0];
             grp.admins.push(nextAdmin);
         }
