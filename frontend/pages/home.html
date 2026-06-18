@@ -1098,6 +1098,28 @@
     <div id="ctxMenuCad" class="context-menu" style="display:none;"></div>
     <div id="ctxMenuChat" class="context-menu" style="display:none;"></div>
 
+    <!-- Easter Egg Present Modal -->
+    <div id="modalEasterEggPresent" class="modal-overlay" style="z-index: 10000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.8);">
+        <div class="modal-box" style="width: 400px; text-align: center; padding: 30px; position: relative; border-radius: 16px; background: var(--bg-card); box-shadow: var(--shadow-paper);">
+            <button onclick="window.closeEasterEggPresent()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1;" title="Fechar">&times;</button>
+            <div style="font-size: 4rem; margin-bottom: 15px; display: inline-block;">🎁</div>
+            <h3 style="margin: 0 0 10px 0; font-size: 1.4rem; color: var(--text-main);">Você recebeu um presente!</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px;">Abra para ver o que tem dentro.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="btn btn-save" onclick="window.openEasterEggMeme()" style="padding: 10px 24px; min-width: 100px; margin: 0;">Aceitar</button>
+                <button class="btn btn-save" onclick="window.openEasterEggMeme()" style="padding: 10px 24px; min-width: 100px; margin: 0;">Aceitar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Easter Egg Image Viewer Modal -->
+    <div id="modalEasterEggMeme" class="modal-overlay" style="z-index: 10001; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.95);">
+        <div style="position: relative; max-width: 90%; max-height: 90%; text-align: center;">
+            <button onclick="window.closeEasterEggMeme()" style="position: absolute; top: -40px; right: 0; background: none; border: none; color: white; font-size: 2.5rem; cursor: pointer; padding: 0; line-height: 1;" title="Fechar">&times;</button>
+            <img src="../Imgs/meme.jpeg" alt="Meme Presente" style="max-width: 100%; max-height: 80vh; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+
 
     <div id="modalDeleteConfirm" class="modal-overlay" style="z-index: 9000;">
         <div class="modal-box" style="width: 450px; text-align: center;">
@@ -1657,6 +1679,11 @@
             } else if (typeof io !== 'undefined') {
                 // Conecta explicitamente no IP do servidor
                 const socket = io(API_BASE_URL);
+                window.socket = socket;
+
+                if (typeof window.initPresenceEvents === 'function') {
+                    window.initPresenceEvents();
+                }
 
                 socket.on('connect', () => {
                     console.log(`🟢 [Socket] Conectado ao servidor ${API_BASE_URL}`);

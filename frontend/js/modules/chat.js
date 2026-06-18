@@ -8,6 +8,28 @@ window.chatUnreadCounts = {};
 window.editingMessageId = null;
 window.onlineUsersStatus = {};
 
+// Easter Egg functions
+window.showEasterEggPresent = function() {
+    const presentModal = document.getElementById('modalEasterEggPresent');
+    if (presentModal) presentModal.style.display = 'flex';
+};
+
+window.closeEasterEggPresent = function() {
+    const presentModal = document.getElementById('modalEasterEggPresent');
+    if (presentModal) presentModal.style.display = 'none';
+};
+
+window.openEasterEggMeme = function() {
+    window.closeEasterEggPresent();
+    const memeModal = document.getElementById('modalEasterEggMeme');
+    if (memeModal) memeModal.style.display = 'flex';
+};
+
+window.closeEasterEggMeme = function() {
+    const memeModal = document.getElementById('modalEasterEggMeme');
+    if (memeModal) memeModal.style.display = 'none';
+};
+
 // Efeitos sonoros sintetizados para o Chat (Web Audio API)
 window.playSentSound = function() {
     try {
@@ -126,7 +148,9 @@ function resetPresenceIdleTimer() {
     document.addEventListener('visibilitychange', checkPresenceIdleStatus);
     
     // Conectar eventos do Socket.io para presença
-    if (window.socket) {
+    window.initPresenceEvents = function() {
+        if (!window.socket) return;
+
         const bindPresenceEvents = () => {
             if (window.loggedUser?.username) {
                 window.socket.emit('user_online', {
@@ -151,6 +175,10 @@ function resetPresenceIdleTimer() {
         if (window.socket.connected) {
             bindPresenceEvents();
         }
+    };
+
+    if (window.socket) {
+        window.initPresenceEvents();
     }
 })();
 
@@ -281,6 +309,24 @@ window.markActiveChatAsRead = function() {
                     }
                     
                     if (!isForMe) return;
+
+                    // Easter Egg Present Check
+                    if (m.text && m.text.trim() === '--gueguel--' && !m.deleted) {
+                        const loggedUser = window.loggedUser?.username || '';
+                        const storageKey = `${loggedUser}_processed_presents`;
+                        let processed = [];
+                        try {
+                            processed = JSON.parse(localStorage.getItem(storageKey)) || [];
+                        } catch (e) {}
+                        
+                        if (!processed.includes(m.id)) {
+                            processed.push(m.id);
+                            localStorage.setItem(storageKey, JSON.stringify(processed));
+                            if (typeof window.showEasterEggPresent === 'function') {
+                                window.showEasterEggPresent();
+                            }
+                        }
+                    }
                     
                     // Se estiver visualizando este chat específico e a aba ativa for o chat, marcar como lida imediatamente
                     if (window.activeChatId === chatKey && currentView === 'chat') {
@@ -689,6 +735,20 @@ window.renderChatWindow = function() {
     const chatWindowEl = document.getElementById('chatWindow');
     if (!chatWindowEl) return;
     
+    // Captura o estado atual do input de chat para evitar perder o que o usuário está digitando
+    const activeEl = document.activeElement;
+    const chatInputEl = document.getElementById('chatInput');
+    const hasFocus = chatInputEl && (activeEl === chatInputEl);
+    let pendingText = '';
+    let selStart = 0;
+    let selEnd = 0;
+    
+    if (chatInputEl) {
+        pendingText = chatInputEl.value;
+        selStart = chatInputEl.selectionStart;
+        selEnd = chatInputEl.selectionEnd;
+    }
+    
     if (!window.activeChatId) {
         // Estado Vazio (Sem chat aberto)
         chatWindowEl.innerHTML = `
@@ -943,12 +1003,27 @@ window.renderChatWindow = function() {
         const historyEl = document.getElementById('chatMessages');
         if (historyEl) historyEl.scrollTop = historyEl.scrollHeight;
         
-        // Foca no textarea
+        // Foca no textarea e restaura estado
         const txtInput = document.getElementById('chatInput');
-        if (txtInput) txtInput.focus();
-        
-        // Ajusta textarea height dinamicamente
         if (txtInput) {
+            // Restaura o texto pendente se houver
+            if (pendingText !== undefined && pendingText !== null && pendingText !== '') {
+                txtInput.value = pendingText;
+            }
+            
+            // Foca e restaura seleção se tinha foco
+            if (hasFocus) {
+                txtInput.focus();
+                try {
+                    txtInput.setSelectionRange(selStart, selEnd);
+                } catch (e) {}
+            }
+            
+            // Ajusta altura
+            txtInput.style.height = 'auto';
+            txtInput.style.height = (txtInput.scrollHeight) + 'px';
+            
+            // Re-adiciona listener para redimensionamento dinâmico
             txtInput.addEventListener('input', function() {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
@@ -976,6 +1051,10 @@ window.openChat = function(chatId) {
     window.activeChatId = chatId;
     window.editingMessageId = null; // Cancela edição pendente
     
+    // Limpa o input antes de trocar de chat
+    const chatInputEl = document.getElementById('chatInput');
+    if (chatInputEl) chatInputEl.value = '';
+    
     // Marca como lidas no banco de dados e sincroniza
     window.markActiveChatAsRead();
     window.calculateUnreadCounts();
@@ -989,6 +1068,8 @@ window.openChat = function(chatId) {
  */
 window.closeChatMobile = function() {
     window.activeChatId = null;
+    const chatInputEl = document.getElementById('chatInput');
+    if (chatInputEl) chatInputEl.value = '';
     const sidebar = document.getElementById('chatSidebar');
     const windowEl = document.getElementById('chatWindow');
     if (sidebar && windowEl) {
@@ -1081,6 +1162,8 @@ window.editChatMessage = function(msgId) {
  */
 window.cancelChatMessageEdit = function() {
     window.editingMessageId = null;
+    const chatInputEl = document.getElementById('chatInput');
+    if (chatInputEl) chatInputEl.value = '';
     window.renderChatWindow();
 };
 

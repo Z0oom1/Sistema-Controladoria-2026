@@ -266,10 +266,62 @@ window.saveToLocalOnly = function() {
  * Atualiza a visualização da tela ativa no momento
  * Com verificação de função antes de chamar
  */
+window.lastRenderedData = window.lastRenderedData || {};
+
 window.refreshCurrentView = function() {
     const activeSection = document.querySelector('.view-section.active');
     if (activeSection) {
         const currentView = activeSection.id.replace('view-', '');
+        
+        // Obter dados relevantes para a aba atual
+        let currentDataString = '';
+        if (currentView === 'cadastros') {
+            currentDataString = JSON.stringify([window.suppliersData, window.carriersData, window.driversData, window.platesData, window.productsData]);
+        } else if (currentView === 'patio') {
+            currentDataString = JSON.stringify([window.patioData]);
+        } else if (currentView === 'mapas') {
+            currentDataString = JSON.stringify([window.mapData, window.usersData]);
+        } else if (currentView === 'materia-prima') {
+            currentDataString = JSON.stringify([window.mpData]);
+        } else if (currentView === 'carregamento') {
+            currentDataString = JSON.stringify([window.carregamentoData]);
+        } else if (currentView === 'notificacoes') {
+            currentDataString = JSON.stringify([window.requests]);
+        } else if (currentView === 'admin') {
+            currentDataString = JSON.stringify([window.usersData, window.groupsData]);
+        } else if (currentView === 'chat') {
+            currentDataString = JSON.stringify([window.chatMessagesData, window.chatGroupsData, window.usersData, window.onlineUsersStatus]);
+        } else if (currentView === 'dashboard') {
+            currentDataString = JSON.stringify([window.patioData, window.mapData, window.carregamentoData, window.mpData]);
+        }
+
+        // Se os dados não mudaram, pulamos a re-renderização completa da view ativa
+        if (currentDataString && window.lastRenderedData[currentView] === currentDataString) {
+            if (typeof window.updateBadge === 'function') window.updateBadge();
+            if (typeof window.updateAccountRequestBadge === 'function') window.updateAccountRequestBadge();
+            if (typeof window.checkForNotifications === 'function') window.checkForNotifications();
+            return;
+        }
+
+        // Se for a view de chat e a estrutura básica do chat já estiver renderizada,
+        // atualizamos apenas os sub-elementos dinâmicos para não quebrar a digitação
+        if (currentView === 'chat' && document.getElementById('chatSidebar') && document.getElementById('chatWindow')) {
+            if (typeof window.renderChatSidebar === 'function') window.renderChatSidebar();
+            if (typeof window.renderChatWindow === 'function') window.renderChatWindow();
+            if (typeof window.updateChatBadges === 'function') window.updateChatBadges();
+            
+            window.lastRenderedData[currentView] = currentDataString;
+            
+            if (typeof window.updateBadge === 'function') window.updateBadge();
+            if (typeof window.updateAccountRequestBadge === 'function') window.updateAccountRequestBadge();
+            if (typeof window.checkForNotifications === 'function') window.checkForNotifications();
+            return;
+        }
+
+        // Caso contrário, atualiza o cache e executa a renderização completa da view
+        if (currentDataString) {
+            window.lastRenderedData[currentView] = currentDataString;
+        }
         
         // Usar um mapa de funções para evitar múltiplos if
         const viewHandlers = {

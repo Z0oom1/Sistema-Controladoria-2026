@@ -316,9 +316,41 @@ window.navTo = function(view, el) {
     const appTitle = document.querySelector('.app-title');
     if (appTitle) appTitle.innerText = `CONTROLADORIA AW - ${title.toUpperCase()}`;
 
+    // Limpar cache da view para forçar renderização completa na navegação manual
+    if (window.lastRenderedData) {
+        delete window.lastRenderedData[view];
+    }
+
     // Executar handler de renderização
     const handler = VIEW_HANDLERS[view];
     if (handler) handler();
+
+    // Salvar o estado atual no cache logo após renderizar para evitar redescritas imediatas via sync
+    if (window.lastRenderedData) {
+        let currentDataString = '';
+        if (view === 'cadastros') {
+            currentDataString = JSON.stringify([window.suppliersData, window.carriersData, window.driversData, window.platesData, window.productsData]);
+        } else if (view === 'patio') {
+            currentDataString = JSON.stringify([window.patioData]);
+        } else if (view === 'mapas') {
+            currentDataString = JSON.stringify([window.mapData, window.usersData]);
+        } else if (view === 'materia-prima') {
+            currentDataString = JSON.stringify([window.mpData]);
+        } else if (view === 'carregamento') {
+            currentDataString = JSON.stringify([window.carregamentoData]);
+        } else if (view === 'notificacoes') {
+            currentDataString = JSON.stringify([window.requests]);
+        } else if (view === 'admin') {
+            currentDataString = JSON.stringify([window.usersData, window.groupsData]);
+        } else if (view === 'chat') {
+            currentDataString = JSON.stringify([window.chatMessagesData, window.chatGroupsData, window.usersData, window.onlineUsersStatus]);
+        } else if (view === 'dashboard') {
+            currentDataString = JSON.stringify([window.patioData, window.mapData, window.carregamentoData, window.mpData]);
+        }
+        if (currentDataString) {
+            window.lastRenderedData[view] = currentDataString;
+        }
+    }
 
     // --- Controle de visibilidade dos FABs globais ---
     const fabPesagem = document.getElementById('fabPesagem');
