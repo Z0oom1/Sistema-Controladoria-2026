@@ -1389,7 +1389,7 @@ window.addNewUser = function() {
         subType = sectorVal;
     }
 
-    window.usersData.push({ username, password, role, sector, subType, firstLogin: true });
+    window.usersData.push({ username, password, role, sector, subType, firstLogin: true, createdAt: new Date().toISOString() });
     window.saveAll();
     window.renderUserList();
     alert('Usuário criado com sucesso.');
@@ -2014,7 +2014,7 @@ window.createAccountByEncarregado = function() {
     if (window.usersData.find(u => u.username === username)) return alert('Usuário já existe.');
 
     const sector = typeof loggedUser !== 'undefined' ? loggedUser.sector : 'conferente';
-    window.usersData.push({ username, password, fullname, displayName: display, role: 'user', sector, firstLogin: true });
+    window.usersData.push({ username, password, fullname, displayName: display, role: 'user', sector, firstLogin: true, createdAt: new Date().toISOString() });
     window.saveAll();
     alert('Conta criada com sucesso!');
     ['new_fullname', 'new_display', 'new_username', 'new_password'].forEach(id => {

@@ -134,6 +134,18 @@ function applyDataToState(data) {
                 window.loggedUser.avatarPhoto = dbUser.avatarPhoto || null;
                 window.loggedUser.coverImage = dbUser.coverImage || null;
                 sessionStorage.setItem('loggedInUser', JSON.stringify(window.loggedUser));
+
+                // Atualiza o lastAccess uma única vez por sessão de uso
+                if (!window.hasUpdatedLastAccess) {
+                    dbUser.lastAccess = new Date().toISOString();
+                    window.hasUpdatedLastAccess = true;
+                    if (window.appState) {
+                        window.appState.set('users', users);
+                    }
+                    if (typeof window.saveAll === 'function') {
+                        window.saveAll(true);
+                    }
+                }
             }
         }
     }

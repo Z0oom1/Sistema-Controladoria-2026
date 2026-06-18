@@ -1155,6 +1155,54 @@
         </div>
     </div>
 
+    <!-- Chat User Profile Modal -->
+    <div id="modalChatUserProfile" class="modal-overlay" style="z-index: 11000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.75);">
+        <div class="modal-box" style="width: 450px; padding: 0; overflow: hidden; border-radius: 16px; background: var(--bg-card); box-shadow: var(--shadow-paper); position: relative; border: 1px solid var(--border-color);">
+            <!-- Background Cover -->
+            <div id="chatUserProfileCover" style="height: 120px; background-size: cover; background-position: center; background-color: var(--primary); opacity: 0.85; position: relative;">
+                <button onclick="window.closeChatUserProfile()" style="position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.4); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; line-height: 1; transition: background 0.2s;" title="Fechar">&times;</button>
+            </div>
+            
+            <!-- Profile Info Area -->
+            <div style="padding: 20px; position: relative; margin-top: -45px; text-align: center;">
+                <!-- Avatar Container -->
+                <div id="chatUserProfileAvatar" style="width: 90px; height: 90px; border-radius: 50%; border: 4px solid var(--bg-card); display: inline-flex; align-items: center; justify-content: center; font-size: 2.8rem; background-color: var(--primary); overflow: hidden; box-shadow: var(--shadow-paper); margin-bottom: 12px; color: white;">
+                    👤
+                </div>
+                
+                <!-- User Details -->
+                <h3 id="chatUserProfileFullName" style="margin: 0 0 4px 0; font-size: 1.35rem; color: var(--text-main); font-weight: 700;">---</h3>
+                <p id="chatUserProfileUsername" style="margin: 0 0 12px 0; font-size: 0.88rem; color: var(--text-muted); font-family: monospace;">@---</p>
+                
+                <!-- Status Badge -->
+                <div id="chatUserProfileStatusBadge" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: bold; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);"></span> Offline
+                </div>
+                
+                <!-- Details Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; background: var(--bg-input); padding: 15px; border-radius: 10px; border: 1px solid var(--border-color); font-size: 0.85rem;">
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Cargo / Função</span>
+                        <strong id="chatUserProfileRole" style="color: var(--text-main);">-</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Setor / Área</span>
+                        <strong id="chatUserProfileSector" style="color: var(--text-main);">-</strong>
+                    </div>
+                    <div style="grid-column: 1 / -1; height: 1px; background: var(--border-color); margin: 4px 0; opacity: 0.5;"></div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Conta Criada Em</span>
+                        <strong id="chatUserProfileCreated" style="color: var(--text-main);">-</strong>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;">Último Acesso</span>
+                        <strong id="chatUserProfileLastAccess" style="color: var(--text-main);">-</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <div id="modalDeleteConfirm" class="modal-overlay" style="z-index: 9000;">
         <div class="modal-box" style="width: 450px; text-align: center;">

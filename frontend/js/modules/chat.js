@@ -198,6 +198,115 @@ window.closeEasterEggMeme = function() {
     if (memeModal) memeModal.style.display = 'none';
 };
 
+window.openChatUserProfile = function(username) {
+    const modal = document.getElementById('modalChatUserProfile');
+    if (!modal) return;
+    
+    const u = window.getAllUsers().find(x => x.username.toLowerCase() === username.toLowerCase());
+    if (!u) return;
+    
+    // 1. Cover Background
+    const coverEl = document.getElementById('chatUserProfileCover');
+    if (coverEl) {
+        if (u.coverImage) {
+            coverEl.style.backgroundImage = `url('${u.coverImage}')`;
+            coverEl.style.backgroundColor = 'transparent';
+        } else {
+            coverEl.style.backgroundImage = 'none';
+            coverEl.style.backgroundColor = 'var(--primary)';
+        }
+    }
+    
+    // 2. Avatar Photo
+    const avatarEl = document.getElementById('chatUserProfileAvatar');
+    if (avatarEl) {
+        if (u.avatarPhoto) {
+            avatarEl.innerHTML = `<img src="${u.avatarPhoto}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />`;
+            avatarEl.style.backgroundColor = 'transparent';
+        } else {
+            const color = u.avatarColor || '#3b82f6';
+            const emoji = u.avatarEmoji || '👤';
+            avatarEl.innerText = emoji;
+            avatarEl.style.backgroundColor = color;
+        }
+    }
+    
+    // 3. User Details
+    const fullNameEl = document.getElementById('chatUserProfileFullName');
+    const usernameEl = document.getElementById('chatUserProfileUsername');
+    if (fullNameEl) fullNameEl.innerText = u.fullname || u.username;
+    if (usernameEl) usernameEl.innerText = `@${u.username}`;
+    
+    // 4. Status Badge
+    const statusBadgeEl = document.getElementById('chatUserProfileStatusBadge');
+    if (statusBadgeEl) {
+        const presence = window.onlineUsersStatus ? window.onlineUsersStatus[u.username] : 'offline';
+        let statusText = 'Offline';
+        let statusColor = '#94a3b8';
+        if (presence === 'online') {
+            statusText = 'Online';
+            statusColor = '#10b981';
+        } else if (presence === 'idle') {
+            statusText = 'Ausente';
+            statusColor = '#eab308';
+        }
+        
+        statusBadgeEl.innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></span> ${statusText}`;
+    }
+    
+    // 5. Grid Details
+    const roleEl = document.getElementById('chatUserProfileRole');
+    const sectorEl = document.getElementById('chatUserProfileSector');
+    const createdEl = document.getElementById('chatUserProfileCreated');
+    const lastAccessEl = document.getElementById('chatUserProfileLastAccess');
+    
+    if (roleEl) roleEl.innerText = (u.role || 'Usuário').toUpperCase();
+    if (sectorEl) sectorEl.innerText = (u.sector || 'Geral').toUpperCase();
+    
+    // Formatar data de criação se disponível
+    if (createdEl) {
+        if (u.createdAt) {
+            try {
+                const date = new Date(u.createdAt);
+                createdEl.innerText = date.toLocaleDateString('pt-BR');
+            } catch (e) {
+                createdEl.innerText = 'Não Informado';
+            }
+        } else {
+            createdEl.innerText = 'Não Informado';
+        }
+    }
+    
+    // Formatar último acesso
+    if (lastAccessEl) {
+        const presence = window.onlineUsersStatus ? window.onlineUsersStatus[u.username] : 'offline';
+        if (presence === 'online') {
+            lastAccessEl.innerText = 'Agora mesmo';
+        } else if (u.lastAccess) {
+            try {
+                const date = new Date(u.lastAccess);
+                const isToday = date.toDateString() === new Date().toDateString();
+                if (isToday) {
+                    lastAccessEl.innerText = 'Hoje às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    lastAccessEl.innerText = date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                }
+            } catch (e) {
+                lastAccessEl.innerText = 'Nunca';
+            }
+        } else {
+            lastAccessEl.innerText = 'Nunca';
+        }
+    }
+    
+    modal.style.display = 'flex';
+};
+
+window.closeChatUserProfile = function() {
+    const modal = document.getElementById('modalChatUserProfile');
+    if (modal) modal.style.display = 'none';
+};
+
 // Efeitos sonoros sintetizados para o Chat (Web Audio API)
 window.playSentSound = function() {
     try {
@@ -1153,12 +1262,14 @@ window.renderChatWindow = function() {
                 <!-- Botão voltar no Mobile -->
                 <button class="btn-chat-back" onclick="window.closeChatMobile()" style="display:none;"><i class="fas fa-arrow-left"></i></button>
                 
-                <div class="chat-avatar" style="background-color: ${headerAvatarColor}; border-color: var(--border-color);">
-                    ${headerAvatar}
-                </div>
-                <div class="chat-header-details">
-                    <span class="chat-header-name">${title}</span>
-                    <span class="chat-header-status">${statusText}</span>
+                <div style="display: flex; align-items: center; gap: 10px; ${!isGroup && window.activeChatId !== 'global' ? 'cursor: pointer;' : ''}" ${!isGroup && window.activeChatId !== 'global' ? `onclick="window.openChatUserProfile('${window.activeChatId}')"` : ''}>
+                    <div class="chat-avatar" style="background-color: ${headerAvatarColor}; border-color: var(--border-color);">
+                        ${headerAvatar}
+                    </div>
+                    <div class="chat-header-details">
+                        <span class="chat-header-name">${title}</span>
+                        <span class="chat-header-status">${statusText}</span>
+                    </div>
                 </div>
             </div>
             <div class="chat-header-actions">
