@@ -9,7 +9,10 @@ window.editingMessageId = null;
 window.onlineUsersStatus = {};
 
 // Easter Egg functions
-window.showEasterEggPresent = function() {
+window.activeEasterEggType = 'meme';
+
+window.showEasterEggPresent = function(type = 'meme') {
+    window.activeEasterEggType = type;
     const presentModal = document.getElementById('modalEasterEggPresent');
     if (presentModal) presentModal.style.display = 'flex';
 };
@@ -21,6 +24,20 @@ window.closeEasterEggPresent = function() {
 
 window.openEasterEggMeme = function() {
     window.closeEasterEggPresent();
+    
+    // Configura a imagem com base no tipo de presente
+    const imgEl = document.querySelector('#modalEasterEggMeme img');
+    if (imgEl) {
+        const type = window.activeEasterEggType || 'meme';
+        if (type === 'dog') {
+            imgEl.src = '../Imgs/dog.jpeg';
+        } else if (type === 'converceiro') {
+            imgEl.src = '../Imgs/converceiro.jpeg';
+        } else {
+            imgEl.src = '../Imgs/meme.jpeg';
+        }
+    }
+    
     const memeModal = document.getElementById('modalEasterEggMeme');
     if (memeModal) memeModal.style.display = 'flex';
 };
@@ -311,7 +328,15 @@ window.markActiveChatAsRead = function() {
                     if (!isForMe) return;
 
                     // Easter Egg Present Check
-                    if (m.text && m.text.trim() === '--gueguel--' && !m.deleted) {
+                    const textClean = m.text ? m.text.trim() : '';
+                    const easterEggs = {
+                        '--gueguel--': 'meme',
+                        '--bulldog--': 'dog',
+                        '--converseiro--': 'converceiro'
+                    };
+                    
+                    if (easterEggs[textClean] && !m.deleted) {
+                        const type = easterEggs[textClean];
                         const loggedUser = window.loggedUser?.username || '';
                         const storageKey = `${loggedUser}_processed_presents`;
                         let processed = [];
@@ -323,7 +348,7 @@ window.markActiveChatAsRead = function() {
                             processed.push(m.id);
                             localStorage.setItem(storageKey, JSON.stringify(processed));
                             if (typeof window.showEasterEggPresent === 'function') {
-                                window.showEasterEggPresent();
+                                window.showEasterEggPresent(type);
                             }
                         }
                     }
