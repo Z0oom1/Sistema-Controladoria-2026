@@ -100,8 +100,42 @@ class DataCache {
 const dataCache = new DataCache(3000)
 
 // --- SOCKET.IO ---
+const onlineUsers = new Map(); // socket.id -> { username, status }
+
+function broadcastOnlineUsers() {
+    const statusMap = {};
+    for (const [sid, user] of onlineUsers.entries()) {
+        const existing = statusMap[user.username];
+        if (!existing || user.status === 'online') {
+            statusMap[user.username] = user.status;
+        }
+    }
+    io.emit('online_users_list', statusMap);
+}
+
 io.on('connection', (socket) => {
     socket.on('pedir_dados', () => io.emit('atualizar_sistema'))
+
+    socket.on('user_online', ({ username, status }) => {
+        if (!username) return;
+        socket.username = username;
+        onlineUsers.set(socket.id, { username, status });
+        broadcastOnlineUsers();
+    });
+
+    socket.on('user_status_change', ({ status }) => {
+        if (socket.username) {
+            onlineUsers.set(socket.id, { username: socket.username, status });
+            broadcastOnlineUsers();
+        }
+    });
+
+    socket.on('disconnect', () => {
+        if (onlineUsers.has(socket.id)) {
+            onlineUsers.delete(socket.id);
+            broadcastOnlineUsers();
+        }
+    });
 })
 
 // --- ROTAS API ---

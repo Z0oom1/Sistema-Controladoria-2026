@@ -138,29 +138,43 @@ body.dark-mode .chat-user-item.active {
     font-size: 1.3rem;
     border: 2px solid var(--border-color);
     background: rgba(255, 255, 255, 0.05);
-    overflow: hidden;
+    overflow: visible;
 }
 
-.chat-avatar img {
+.chat-avatar img, .chat-avatar > div {
     width: 100%;
     height: 100%;
+    border-radius: 50%;
     object-fit: cover;
+    overflow: hidden;
 }
 
 .chat-avatar-status {
     position: absolute;
-    bottom: -1px;
-    right: -1px;
-    width: 11px;
-    height: 11px;
+    bottom: -2px;
+    right: -2px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     border: 2px solid var(--bg-card);
     background: #94a3b8;
+    z-index: 10;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .chat-avatar-status.online {
     background: #10b981;
-    box-shadow: 0 0 4px #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.chat-avatar-status.idle {
+    background: #eab308;
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.6);
+}
+
+.chat-avatar-status.offline {
+    background: #94a3b8;
+    box-shadow: none;
 }
 
 .chat-user-info {

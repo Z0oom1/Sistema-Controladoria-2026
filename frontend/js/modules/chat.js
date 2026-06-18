@@ -6,6 +6,153 @@
 window.activeChatId = 'global'; // Chat Geral por padrão
 window.chatUnreadCounts = {};
 window.editingMessageId = null;
+window.onlineUsersStatus = {};
+
+// Efeitos sonoros sintetizados para o Chat (Web Audio API)
+window.playSentSound = function() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        let ctx = window.globalAudioCtx;
+        if (!ctx || ctx.state === 'closed') { 
+            ctx = new AudioContext(); 
+            window.globalAudioCtx = ctx; 
+        } else if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        const osc = ctx.createOscillator(); 
+        const gain = ctx.createGain();
+        osc.connect(gain); 
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sine'; 
+        const now = ctx.currentTime;
+        
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(900, now + 0.12);
+        
+        gain.gain.setValueAtTime(0, now); 
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.02); 
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        
+        osc.start(now); 
+        osc.stop(now + 0.12);
+    } catch (e) {
+        console.warn("Audio blocked:", e);
+    }
+};
+
+window.playReceivedSound = function() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        let ctx = window.globalAudioCtx;
+        if (!ctx || ctx.state === 'closed') { 
+            ctx = new AudioContext(); 
+            window.globalAudioCtx = ctx; 
+        } else if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        const now = ctx.currentTime;
+        
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(520, now);
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.18, now + 0.02);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc1.start(now);
+        osc1.stop(now + 0.12);
+        
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(660, now + 0.06);
+        gain2.gain.setValueAtTime(0, now + 0.06);
+        gain2.gain.linearRampToValueAtTime(0.18, now + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc2.start(now + 0.06);
+        osc2.stop(now + 0.22);
+    } catch (e) {
+        console.warn("Audio blocked:", e);
+    }
+};
+
+// Gerenciamento de Presença (Online / Ausente / Offline)
+let lastPresenceActivityTime = Date.now();
+let currentPresenceStatus = 'online';
+const PRESENCE_IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutos em ms
+
+function checkPresenceIdleStatus() {
+    const now = Date.now();
+    let targetStatus = 'online';
+    
+    if (document.hidden || document.visibilityState === 'hidden') {
+        targetStatus = 'idle';
+    } else if (now - lastPresenceActivityTime > PRESENCE_IDLE_TIMEOUT) {
+        targetStatus = 'idle';
+    }
+    
+    if (targetStatus !== currentPresenceStatus) {
+        currentPresenceStatus = targetStatus;
+        if (window.socket && window.socket.connected && window.loggedUser?.username) {
+            window.socket.emit('user_status_change', { status: currentPresenceStatus });
+        }
+    }
+}
+
+function resetPresenceIdleTimer() {
+    lastPresenceActivityTime = Date.now();
+    if (currentPresenceStatus === 'idle') {
+        currentPresenceStatus = 'online';
+        if (window.socket && window.socket.connected && window.loggedUser?.username) {
+            window.socket.emit('user_status_change', { status: 'online' });
+        }
+    }
+}
+
+// Inicia escuta de atividades e interval
+(function initPresenceSystem() {
+    ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => {
+        document.addEventListener(evt, resetPresenceIdleTimer, { passive: true });
+    });
+    
+    setInterval(checkPresenceIdleStatus, 10000);
+    document.addEventListener('visibilitychange', checkPresenceIdleStatus);
+    
+    // Conectar eventos do Socket.io para presença
+    if (window.socket) {
+        const bindPresenceEvents = () => {
+            if (window.loggedUser?.username) {
+                window.socket.emit('user_online', {
+                    username: window.loggedUser.username,
+                    status: currentPresenceStatus
+                });
+            }
+        };
+
+        window.socket.on('connect', bindPresenceEvents);
+        
+        window.socket.on('online_users_list', (statusMap) => {
+            window.onlineUsersStatus = statusMap || {};
+            const currentView = localStorage.getItem('aw_last_view');
+            if (currentView === 'chat') {
+                window.renderChatSidebar();
+                window.renderChatWindow();
+            }
+        });
+        
+        // Emit inicial se já estiver conectado
+        if (window.socket.connected) {
+            bindPresenceEvents();
+        }
+    }
+})();
 
 window.calculateUnreadCounts = function() {
     window.chatUnreadCounts = {};
@@ -175,7 +322,11 @@ window.markActiveChatAsRead = function() {
                 
                 // Toca alerta sonoro
                 if (receivedNew) {
-                    if (typeof window.playBeep === 'function') window.playBeep();
+                    if (typeof window.playReceivedSound === 'function') {
+                        window.playReceivedSound();
+                    } else if (typeof window.playBeep === 'function') {
+                        window.playBeep();
+                    }
                 }
                 
                 window.calculateUnreadCounts();
@@ -284,6 +435,14 @@ window.renderChatSidebar = function() {
     const loggedInUser = window.loggedUser?.username || '';
     const searchTerm = document.getElementById('chatSearch')?.value.toLowerCase() || '';
     
+    const nicknamesKey = loggedInUser + '_chat_nicknames';
+    let nicknames = {};
+    try { nicknames = JSON.parse(localStorage.getItem(nicknamesKey)) || {}; } catch(err) {}
+
+    const pinnedKey = loggedInUser + '_chat_pinned';
+    let pinnedList = [];
+    try { pinnedList = JSON.parse(localStorage.getItem(pinnedKey)) || []; } catch(err) {}
+    
     let html = '';
     
     // 1. Canal Global (Chat Geral)
@@ -302,14 +461,20 @@ window.renderChatSidebar = function() {
         globalPreview = lastGlobalMsg.deleted ? `${prefix}Mensagem apagada` : `${prefix}${lastGlobalMsg.text}`;
     }
     
+    const isGlobalPinned = pinnedList.includes('global');
+    const displayGlobalName = nicknames['global'] || 'Chat Geral (Todos)';
+    
     html += `
-        <div class="chat-user-item ${isGlobalActive ? 'active' : ''}" onclick="window.openChat('global')">
+        <div class="chat-user-item ${isGlobalActive ? 'active' : ''}" onclick="window.openChat('global')" oncontextmenu="window.onChatUserContextMenu(event, 'global', 'global'); return false;">
             <div class="chat-avatar" style="background-color: var(--primary); color: white;">
                 <i class="fas fa-users"></i>
             </div>
             <div class="chat-user-info">
                 <div class="chat-user-name-row">
-                    <span class="chat-user-name">Chat Geral (Todos)</span>
+                    <span class="chat-user-name">
+                        ${displayGlobalName}
+                        ${isGlobalPinned ? `<i class="fas fa-thumbtack" style="font-size: 0.7rem; color: var(--text-muted); margin-left: 6px; transform: rotate(45deg);" title="Fixado"></i>` : ''}
+                    </span>
                     ${globalUnread > 0 ? `<span class="chat-user-badge">${globalUnread}</span>` : ''}
                 </div>
                 <div class="chat-user-role" style="font-weight: ${globalUnread > 0 ? '600' : 'normal'}; color: ${globalUnread > 0 ? 'var(--text-main)' : 'var(--text-muted)'};">${globalPreview}</div>
@@ -340,6 +505,11 @@ window.renderChatSidebar = function() {
     const filteredGroups = myGroups.filter(g => 
         g.name.toLowerCase().includes(searchTerm)
     ).sort((a, b) => {
+        const isPinnedA = pinnedList.includes(a.id);
+        const isPinnedB = pinnedList.includes(b.id);
+        if (isPinnedA && !isPinnedB) return -1;
+        if (!isPinnedA && isPinnedB) return 1;
+        
         const timeA = getGroupLatestMsgTime(a.id);
         const timeB = getGroupLatestMsgTime(b.id);
         if (timeA !== timeB) {
@@ -378,15 +548,20 @@ window.renderChatSidebar = function() {
             }
             
             const groupStyle = hasChatted ? '' : 'opacity: 0.55; filter: grayscale(35%); transition: all 0.2s ease;';
+            const displayName = nicknames[g.id] || g.name;
+            const isPinned = pinnedList.includes(g.id);
             
             html += `
-                <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="window.openChat('${g.id}')" style="${groupStyle}">
+                <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="window.openChat('${g.id}')" oncontextmenu="window.onChatUserContextMenu(event, '${g.id}', 'group'); return false;" style="${groupStyle}">
                     <div class="chat-avatar" style="background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center;">
                         ${avatarHtml}
                     </div>
                     <div class="chat-user-info">
                         <div class="chat-user-name-row">
-                            <span class="chat-user-name"><i class="fas fa-hashtag" style="font-size: 0.75rem; color: var(--primary); margin-right: 4px;"></i>${g.name}</span>
+                            <span class="chat-user-name">
+                                <i class="fas fa-hashtag" style="font-size: 0.75rem; color: var(--primary); margin-right: 4px;"></i>${displayName}
+                                ${isPinned ? `<i class="fas fa-thumbtack" style="font-size: 0.7rem; color: var(--text-muted); margin-left: 6px; transform: rotate(45deg);" title="Fixado"></i>` : ''}
+                            </span>
                             ${unread > 0 ? `<span class="chat-user-badge">${unread}</span>` : ''}
                         </div>
                         <div class="chat-user-role" style="font-weight: ${unread > 0 ? '600' : 'normal'}; color: ${unread > 0 ? 'var(--text-main)' : 'var(--text-muted)'};">${previewText}</div>
@@ -417,12 +592,17 @@ window.renderChatSidebar = function() {
     };
     
     // Filtra usuários pelo termo de busca e exclui o próprio usuário logado
-    // Ordena pela data da conversa mais recente e depois alfabeticamente
+    // Ordena pela data da conversa mais recente, se for fixado, e depois alfabeticamente
     const filteredUsers = allUsers.filter(u => {
         if (u.username.toLowerCase() === loggedInUser.toLowerCase()) return false;
         return u.username.toLowerCase().includes(searchTerm) || 
                (u.fullname || '').toLowerCase().includes(searchTerm);
     }).sort((a, b) => {
+        const isPinnedA = pinnedList.includes(a.username);
+        const isPinnedB = pinnedList.includes(b.username);
+        if (isPinnedA && !isPinnedB) return -1;
+        if (!isPinnedA && isPinnedB) return 1;
+        
         const timeA = getLatestMsgTime(a.username);
         const timeB = getLatestMsgTime(b.username);
         if (timeA !== timeB) {
@@ -467,21 +647,29 @@ window.renderChatSidebar = function() {
                 avatarHtml = `<div style="width:100%; height:100%; background-color:${color}; display:flex; align-items:center; justify-content:center;">${emoji}</div>`;
             }
             
-            // Indicador de "Online" Mockado (Admin e usuários com atividade recente)
-            const isOnline = u.username.toLowerCase() === 'admin' || u.username.toLowerCase() === 'caio' || u.firstLogin === false;
+            // Indicador de "Online" real-time
+            const status = window.onlineUsersStatus ? window.onlineUsersStatus[u.username] : 'offline';
+            let statusClass = 'offline';
+            if (status === 'online') statusClass = 'online';
+            else if (status === 'idle') statusClass = 'idle';
             
             // Caso nunca tenha conversado com a pessoa ela fica levemente mais acinzedada e translúcida
             const contactStyle = hasChatted ? '' : 'opacity: 0.55; filter: grayscale(35%); transition: all 0.2s ease;';
+            const displayName = nicknames[u.username] || u.fullname || u.username;
+            const isPinned = pinnedList.includes(u.username);
             
             html += `
-                <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="window.openChat('${u.username}')" style="${contactStyle}">
+                <div class="chat-user-item ${isActive ? 'active' : ''}" onclick="window.openChat('${u.username}')" oncontextmenu="window.onChatUserContextMenu(event, '${u.username}', 'dm'); return false;" style="${contactStyle}">
                     <div class="chat-avatar">
                         ${avatarHtml}
-                        <div class="chat-avatar-status ${isOnline ? 'online' : ''}"></div>
+                        <div class="chat-avatar-status ${statusClass}"></div>
                     </div>
                     <div class="chat-user-info">
                         <div class="chat-user-name-row">
-                            <span class="chat-user-name">${u.fullname || u.username}</span>
+                            <span class="chat-user-name">
+                                ${displayName}
+                                ${isPinned ? `<i class="fas fa-thumbtack" style="font-size: 0.7rem; color: var(--text-muted); margin-left: 6px; transform: rotate(45deg);" title="Fixado"></i>` : ''}
+                            </span>
                             ${unread > 0 ? `<span class="chat-user-badge">${unread}</span>` : ''}
                         </div>
                         <div class="chat-user-role" style="font-weight: ${unread > 0 ? '600' : 'normal'}; color: ${unread > 0 ? 'var(--text-main)' : 'var(--text-muted)'};">${DmPreview}</div>
@@ -525,15 +713,19 @@ window.renderChatWindow = function() {
         currentGroup = (window.chatGroupsData || []).find(g => g.id === window.activeChatId);
     }
     
+    const nicknamesKey = loggedInUser + '_chat_nicknames';
+    let nicknames = {};
+    try { nicknames = JSON.parse(localStorage.getItem(nicknamesKey)) || {}; } catch(err) {}
+
     // Obter dados do chat atual
-    let title = 'Chat Geral';
+    let title = nicknames['global'] || 'Chat Geral';
     let statusText = 'Canal público de comunicação';
     let headerAvatar = `<i class="fas fa-users"></i>`;
     let headerAvatarColor = 'var(--primary)';
     
     if (window.activeChatId !== 'global') {
         if (isGroup) {
-            title = currentGroup ? currentGroup.name : 'Grupo';
+            title = nicknames[window.activeChatId] || (currentGroup ? currentGroup.name : 'Grupo');
             statusText = `Grupo • ${currentGroup ? currentGroup.members.length : 0} membros`;
             if (currentGroup && currentGroup.photo) {
                 headerAvatar = `<img src="${currentGroup.photo}" alt="Group Avatar" style="width:100%; height:100%; object-fit:cover;" />`;
@@ -544,10 +736,23 @@ window.renderChatWindow = function() {
             }
         } else {
             const u = window.getAllUsers().find(x => x.username === window.activeChatId);
-            title = u ? (u.fullname || u.username) : window.activeChatId;
+            const baseTitle = u ? (u.fullname || u.username) : window.activeChatId;
+            title = nicknames[window.activeChatId] || baseTitle;
             const role = u ? (u.role || 'Usuário') : 'Externo';
             const sector = u ? (u.sector || 'Geral') : '';
-            statusText = `${role.toUpperCase()} ${sector ? '- ' + sector.toUpperCase() : ''}`;
+            
+            const presence = window.onlineUsersStatus ? window.onlineUsersStatus[window.activeChatId] : 'offline';
+            let presenceText = 'Offline';
+            let presenceColor = 'var(--text-muted)';
+            if (presence === 'online') {
+                presenceText = 'Online';
+                presenceColor = '#10b981';
+            } else if (presence === 'idle') {
+                presenceText = 'Ausente';
+                presenceColor = '#eab308';
+            }
+            
+            statusText = `<span style="color:${presenceColor}; font-weight:600;">● ${presenceText}</span> • ${role.toUpperCase()} ${sector ? '- ' + sector.toUpperCase() : ''}`;
             
             if (u && u.avatarPhoto) {
                 headerAvatar = `<img src="${u.avatarPhoto}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />`;
@@ -832,6 +1037,9 @@ window.sendChatMessage = function() {
             deletedFor: []
         };
         window.chatMessagesData.push(newMsgObj);
+        if (typeof window.playSentSound === 'function') {
+            window.playSentSound();
+        }
     }
     
     // Limpa o input
@@ -1471,4 +1679,152 @@ window.leaveGroup = function(groupId) {
     window.activeChatId = 'global';
     window.renderChatSidebar();
     window.renderChatWindow();
+};
+
+window.onChatUserContextMenu = function(e, targetId, type) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const menu = document.getElementById('ctxMenuChat');
+    if (!menu) return;
+    
+    const loggedInUser = window.loggedUser?.username || '';
+    if (!loggedInUser) return;
+    
+    const pinnedKey = loggedInUser + '_chat_pinned';
+    let pinnedList = [];
+    try { pinnedList = JSON.parse(localStorage.getItem(pinnedKey)) || []; } catch(err) {}
+    const isPinned = pinnedList.includes(targetId);
+    
+    let html = '';
+    
+    if (targetId !== 'global') {
+        html += `
+            <div class="ctx-item" onclick="window.setChatNickname('${targetId}')">
+                <i class="fas fa-edit"></i> Apelidar
+            </div>
+        `;
+    }
+    
+    html += `
+        <div class="ctx-item" onclick="window.togglePinChat('${targetId}')">
+            <i class="fas fa-thumbtack"></i> ${isPinned ? 'Desafixar' : 'Fixar no Topo'}
+        </div>
+    `;
+    
+    html += `
+        <div class="ctx-item" style="color: red;" onclick="window.clearChatMessagesForMe('${targetId}', '${type}')">
+            <i class="fas fa-trash-alt"></i> Excluir Mensagens
+        </div>
+    `;
+    
+    menu.innerHTML = html;
+    menu.style.display = 'block';
+    
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    const menuWidth = 200;
+    const menuHeight = 120;
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    
+    let left = x;
+    let top = y;
+    
+    if (x + menuWidth > windowWidth) {
+        left = windowWidth - menuWidth - 10;
+    }
+    if (y + menuHeight > windowHeight) {
+        top = windowHeight - menuHeight - 10;
+    }
+    
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+};
+
+window.setChatNickname = function(targetId) {
+    const loggedInUser = window.loggedUser?.username || '';
+    if (!loggedInUser) return;
+    
+    const nicknamesKey = loggedInUser + '_chat_nicknames';
+    let nicknames = {};
+    try { nicknames = JSON.parse(localStorage.getItem(nicknamesKey)) || {}; } catch(err) {}
+    
+    const currentNickname = nicknames[targetId] || '';
+    const newNickname = prompt("Digite o apelido para esta conversa (deixe em branco para remover):", currentNickname);
+    
+    if (newNickname === null) return;
+    
+    if (newNickname.trim() === '') {
+        delete nicknames[targetId];
+    } else {
+        nicknames[targetId] = newNickname.trim();
+    }
+    
+    localStorage.setItem(nicknamesKey, JSON.stringify(nicknames));
+    
+    window.renderChatSidebar();
+    window.renderChatWindow();
+};
+
+window.togglePinChat = function(targetId) {
+    const loggedInUser = window.loggedUser?.username || '';
+    if (!loggedInUser) return;
+    
+    const pinnedKey = loggedInUser + '_chat_pinned';
+    let pinnedList = [];
+    try { pinnedList = JSON.parse(localStorage.getItem(pinnedKey)) || []; } catch(err) {}
+    
+    if (pinnedList.includes(targetId)) {
+        pinnedList = pinnedList.filter(id => id !== targetId);
+    } else {
+        pinnedList.push(targetId);
+    }
+    
+    localStorage.setItem(pinnedKey, JSON.stringify(pinnedList));
+    window.renderChatSidebar();
+};
+
+window.clearChatMessagesForMe = function(targetId, type) {
+    if (!confirm("Tem certeza que deseja apagar o histórico de mensagens desta conversa para você?")) return;
+    
+    const loggedInUser = window.loggedUser?.username || '';
+    if (!loggedInUser) return;
+    
+    let changed = false;
+    const messages = window.chatMessagesData || [];
+    
+    messages.forEach(m => {
+        let match = false;
+        if (targetId === 'global' && m.recipient === 'global') {
+            match = true;
+        } else if (type === 'group' && m.recipient === targetId) {
+            match = true;
+        } else if (type === 'dm' && (
+            (m.sender === loggedInUser && m.recipient === targetId) ||
+            (m.sender === targetId && m.recipient === loggedInUser)
+        )) {
+            match = true;
+        }
+        
+        if (match) {
+            if (!m.deletedFor) {
+                m.deletedFor = [];
+            }
+            if (!m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
+                m.deletedFor.push(loggedInUser);
+                changed = true;
+            }
+        }
+    });
+    
+    if (changed) {
+        if (typeof window.saveAll === 'function') {
+            window.saveAll(true);
+        }
+        window.calculateUnreadCounts();
+        window.renderChatSidebar();
+        window.renderChatWindow();
+    }
 };

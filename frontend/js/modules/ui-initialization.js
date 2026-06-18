@@ -361,7 +361,7 @@ window.logout = function() {
  * Fecha todos os menus de contexto
  */
 window.closeContextMenu = function() {
-    const menuIds = ['ctxMenu', 'ctxMenuMP', 'ctxMenuTruck', 'ctxMenuCarr', 'ctxMenuCad'];
+    const menuIds = ['ctxMenu', 'ctxMenuMP', 'ctxMenuTruck', 'ctxMenuCarr', 'ctxMenuCad', 'ctxMenuChat'];
     menuIds.forEach(id => {
         const el = domCache.get(id);
         if (el) el.style.display = 'none';
