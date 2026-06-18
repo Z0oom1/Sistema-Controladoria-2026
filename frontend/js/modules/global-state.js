@@ -381,7 +381,7 @@ window.resolveUserPermissions = function() {
     const defCanMoveTruck = isRec;
     const defCanReleaseTruck = isRec;
     const defCanManageCatalogs = isRec;
-    const defCanViewNotifications = isRec;
+    const defCanViewNotifications = isRec || isEnc;
     const defCanViewReports = isEnc;
 
     const defShowMenuPatio = true;

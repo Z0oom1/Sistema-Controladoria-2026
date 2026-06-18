@@ -2310,24 +2310,68 @@ window.saveCurrentMap = function() {
 /**
  * Solicita edição de um mapa já lançado
  */
+window.openRequestEditModal = function(mapId) {
+    const m = window.mapData.find(x => x.id === mapId);
+    if (!m) return alert('Mapa cego não encontrado.');
+    
+    document.getElementById('reqEditMapId').value = mapId;
+    document.getElementById('reqEditForn').textContent = m.rows[0]?.forn || 'Diversos';
+    document.getElementById('reqEditPlaca').textContent = m.placa || 'Sem placa';
+    document.getElementById('reqEditDate').textContent = m.date || 'Sem data';
+    document.getElementById('reqEditJustification').value = '';
+    
+    if (window.isRecebimento) {
+        document.getElementById('radEditNf').checked = true;
+    } else {
+        document.getElementById('radEditContada').checked = true;
+    }
+    
+    document.getElementById('modalRequestEdit').style.display = 'flex';
+    if (typeof window.closeContextMenu === 'function') window.closeContextMenu();
+};
+
+window.submitEditRequest = function() {
+    const mapId = document.getElementById('reqEditMapId').value;
+    const part = document.querySelector('input[name="reqEditPart"]:checked')?.value || 'contada';
+    const justification = document.getElementById('reqEditJustification').value.trim();
+    
+    if (!justification) {
+        return alert('Por favor, insira uma justificativa para a alteração.');
+    }
+    
+    const user = (typeof window.loggedUser !== 'undefined') ? window.loggedUser.username : 'Usuário';
+    const hasPending = window.requests.some(r => r.mapId === mapId && r.status === 'PENDENTE' && r.requester === user);
+    if (hasPending) {
+        return alert('Você já possui uma solicitação de edição pendente para este mapa.');
+    }
+    
+    const reqId = 'REQ_EDIT_' + Date.now();
+    const timeStr = window.getBrazilTime ? window.getBrazilTime() : new Date().toISOString();
+    
+    window.requests.push({
+        id: reqId,
+        type: 'edit',
+        status: 'PENDENTE',
+        requester: user,
+        user: user,
+        mapId: mapId,
+        editPart: part, // 'contada' ou 'nf'
+        justification: justification,
+        timestamp: timeStr
+    });
+    
+    window.saveAll();
+    if (typeof window.updateBadge === 'function') window.updateBadge();
+    if (typeof window.renderRequests === 'function') window.renderRequests();
+    
+    alert('Solicitação de edição enviada ao encarregado e administrador.');
+    document.getElementById('modalRequestEdit').style.display = 'none';
+};
+
 window.triggerRequest = function(type) {
     if (type === 'edit') {
-        const m = window.mapData.find(x => x.id === window.currentMapId);
-        if (!m) return alert('Nenhum mapa selecionado.');
-        const reqId = 'REQ_EDIT_' + Date.now();
-        const user = (typeof loggedUser !== 'undefined') ? loggedUser.username : 'Conferente';
-        window.requests.push({
-            id: reqId,
-            type: 'edit',
-            status: 'PENDENTE',
-            requester: user,
-            user: user,
-            mapId: window.currentMapId,
-            timestamp: window.getBrazilTime()
-        });
-        window.saveAll();
-        window.updateBadge();
-        alert('Solicitação de edição enviada ao encarregado.');
+        if (!window.currentMapId) return alert('Nenhum mapa selecionado.');
+        window.openRequestEditModal(window.currentMapId);
     }
 };
 

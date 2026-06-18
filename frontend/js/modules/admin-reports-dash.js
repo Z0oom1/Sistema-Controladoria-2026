@@ -1326,7 +1326,7 @@ window.openEditProduct = function(id) {
 };
 
 window.renderRequests = function() {
-    if (!(window.isRecebimento || window.isAdmin)) return;
+    if (!(window.isRecebimento || window.isAdmin || window.isEncarregado)) return;
     const list = document.getElementById('reqList');
     const historyList = document.getElementById('historyList');
     const badge = document.getElementById('badgeNotif');
@@ -1342,7 +1342,10 @@ window.renderRequests = function() {
         list.innerHTML = pending.map(req => {
             let detailsHtml = '';
             if (req.type === 'edit') {
-                detailsHtml = 'Solicitação de liberação de edição para Mapa Cego bloqueado.';
+                const mapObj = window.mapData ? window.mapData.find(x => x.id === req.mapId) : null;
+                const placaInfo = mapObj ? ` (Placa: ${mapObj.placa})` : '';
+                const partLabel = req.editPart === 'nf' ? 'Quantidade da NF' : 'Quantidade Contada';
+                detailsHtml = `Solicitação de liberação de edição para Mapa Cego${placaInfo}.<br>Parte a alterar: <strong>${partLabel}</strong>.<br>Justificativa: <em>"${req.justification || 'Sem justificativa'}"</em>`;
             } else if (req.data) {
                 const parts = [];
                 // Suporte aos formatos antigo e novo de dados
@@ -1365,17 +1368,17 @@ window.renderRequests = function() {
             
             return `
                 <div class="notification-item" style="border-left: 4px solid #f59e0b; margin-bottom:12px; padding:16px; background:var(--bg-card); border-radius:12px; box-shadow:var(--shadow-md); transition:transform 0.2s ease; display:flex; flex-direction:column; gap:8px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <b style="font-size:0.85rem; color:var(--primary); text-transform:uppercase;"><i class="fas fa-bell"></i> ${(req.type || '').replace('_', ' ')}</b>
-                        <small style="color:#888; font-weight:500;"><i class="far fa-clock"></i> ${req.timestamp ? req.timestamp.slice(11, 16) + ' ' + req.timestamp.slice(8, 10) + '/' + req.timestamp.slice(5, 7) : '--:--'}</small>
-                    </div>
-                    <div style="font-size:0.9rem; color:var(--text-main); margin-top:2px;">
-                        Solicitado por: <b>${req.requester || req.user || '---'}</b>
-                    </div>
-                    <p style="margin:0; font-size:0.85rem; color:var(--text-muted); line-height:1.4;">${detailsHtml}</p>
-                    <button class="btn btn-save btn-small" style="width:100%; font-weight:700; margin-top:5px; border-radius:8px;" onclick="window.openUnifiedApproval('${req.id}')">
-                        <i class="fas fa-clipboard-check"></i> Analisar e Aprovar
-                    </button>
+                     <div style="display:flex; justify-content:space-between; align-items:center;">
+                         <b style="font-size:0.85rem; color:var(--primary); text-transform:uppercase;"><i class="fas fa-bell"></i> ${(req.type || '').replace('_', ' ')}</b>
+                         <small style="color:#888; font-weight:500;"><i class="far fa-clock"></i> ${req.timestamp ? req.timestamp.slice(11, 16) + ' ' + req.timestamp.slice(8, 10) + '/' + req.timestamp.slice(5, 7) : '--:--'}</small>
+                     </div>
+                     <div style="font-size:0.9rem; color:var(--text-main); margin-top:2px;">
+                         Solicitado por: <b>${req.requester || req.user || '---'}</b>
+                     </div>
+                     <p style="margin:0; font-size:0.85rem; color:var(--text-muted); line-height:1.4;">${detailsHtml}</p>
+                     <button class="btn btn-save btn-small" style="width:100%; font-weight:700; margin-top:5px; border-radius:8px;" onclick="window.openUnifiedApproval('${req.id}')">
+                         <i class="fas fa-clipboard-check"></i> Analisar e Aprovar
+                     </button>
                 </div>
             `;
         }).join('');
@@ -1397,7 +1400,8 @@ window.renderRequests = function() {
                 
                 let detailsText = '';
                 if (req.type === 'edit') {
-                    detailsText = `Edição de Mapa Cego.`;
+                    const partLabel = req.editPart === 'nf' ? 'Qtd NF' : 'Qtd Contada';
+                    detailsText = `Edição de Mapa Cego (${partLabel})`;
                 } else if (req.data) {
                     const parts = [];
                     const isFornNew = req.data.fornecedor?.isNew || (req.data.supplier && !req.data.supplier.id);
@@ -1433,8 +1437,8 @@ window.renderRequests = function() {
 };
 
 window.openUnifiedApproval = function(id) {
-    if (!(window.isRecebimento || window.isAdmin)) {
-        alert("Acesso negado: Apenas o Recebimento e Administradores podem analisar ou aprovar requisições.");
+    if (!(window.isRecebimento || window.isAdmin || window.isEncarregado)) {
+        alert("Acesso negado: Apenas Encarregados, Recebimento e Administradores podem analisar ou aprovar requisições.");
         return;
     }
     const req = window.requests.find(r => r.id === id);
@@ -1443,7 +1447,8 @@ window.openUnifiedApproval = function(id) {
     if (req.type === 'edit') {
         const m = window.mapData.find(x => x.id === req.mapId);
         const mapDesc = m ? `Placa: ${m.placa || 'Sem placa'} - Setor: ${m.setor || 'Sem setor'}` : `ID: ${req.mapId}`;
-        const decision = confirm(`Solicitação de EDIÇÃO de Mapa Cego por: ${req.requester || 'Conferente'}\nMapa: ${mapDesc}\n\nDeseja APROVAR esta solicitação?\n\n[OK] para APROVAR e liberar edição para ${req.requester}\n[Cancelar] para REJEITAR ou cancelar.`);
+        const partLabel = req.editPart === 'nf' ? 'Quantidade da NF' : 'Quantidade Contada';
+        const decision = confirm(`Solicitação de EDIÇÃO de Mapa Cego\n\nSolicitante: ${req.requester || 'Usuário'}\nParte a alterar: ${partLabel}\nMapa: ${mapDesc}\nJustificativa: "${req.justification || 'Sem justificativa'}"\n\nDeseja APROVAR esta solicitação?\n\n[OK] para APROVAR e liberar edição\n[Cancelar] para REJEITAR ou fechar.`);
         if (decision) {
             window.resolveRequest(id, 'approved');
             alert(`Solicitação de edição APROVADA para o usuário ${req.requester}!`);

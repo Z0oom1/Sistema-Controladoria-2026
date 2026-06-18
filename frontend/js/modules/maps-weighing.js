@@ -41,8 +41,7 @@ window.isMapEditableForUser = function(m) {
     if (!m) return false;
     if (!m.launched) return true;
     if (window.isAdmin) return true;
-    if (window.isRecebimento) return true;
-    if (m.authorizedEditor === window.loggedUser.username) return true;
+    if (m.authorizedEditor && window.loggedUser && m.authorizedEditor === window.loggedUser.username) return true;
     return false;
 };
 
@@ -152,8 +151,16 @@ window.openMapContextMenu = function(x, y, id) {
     window.contextMapId = id;
     const m = document.getElementById('ctxMenu');
     if (!m) return;
+    
+    const map = window.mapData.find(x => x.id === id);
+    let requestEditHtml = '';
+    if (map && map.launched && !window.isAdmin) {
+        requestEditHtml = `<div class="ctx-item" onclick="window.openRequestEditModal('${id}')"><i class="fas fa-edit"></i> Solicitar Edição</div>`;
+    }
+
     m.innerHTML = `
         <div class="ctx-item" onclick="window.loadMap('${id}')"><i class="fas fa-eye"></i> Visualizar Mapa</div>
+        ${requestEditHtml}
         <div class="ctx-item" style="color:red" onclick="window.deleteMapCego('${id}')"><i class="fas fa-trash"></i> Excluir Mapa</div>
     `;
     let posX = x;
@@ -215,10 +222,11 @@ window.loadMap = function(id) {
     document.getElementById('mapSetor').value = m.setor;
     
     const editable = window.isMapEditableForUser(m);
+    const headerEditable = editable && (!m.launched || window.isAdmin);
     
-    document.getElementById('mapSetor').disabled = !editable;
-    document.getElementById('mapPlaca').readOnly = !editable;
-    document.getElementById('mapDate').readOnly = !editable;
+    document.getElementById('mapSetor').disabled = !headerEditable;
+    document.getElementById('mapPlaca').readOnly = !headerEditable;
+    document.getElementById('mapDate').readOnly = !headerEditable;
     
     const banner = document.getElementById('divBanner');
     if (m.divergence) { 
@@ -245,8 +253,8 @@ window.loadMap = function(id) {
             st.textContent = m.changeCount ? `LANÇADO (Bloqueado) - Alterado ${m.changeCount}x` : 'LANÇADO (Bloqueado)'; 
             st.style.color = 'green'; 
             if (btnLaunch) btnLaunch.style.display = 'none'; 
-            if (btnRequestEdit) btnRequestEdit.style.display = (window.isConferente && !window.isAdmin && !window.isRecebimento) ? 'inline-block' : 'none'; 
-            if (btnSave) btnSave.style.display = (window.isAdmin || window.isRecebimento) ? 'inline-block' : 'none';
+            if (btnRequestEdit) btnRequestEdit.style.display = (!window.isAdmin) ? 'inline-block' : 'none'; 
+            if (btnSave) btnSave.style.display = window.isAdmin ? 'inline-block' : 'none';
         }
     } else { 
         st.textContent = 'Rascunho'; 
@@ -306,7 +314,7 @@ window.renderRows = function(m) {
 
         const createCell = (f, role) => {
             let ro = !editable;
-            if (editable && !m.launched) {
+            if (editable && !window.isAdmin) {
                 if (role === 'conf' && !window.isConferente) ro = true;
                 if (role === 'receb' && !window.isRecebimento) ro = true;
             }

@@ -1066,6 +1066,54 @@
             </div>
         </div>
     </div>
+
+    <div id="modalRequestEdit" class="modal-overlay" style="z-index: 9100; display: none;">
+        <div class="modal-box" style="width: 500px;">
+            <div class="modal-header-styled">
+                <h3><i class="fas fa-edit"></i> Solicitar Edição de Mapa Lançado</h3>
+                <button class="btn btn-edit btn-small" onclick="document.getElementById('modalRequestEdit').style.display='none'" style="border:none; padding:5px 10px;"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <input type="hidden" id="reqEditMapId">
+            
+            <div style="background: rgba(0, 0, 0, 0.02); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                <div style="margin-bottom: 8px;"><strong>Fornecedor:</strong> <span id="reqEditForn">--</span></div>
+                <div style="margin-bottom: 8px;"><strong>Placa:</strong> <span id="reqEditPlaca">--</span></div>
+                <div><strong>Data:</strong> <span id="reqEditDate">--</span></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 8px; display: block;">Selecione a parte que deseja alterar:</label>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card);">
+                        <input type="radio" name="reqEditPart" value="contada" id="radEditContada" checked>
+                        <div>
+                            <strong>Quantidade Contada</strong>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Alterar contagem de descarga física (Almoxarifado / Conferentes).</div>
+                        </div>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card);">
+                        <input type="radio" name="reqEditPart" value="nf" id="radEditNf">
+                        <div>
+                            <strong>Quantidade da NF</strong>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Alterar a quantidade de faturamento da nota fiscal (Recebimento).</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 6px; display: block;">Justificativa da Alteração:</label>
+                <textarea id="reqEditJustification" class="form-input-styled" style="width: 100%; height: 80px; resize: none; padding: 8px; font-family: inherit; font-size: 0.9rem;" placeholder="Ex: Divergência na contagem física do palete 3, necessário corrigir quantidade real de 10 para 12."></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                <button class="btn btn-edit" onclick="document.getElementById('modalRequestEdit').style.display='none'">Cancelar</button>
+                <button class="btn btn-save" onclick="window.submitEditRequest()">Solicitar Liberação</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalReportDetail" class="modal-overlay" style="z-index: 9500;">
         <div class="modal-box" style="width: 600px; max-width: 95%;">
             <div class="modal-header-styled">
