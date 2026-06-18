@@ -299,7 +299,7 @@ window.navTo = function(view, el) {
 
     // Remover classe active de todas as views e menu items
     document.querySelectorAll('.view-section.active').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.menu-item.active').forEach(m => m.classList.remove('active'));
+    document.querySelectorAll('.menu-item.active, .user-footer.active').forEach(m => m.classList.remove('active'));
 
     // Adicionar classe active à view selecionada
     const viewElement = domCache.get('view-' + view);
@@ -310,7 +310,12 @@ window.navTo = function(view, el) {
         el.classList.add('active');
     } else {
         const link = document.querySelector(`.menu-item[onclick*="'${view}'"]`);
-        if (link) link.classList.add('active');
+        if (link) {
+            link.classList.add('active');
+        } else if (view === 'perfil') {
+            const userFooter = document.querySelector('.user-footer');
+            if (userFooter) userFooter.classList.add('active');
+        }
     }
 
     // Fechar menu mobile
