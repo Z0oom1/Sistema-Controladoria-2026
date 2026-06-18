@@ -33,6 +33,15 @@ window.openEasterEggMeme = function() {
             imgEl.src = '/Imgs/dog.jpeg';
         } else if (type === 'converceiro') {
             imgEl.src = '/Imgs/converceiro.jpeg';
+        } else if (type.startsWith('custom_')) {
+            const codeName = type.substring(7); // Remove o prefixo "custom_"
+            const customEggs = window.customEasterEggs || [];
+            const matchedEgg = customEggs.find(x => x.code.toLowerCase() === codeName);
+            if (matchedEgg && matchedEgg.image) {
+                imgEl.src = matchedEgg.image;
+            } else {
+                imgEl.src = '/Imgs/meme.jpeg';
+            }
         } else {
             imgEl.src = '/Imgs/meme.jpeg';
         }
@@ -40,6 +49,148 @@ window.openEasterEggMeme = function() {
     
     const memeModal = document.getElementById('modalEasterEggMeme');
     if (memeModal) memeModal.style.display = 'flex';
+};
+
+// Funções do Admin para gerenciar Códigos Especiais
+window.selectedEggImageBase64 = null;
+
+window.handleNewEggImageSelect = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) { // Limite de 2MB para base64
+        alert('A imagem é muito grande! Escolha uma imagem de até 2MB.');
+        input.value = '';
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        window.selectedEggImageBase64 = e.target.result;
+        
+        // Exibe preview
+        const previewContainer = document.getElementById('newEggImagePreviewContainer');
+        const previewImg = document.getElementById('newEggImagePreview');
+        const previewName = document.getElementById('newEggImageName');
+        
+        if (previewContainer && previewImg && previewName) {
+            previewImg.src = e.target.result;
+            previewName.innerText = file.name;
+            previewContainer.style.display = 'flex';
+        }
+    };
+    reader.readAsDataURL(file);
+};
+
+window.clearNewEggImageSelection = function() {
+    window.selectedEggImageBase64 = null;
+    const input = document.getElementById('newEggImageInput');
+    if (input) input.value = '';
+    
+    const previewContainer = document.getElementById('newEggImagePreviewContainer');
+    if (previewContainer) previewContainer.style.display = 'none';
+};
+
+window.saveNewEasterEgg = function() {
+    const codeInput = document.getElementById('newEggCode');
+    if (!codeInput) return;
+    
+    const code = codeInput.value.trim().toLowerCase();
+    
+    // Validações
+    if (!code) {
+        alert('Por favor, digite o nome do código.');
+        return;
+    }
+    
+    if (!/^[a-z0-9_-]+$/.test(code)) {
+        alert('O código deve conter apenas letras, números, hífens ou underlines, sem espaços.');
+        return;
+    }
+    
+    const nativeCodes = ['gueguel', 'bulldog', 'converseiro'];
+    if (nativeCodes.includes(code)) {
+        alert('Este código já é nativo do sistema e não pode ser cadastrado novamente.');
+        return;
+    }
+    
+    const customList = window.customEasterEggs || [];
+    if (customList.some(x => x.code.toLowerCase() === code)) {
+        alert('Este código já existe! Escolha outro nome.');
+        return;
+    }
+    
+    if (!window.selectedEggImageBase64) {
+        alert('Por favor, selecione uma imagem para associar a este código.');
+        return;
+    }
+    
+    // Adiciona à lista
+    customList.push({
+        code: code,
+        image: window.selectedEggImageBase64
+    });
+    
+    window.customEasterEggs = customList;
+    
+    // Salvar e sincronizar
+    if (typeof window.saveAll === 'function') {
+        window.saveAll(true);
+    }
+    
+    alert(`Código --${code}-- cadastrado com sucesso!`);
+    
+    // Limpar campos
+    codeInput.value = '';
+    window.clearNewEggImageSelection();
+    
+    // Re-renderizar lista
+    window.renderCustomEasterEggs();
+};
+
+window.deleteEasterEgg = function(code) {
+    if (!confirm(`Tem certeza que deseja excluir o código --${code}--?`)) return;
+    
+    let customList = window.customEasterEggs || [];
+    customList = customList.filter(x => x.code.toLowerCase() !== code.toLowerCase());
+    
+    window.customEasterEggs = customList;
+    
+    // Salvar e sincronizar
+    if (typeof window.saveAll === 'function') {
+        window.saveAll(true);
+    }
+    
+    // Re-renderizar lista
+    window.renderCustomEasterEggs();
+};
+
+window.renderCustomEasterEggs = function() {
+    const listEl = document.getElementById('customEasterEggsList');
+    if (!listEl) return;
+    
+    const customList = window.customEasterEggs || [];
+    
+    if (customList.length === 0) {
+        listEl.innerHTML = '<div style="padding:10px; text-align:center; font-size:0.8rem; color:var(--text-muted); border:1px dashed var(--border-color); border-radius:4px;">Nenhum código personalizado cadastrado.</div>';
+        return;
+    }
+    
+    let html = '';
+    customList.forEach(egg => {
+        html += `
+            <div style="display:flex; align-items:center; gap:10px; padding:8px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px;">
+                <img src="${egg.image}" style="width:36px; height:36px; border-radius:4px; object-fit:cover;" />
+                <div style="display:flex; flex-direction:column; min-width:0; flex:1;">
+                    <span style="font-weight:bold; font-size:0.85rem; font-family:monospace; color:var(--text-main);">--${egg.code}--</span>
+                </div>
+                <button class="message-action-btn delete" onclick="window.deleteEasterEgg('${egg.code}')" title="Excluir Código" style="width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:4px; border:1px solid rgba(0,0,0,0.1); margin:0; background:transparent;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
 };
 
 window.closeEasterEggMeme = function() {
@@ -335,8 +486,19 @@ window.markActiveChatAsRead = function() {
                         '--converseiro--': 'converceiro'
                     };
                     
-                    if (easterEggs[textClean] && !m.deleted) {
-                        const type = easterEggs[textClean];
+                    let targetEggType = null;
+                    if (easterEggs[textClean]) {
+                        targetEggType = easterEggs[textClean];
+                    } else if (textClean.startsWith('--') && textClean.endsWith('--') && textClean.length > 4) {
+                        const codeName = textClean.slice(2, -2).trim().toLowerCase();
+                        const customEggs = window.customEasterEggs || [];
+                        const matchedEgg = customEggs.find(x => x.code.toLowerCase() === codeName);
+                        if (matchedEgg) {
+                            targetEggType = 'custom_' + codeName;
+                        }
+                    }
+                    
+                    if (targetEggType && !m.deleted) {
                         const loggedUser = window.loggedUser?.username || '';
                         const storageKey = `${loggedUser}_processed_presents`;
                         let processed = [];
@@ -348,7 +510,7 @@ window.markActiveChatAsRead = function() {
                             processed.push(m.id);
                             localStorage.setItem(storageKey, JSON.stringify(processed));
                             if (typeof window.showEasterEggPresent === 'function') {
-                                window.showEasterEggPresent(type);
+                                window.showEasterEggPresent(targetEggType);
                             }
                         }
                     }

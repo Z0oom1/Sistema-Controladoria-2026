@@ -1997,6 +1997,11 @@ window.updatePermissionStatus = function() {
             <p><b>Função:</b> ${typeof loggedUser !== 'undefined' ? loggedUser.role : '---'}</p>
         `;
     }
+    
+    // Renderiza a lista de Easter Eggs Customizados
+    if (typeof window.renderCustomEasterEggs === 'function') {
+        window.renderCustomEasterEggs();
+    }
 };
 
 window.createAccountByEncarregado = function() {

@@ -96,6 +96,7 @@ function applyDataToState(data) {
         window.appState.set('groups', data.mapa_cego_groups || []);
         window.appState.set('chatMessages', data.aw_chat_messages || []);
         window.appState.set('chatGroups', data.aw_chat_groups || []);
+        window.appState.set('customEasterEggs', data.aw_custom_easter_eggs || []);
 
         window.appState.set('suppliers', data.aw_suppliers || []);
         window.appState.set('carriers', data.aw_carriers || []);
@@ -113,6 +114,7 @@ function applyDataToState(data) {
         window.groupsData = data.mapa_cego_groups || [];
         window.chatMessagesData = data.aw_chat_messages || [];
         window.chatGroupsData = data.aw_chat_groups || [];
+        window.customEasterEggs = data.aw_custom_easter_eggs || [];
 
         window.suppliersData = data.aw_suppliers || [];
         window.carriersData = data.aw_carriers || [];
@@ -162,7 +164,8 @@ window.restoreFromLocal = function() {
         aw_carriers: JSON.parse(localStorage.getItem('aw_carriers') || '[]'),
         aw_drivers: JSON.parse(localStorage.getItem('aw_drivers') || '[]'),
         aw_plates: JSON.parse(localStorage.getItem('aw_plates') || '[]'),
-        aw_products: JSON.parse(localStorage.getItem('aw_products') || '[]')
+        aw_products: JSON.parse(localStorage.getItem('aw_products') || '[]'),
+        aw_custom_easter_eggs: JSON.parse(localStorage.getItem('aw_custom_easter_eggs') || '[]')
     };
 
     applyDataToState(data);
@@ -186,6 +189,7 @@ window.saveAll = function(immediate = false) {
         window.saveToServer('aw_chat_messages', window.chatMessagesData);
         window.saveToServer('aw_chat_groups', window.chatGroupsData);
         window.saveToServer('mapa_cego_groups', window.groupsData);
+        window.saveToServer('aw_custom_easter_eggs', window.customEasterEggs);
 
         // Sincronizar dados de cadastro
         window.saveToServer('aw_suppliers', window.suppliersData);
@@ -257,6 +261,7 @@ window.saveToLocalOnly = function() {
         localStorage.setItem('aw_drivers', JSON.stringify(window.driversData));
         localStorage.setItem('aw_plates', JSON.stringify(window.platesData));
         localStorage.setItem('aw_products', JSON.stringify(window.productsData));
+        localStorage.setItem('aw_custom_easter_eggs', JSON.stringify(window.customEasterEggs));
     } catch (e) { 
         console.error("Erro ao salvar local:", e); 
     }
@@ -293,6 +298,8 @@ window.refreshCurrentView = function() {
             currentDataString = JSON.stringify([window.chatMessagesData, window.chatGroupsData, window.usersData, window.onlineUsersStatus]);
         } else if (currentView === 'dashboard') {
             currentDataString = JSON.stringify([window.patioData, window.mapData, window.carregamentoData, window.mpData]);
+        } else if (currentView === 'configuracoes') {
+            currentDataString = JSON.stringify([window.customEasterEggs]);
         }
 
         // Se os dados não mudaram, pulamos a re-renderização completa da view ativa
@@ -346,7 +353,8 @@ window.refreshCurrentView = function() {
             'notificacoes': () => typeof window.renderRequests === 'function' && window.renderRequests(),
             'admin': () => typeof window.renderAdminDashboard === 'function' && window.renderAdminDashboard(),
             'chat': () => typeof window.renderChat === 'function' && window.renderChat(),
-            'dashboard': () => typeof window.renderDashboard === 'function' && window.renderDashboard()
+            'dashboard': () => typeof window.renderDashboard === 'function' && window.renderDashboard(),
+            'configuracoes': () => typeof window.updatePermissionStatus === 'function' && window.updatePermissionStatus()
         };
 
         const handler = viewHandlers[currentView];

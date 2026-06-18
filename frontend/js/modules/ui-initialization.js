@@ -114,6 +114,15 @@ window.initRoleBasedUI = function() {
     const tabPerfis = document.getElementById('tabPerfis');
     if (tabPerfis) tabPerfis.style.display = 'none';
 
+    // Mostrar/ocultar card de Easter Eggs nas Configurações
+    const adminEasterEggsCard = document.getElementById('adminEasterEggsCard');
+    if (adminEasterEggsCard) {
+        const loggedUsername = window.loggedUser?.username || '';
+        const loggedRole = window.loggedUser?.role || '';
+        const hasAccess = (loggedRole === 'admin' || loggedUsername.toLowerCase() === 'caio');
+        adminEasterEggsCard.style.display = hasAccess ? 'block' : 'none';
+    }
+
     // Lógica de colunas por Subtipo de utilizador
     if (isConf && typeof userSubType !== 'undefined' && userSubType) {
         const cA = domCache.get('col-ALM');
@@ -346,6 +355,8 @@ window.navTo = function(view, el) {
             currentDataString = JSON.stringify([window.chatMessagesData, window.chatGroupsData, window.usersData, window.onlineUsersStatus]);
         } else if (view === 'dashboard') {
             currentDataString = JSON.stringify([window.patioData, window.mapData, window.carregamentoData, window.mpData]);
+        } else if (view === 'configuracoes') {
+            currentDataString = JSON.stringify([window.customEasterEggs]);
         }
         if (currentDataString) {
             window.lastRenderedData[view] = currentDataString;

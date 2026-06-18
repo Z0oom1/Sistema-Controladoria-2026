@@ -23,6 +23,7 @@ class StateManager {
             groups: [],
             chatMessages: [],
             chatGroups: [],
+            customEasterEggs: [],
 
             // Estados de seleção e contexto
             entryState: {
@@ -240,6 +241,11 @@ Object.defineProperty(window, 'chatMessagesData', {
 Object.defineProperty(window, 'chatGroupsData', {
     get() { return appState.get('chatGroups'); },
     set(v) { appState.set('chatGroups', v); }
+});
+
+Object.defineProperty(window, 'customEasterEggs', {
+    get() { return appState.get('customEasterEggs'); },
+    set(v) { appState.set('customEasterEggs', v); }
 });
 
 Object.defineProperty(window, 'groupsData', {

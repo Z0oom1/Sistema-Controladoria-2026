@@ -736,6 +736,41 @@
                         onclick="window.clearAllData()">RESETAR DADOS</button>
                 </div>
                 
+                <div class="settings-card" id="adminEasterEggsCard" style="display:none; grid-column: 1 / -1; margin-top: 10px;">
+                    <h4><i class="fas fa-gift"></i> Códigos Especiais do Chat (Admin)</h4>
+                    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom: 15px;">
+                        Cadastre códigos de presente que abrem imagens personalizadas ao enviar <code>--codigo--</code> no chat.
+                    </p>
+                    
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                        <!-- Form para cadastrar novo código -->
+                        <div style="display:flex; flex-direction:column; gap:10px; background:var(--bg-input); padding:12px; border-radius:6px; border:1px solid var(--border-color);">
+                            <strong>Cadastrar Novo Código</strong>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <input type="text" id="newEggCode" placeholder="Ex: teste" style="flex:1; padding:8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-card); color:var(--text-main);" />
+                                <button class="btn btn-save" onclick="document.getElementById('newEggImageInput').click()" style="margin:0; padding:8px 12px; font-size:0.8rem; display:flex; align-items:center; gap:5px; height:36px;">
+                                    <i class="fas fa-image"></i> Imagem
+                                </button>
+                                <input type="file" id="newEggImageInput" style="display:none;" accept="image/*" onchange="window.handleNewEggImageSelect(this)" />
+                            </div>
+                            <div id="newEggImagePreviewContainer" style="display:none; align-items:center; gap:10px; background: var(--bg-card); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                                <img id="newEggImagePreview" src="" style="width:40px; height:40px; border-radius:4px; object-fit:cover; border:1px solid var(--border-color);" />
+                                <span style="font-size:0.8rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px;" id="newEggImageName">Sem imagem</span>
+                                <button class="message-action-btn delete" onclick="window.clearNewEggImageSelection()" title="Remover" style="margin-left:auto; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:4px; border:1px solid rgba(0,0,0,0.1); background: transparent;"><i class="fas fa-times"></i></button>
+                            </div>
+                            <button class="btn btn-save" onclick="window.saveNewEasterEgg()" style="width:100%; margin:0; height:36px;">Salvar Novo Código</button>
+                        </div>
+
+                        <!-- Lista de códigos cadastrados -->
+                        <div style="display:flex; flex-direction:column; gap:10px; background:var(--bg-input); padding:12px; border-radius:6px; border:1px solid var(--border-color);">
+                            <strong>Códigos Ativos</strong>
+                            <div id="customEasterEggsList" style="max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+                                <!-- Inserido dinamicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="settings-card" style="grid-column: 1 / -1; margin-top: 10px;">
                     <h4><i class="fas fa-server"></i> Diagnóstico e Latência do Servidor</h4>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; margin-top: 15px;">
