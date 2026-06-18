@@ -72,7 +72,21 @@ function initDb() {
         key TEXT PRIMARY KEY,
         value TEXT,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+    )`, (err) => {
+        if (!err) {
+            db.get("SELECT 1 FROM app_data WHERE key = 'aw_products'", (err, row) => {
+                if (!row) {
+                    console.log("Seeding products on database initialization...");
+                    try {
+                        delete require.cache[require.resolve('./corrigir_importacao.js')];
+                        require('./corrigir_importacao.js');
+                    } catch (e) {
+                        console.error("Erro ao rodar seed de produtos:", e.message);
+                    }
+                }
+            });
+        }
+    });
 }
 
 // --- CACHE EM MEMÓRIA ---
@@ -254,7 +268,7 @@ app.post('/api/restore', (req, res) => {
  * Resetar todos os dados
  */
 app.delete('/api/reset', (req, res) => {
-    db.run('DELETE FROM app_data', [], (err) => {
+    db.run("DELETE FROM app_data WHERE key != 'aw_products'", [], (err) => {
         if (err) {
             console.error('Erro ao resetar:', err);
             return res.status(500).json({ error: err.message });

@@ -36,11 +36,15 @@ const syncDebouncer = new Debouncer(300); // 300ms debounce para sync
 
 // Cache removido - dados sempre frescos para garantir sincronia em tempo real
 
+window.isDataLoadedFromServer = false;
+window.lastSyncedData = {};
+
 /**
  * Carrega todos os dados do servidor.
  * Se falhar, tenta restaurar os dados do LocalStorage.
  */
-window.loadDataFromServer = async function() {
+let activeLoadPromise = null;
+const originalLoadDataFromServer = async function() {
     try {
         let data = {};
         if (window.supabaseClient) {
@@ -63,9 +67,15 @@ window.loadDataFromServer = async function() {
             data = await response.json();
         }
 
+        // Atualizar cache de sincronização local
+        Object.keys(data).forEach(key => {
+            window.lastSyncedData[key] = JSON.stringify(data[key]);
+        });
+
         // Aplicar dados ao estado
         applyDataToState(data);
 
+        window.isDataLoadedFromServer = true;
         window.saveToLocalOnly();
     } catch (error) {
         console.warn("Modo Offline / Erro Sync:", error);
@@ -79,6 +89,16 @@ window.loadDataFromServer = async function() {
     if (typeof window.hideLoading === 'function') {
         window.hideLoading();
     }
+};
+
+window.loadDataFromServer = async function() {
+    if (activeLoadPromise) {
+        return activeLoadPromise;
+    }
+    activeLoadPromise = originalLoadDataFromServer().finally(() => {
+        activeLoadPromise = null;
+    });
+    return activeLoadPromise;
 };
 
 /**
@@ -180,6 +200,11 @@ window.restoreFromLocal = function() {
         aw_custom_easter_eggs: JSON.parse(localStorage.getItem('aw_custom_easter_eggs') || '[]')
     };
 
+    // Se encontramos dados locais válidos, podemos assumir que temos um estado inicial
+    if (localStorage.getItem('aw_caminhoes_v2') || localStorage.getItem('mapas_cegos_v3')) {
+        window.isDataLoadedFromServer = true;
+    }
+
     applyDataToState(data);
 };
 
@@ -229,6 +254,21 @@ window.saveToServer = function(key, data) {
         return;
     }
 
+    // Bloqueia salvamento se o primeiro load ainda não aconteceu
+    if (!window.isDataLoadedFromServer) {
+        console.warn(`[Sync] Salvamento de ${key} ignorado: Dados iniciais não carregados.`);
+        return;
+    }
+
+    const serialized = JSON.stringify(data);
+    if (window.lastSyncedData[key] === serialized) {
+        // Sem modificações, ignora requisição de rede
+        return;
+    }
+
+    // Otimista: assume que o salvamento vai dar certo para evitar requisições redundantes consecutivas
+    window.lastSyncedData[key] = serialized;
+
     if (window.supabaseClient) {
         window.supabaseClient
             .from('app_data')
@@ -236,10 +276,13 @@ window.saveToServer = function(key, data) {
             .then(({ error }) => {
                 if (error) {
                     console.error(`Erro ao salvar ${key} no Supabase:`, error.message);
+                    // Reverter cache se der erro
+                    delete window.lastSyncedData[key];
                 }
             })
             .catch(err => {
                 console.error(`Erro de conexão ao salvar ${key} no Supabase:`, err.message);
+                delete window.lastSyncedData[key];
             });
     } else {
         fetch(`${window.API_URL}/api/sync`, {
@@ -249,6 +292,7 @@ window.saveToServer = function(key, data) {
             signal: AbortSignal.timeout(5000)
         }).catch(err => {
             console.error(`Erro ao salvar ${key} no servidor:`, err.message);
+            delete window.lastSyncedData[key];
         });
     }
 };
@@ -423,7 +467,7 @@ window.clearAllData = function() {
             window.supabaseClient
                 .from('app_data')
                 .delete()
-                .neq('key', '') // Deleta todas as chaves
+                .neq('key', 'aw_products') // Deleta todas as chaves exceto produtos
                 .then(({ error }) => {
                     if (error) {
                         alert('Erro ao tentar resetar o Supabase: ' + error.message);
@@ -433,7 +477,7 @@ window.clearAllData = function() {
                 })
                 .catch(error => {
                     console.error("Erro ao resetar Supabase:", error);
-                    alert('Erro de conexão ao tentar resetar o Supabase.');
+                    alert('Erro de conexão ao tentar resetar the Supabase.');
                 });
         } else {
             fetch(`${window.API_URL}/api/reset`, { 

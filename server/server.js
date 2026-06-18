@@ -59,7 +59,21 @@ function initDb() {
     db.run(`CREATE TABLE IF NOT EXISTS app_data (
         key TEXT PRIMARY KEY,
         value TEXT
-    )`)
+    )`, (err) => {
+        if (!err) {
+            db.get("SELECT 1 FROM app_data WHERE key = 'aw_products'", (err, row) => {
+                if (!row) {
+                    console.log("Seeding products on database initialization...");
+                    try {
+                        delete require.cache[require.resolve('./corrigir_importacao.js')];
+                        require('./corrigir_importacao.js');
+                    } catch (e) {
+                        console.error("Erro ao rodar seed de produtos:", e.message);
+                    }
+                }
+            });
+        }
+    })
 }
 
 // --- CACHE EM MEMÓRIA ---
@@ -212,7 +226,7 @@ app.post('/api/restore', (req, res) => {
 });
 
 app.delete('/api/reset', (req, res) => {
-    db.run('DELETE FROM app_data', [], (err) => {
+    db.run("DELETE FROM app_data WHERE key != 'aw_products'", [], (err) => {
         if (err) return res.status(500).json({ error: err.message })
         dataCache.clear()
         io.emit('atualizar_sistema')
