@@ -909,17 +909,7 @@ window.confirmUnifiedApproval = function() {
         }
     }
 
-    // Capturar assinatura digital do canvas se desenhada
-    const canvas = document.getElementById('signatureCanvas');
-    if (canvas) {
-        const signatureData = canvas.toDataURL();
-        const map = window.mapData.find(m => m.id === truck?.id);
-        if (map) {
-            if (!map.signatures) map.signatures = {};
-            map.signatures[req.requester || 'Conferente'] = signatureData;
-            map.conferenteSignature = signatureData; // Atalho
-        }
-    }
+
 
     req.status = 'APROVADO';
     window.saveAll();
@@ -1475,6 +1465,7 @@ window.openReportDetails = function(indexOrId, typeOverride) {
                 <p><strong>Placa:</strong> <span class="badge-code">${item.placa}</span></p>
                 <p><strong>Setor:</strong> ${item.setor}</p>
                 <p><strong>Status:</strong> ${item.launched ? '<span style="color:green">Lançado</span>' : 'Rascunho'}</p>
+                <p><strong>Tipo de Assinatura:</strong> ${item.manualSignature ? '<span class="badge-code" style="background:rgba(30,58,138,0.1); color:#1e3a8a; font-weight:bold;">Manual (Canvas)</span>' : 'Digital (Texto)'}</p>
                 ${item.divergence ? `<p style="color:red; font-weight:bold;">⚠️ Contém Divergência Ativa</p>` : ''}
             </div>
             <hr style="margin:10px 0; border-color:#eee;">
@@ -1490,12 +1481,28 @@ window.openReportDetails = function(indexOrId, typeOverride) {
         }
         html += `</div>`;
 
-        // Renderiza assinatura digitalizada do conferente se presente
-        if (item.conferenteSignature) {
+        // Renderiza assinaturas do recebimento e do conferente
+        let sigsHtml = '';
+        if (item.signatures?.receb) {
+            sigsHtml += `
+                <div style="flex: 1; text-align: center; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px; background: #fff;">
+                    <span style="display: block; font-size: 0.75rem; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Assinatura Recebimento</span>
+                    ${item.signatures.receb.startsWith('data:image/') ? `<img src="${item.signatures.receb}" style="max-height: 60px; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 4px;" />` : `<b style="font-size: 0.9rem; color: #1e293b;">${item.signatures.receb}</b>`}
+                </div>
+            `;
+        }
+        if (item.signatures?.conf) {
+            sigsHtml += `
+                <div style="flex: 1; text-align: center; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px; background: #fff;">
+                    <span style="display: block; font-size: 0.75rem; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Assinatura Conferência</span>
+                    ${item.signatures.conf.startsWith('data:image/') ? `<img src="${item.signatures.conf}" style="max-height: 60px; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 4px;" />` : `<b style="font-size: 0.9rem; color: #1e293b;">${item.signatures.conf}</b>`}
+                </div>
+            `;
+        }
+        if (sigsHtml) {
             html += `
-                <div style="margin-top: 15px; text-align: center; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px; background: #fff;">
-                    <span style="display: block; font-size: 0.75rem; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Assinatura Digitalizada</span>
-                    <img src="${item.conferenteSignature}" style="max-height: 60px; max-width: 100%; border: 1px solid #e2e8f0; border-radius: 4px;" />
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    ${sigsHtml}
                 </div>
             `;
         }
@@ -1595,13 +1602,47 @@ window.openReportDetails = function(indexOrId, typeOverride) {
         buttons = `<button class="btn btn-save" onclick="window.goToWeightView('${item.date}')"><i class="fas fa-weight"></i> IR PARA PESAGEM</button>`;
     } else if (type === 'patio' || type === 'carregamento') {
         const isPatio = type === 'patio';
+        let customPatioHtml = '';
+        if (isPatio) {
+            const chegadaTime = item.chegada ? new Date(item.chegada) : null;
+            const entradaTime = item.entrada ? new Date(item.entrada) : null;
+            const saidaTime = item.saida ? new Date(item.saida) : null;
+            
+            let filaDuration = '---';
+            let dentroDuration = '---';
+            let totalDuration = '---';
+            
+            const now = new Date(window.getBrazilTime());
+            
+            if (chegadaTime) {
+                const limitFila = entradaTime || saidaTime || now;
+                filaDuration = window.formatDuration(limitFila - chegadaTime);
+                
+                const limitTotal = saidaTime || now;
+                totalDuration = window.formatDuration(limitTotal - chegadaTime);
+            }
+            
+            if (entradaTime) {
+                const limitDentro = saidaTime || now;
+                dentroDuration = window.formatDuration(limitDentro - entradaTime);
+            }
+
+            customPatioHtml = `
+                <div><strong>Entrada:</strong><br> ${entradaTime ? entradaTime.toLocaleString() : '---'}</div>
+                <div><strong>Tempo Fila:</strong><br> ${filaDuration}</div>
+                <div><strong>Tempo Dentro:</strong><br> ${dentroDuration}</div>
+                <div><strong>Tempo Total:</strong><br> ${totalDuration}</div>
+            `;
+        }
+
         html = `
             <div class="form-grid">
                 <div><strong>Placa:</strong> <span class="badge-code">${item.placa || item.carretas}</span></div>
                 <div><strong>Status:</strong> ${item.status}</div>
                 <div class="form-full"><strong>Empresa/Mot:</strong> ${item.empresa || item.motorista}</div>
-                <div><strong>Chegada/Check-in:</strong><br> ${new Date(item.chegada || item.checkin).toLocaleString()}</div>
+                <div><strong>Chegada/Check-in:</strong><br> ${item.chegada || item.checkin ? new Date(item.chegada || item.checkin).toLocaleString() : '---'}</div>
                 <div><strong>Saída/Fim:</strong><br> ${item.saida || item.checkout ? new Date(item.saida || item.checkout).toLocaleString() : '-'}</div>
+                ${customPatioHtml}
             </div>
         `;
         if (isPatio && item.cargas) {

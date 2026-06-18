@@ -8,6 +8,8 @@
 window.renderPatio = function() {
     const filterEl = document.getElementById('patioDateFilter');
     const fd = filterEl ? filterEl.value : window.getBrazilTime().split('T')[0];
+    const todayStr = window.getBrazilTime().split('T')[0];
+    const isToday = (fd === todayStr);
 
     // Limpeza crítica para não duplicar cards nas colunas
     ['ALM', 'GAVA', 'OUT', 'SAIU'].forEach(c => {
@@ -20,13 +22,26 @@ window.renderPatio = function() {
     // Atualiza o Badge de total de caminhões ativos no dia
     const badge = document.getElementById('totalTrucksBadge');
     if (badge) {
-        const dailyActiveCount = window.patioData.filter(x => x.status !== 'SAIU' && (x.chegada || '').startsWith(fd)).length;
+        const dailyActiveCount = window.patioData.filter(x => {
+            if (x.status === 'SAIU') return false;
+            if (isToday) return true;
+            return (x.chegada || '').startsWith(fd);
+        }).length;
         badge.innerText = dailyActiveCount;
     }
 
     // Filtra e ordena os caminhões por índice de ordenação (sortIndex) e fallback por horário de chegada
     const list = window.patioData.filter(c => {
-        const dateMatch = c.status === 'SAIU' ? (c.saida || '').startsWith(fd) : (c.chegada || '').split('T')[0] === fd;
+        let dateMatch = false;
+        if (c.status === 'SAIU') {
+            dateMatch = (c.saida || '').startsWith(fd);
+        } else {
+            if (isToday) {
+                dateMatch = true; // Sempre exibe caminhões ativos hoje
+            } else {
+                dateMatch = (c.chegada || '').split('T')[0] === fd;
+            }
+        }
         if (!dateMatch) return false;
         
         if (typeof window.hasSectorAccess === 'function') {
@@ -161,6 +176,7 @@ window.changeStatus = function(id, st) {
             window.patioData[i].recebimentoNotified = false; 
         }
         if (st === 'ENTROU') { 
+            window.patioData[i].entrada = window.getBrazilTime();
             const m = window.mpData.find(x => x.id === id); 
             if (m) m.entrada = window.getBrazilTime(); 
         }

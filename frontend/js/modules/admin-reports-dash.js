@@ -606,7 +606,7 @@ window.generateAdvancedReport = function() {
     });
 
     let html = '<table class="modern-table"><thead><tr><th style="width:40px;">#</th>';
-    if (t === 'patio') html += '<th>Data</th><th>Empresa</th><th>Placa</th><th>Status</th>';
+    if (t === 'patio') html += '<th>Chegada</th><th>Entrada</th><th>Saída</th><th>Tempo Fila</th><th>Tempo Dentro</th><th>Empresa</th><th>Placa</th><th>Status</th>';
     else if (t === 'mapas') html += '<th>Data</th><th>Placa</th><th>Fornecedor</th><th>Status</th>';
     else if (t === 'materia-prima') html += '<th>Data</th><th>Produto</th><th>Placa</th><th>Líquido</th>';
     else if (t === 'divergencias') html += '<th>Data</th><th>Produto</th><th>Nota Fiscal</th><th>Divergência</th>';
@@ -621,7 +621,31 @@ window.generateAdvancedReport = function() {
             const isSaiu = i.status === 'SAIU';
             const statusBg = isSaiu ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)';
             const statusColor = isSaiu ? '#ef4444' : '#10b981';
-            html += `<td>${new Date(i.chegada).toLocaleString('pt-BR')}</td><td>${i.empresa}</td><td><span class="badge-code">${i.placa}</span></td><td><span style="background:${statusBg}; color:${statusColor}; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem;">${i.status}</span></td>`;
+
+            const chegadaTime = i.chegada ? new Date(i.chegada) : null;
+            const entradaTime = i.entrada ? new Date(i.entrada) : null;
+            const saidaTime = i.saida ? new Date(i.saida) : null;
+            
+            let filaDuration = '---';
+            let dentroDuration = '---';
+            
+            const now = new Date(window.getBrazilTime());
+            
+            if (chegadaTime) {
+                const limitFila = entradaTime || saidaTime || now;
+                filaDuration = window.formatDuration(limitFila - chegadaTime);
+            }
+            
+            if (entradaTime) {
+                const limitDentro = saidaTime || now;
+                dentroDuration = window.formatDuration(limitDentro - entradaTime);
+            }
+
+            const chegadaStr = chegadaTime ? chegadaTime.toLocaleString('pt-BR') : '---';
+            const entradaStr = entradaTime ? entradaTime.toLocaleString('pt-BR') : '---';
+            const saidaStr = saidaTime ? saidaTime.toLocaleString('pt-BR') : '---';
+
+            html += `<td>${chegadaStr}</td><td>${entradaStr}</td><td>${saidaStr}</td><td>${filaDuration}</td><td>${dentroDuration}</td><td>${i.empresa}</td><td><span class="badge-code">${i.placa}</span></td><td><span style="background:${statusBg}; color:${statusColor}; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem;">${i.status}</span></td>`;
         } else if (t === 'mapas') {
             const isLaunched = i.launched;
             const statusBg = isLaunched ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)';

@@ -3200,14 +3200,14 @@ body.fast-mode .mc-item {
 }
 
 /* Área de Assinatura Digital */
-#signatureCanvas {
+#signatureCanvas, #mapSignatureCanvas {
     touch-action: none; /* Desativa gestos padrão em mobile para permitir desenhar no canvas */
     border: 1px dashed var(--border-color);
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
     transition: border-color 0.2s;
 }
 
-#signatureCanvas:hover {
+#signatureCanvas:hover, #mapSignatureCanvas:hover {
     border-color: var(--primary);
 }
 
@@ -3221,7 +3221,7 @@ body.fast-mode .mc-item {
     box-shadow: var(--shadow-md);
 }
 
-body.dark-mode #signatureCanvas {
+body.dark-mode #signatureCanvas, body.dark-mode #mapSignatureCanvas {
     background: #ffffff !important; /* Sempre fundo branco para assinatura */
 }
 

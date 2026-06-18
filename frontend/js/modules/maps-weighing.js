@@ -123,6 +123,11 @@ window.renderMapList = function() {
             altBadge = `<span style="background:rgba(6,182,212,0.12); color:#0891b2; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:4px;" title="Alterado ${m.changeCount} vez(es)"><i class="fas fa-history"></i> Alterado (${m.changeCount}x)</span>`;
         }
 
+        let manualSigBadge = '';
+        if (m.manualSignature) {
+            manualSigBadge = '<span style="background:rgba(30,58,138,0.12); color:#1e3a8a; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:4px;" title="Requer Assinatura Manual"><i class="fas fa-signature"></i> Manual</span>';
+        }
+
         el.innerHTML = `
             <div><b>${m.rows[0]?.forn || 'Diversos'}</b></div>
             <small>${m.placa} • ${m.setor}</small>
@@ -130,6 +135,7 @@ window.renderMapList = function() {
                 ${m.launched ? '<span style="color:#10b981; font-weight:bold; font-size:0.75rem;">Lançado</span>' : '<span style="color:#64748b; font-size:0.75rem;">Rascunho</span>'}
                 ${divBadge}
                 ${altBadge}
+                ${manualSigBadge}
             </div>
         `;
 
@@ -158,9 +164,16 @@ window.openMapContextMenu = function(x, y, id) {
         requestEditHtml = `<div class="ctx-item" onclick="window.openRequestEditModal('${id}')"><i class="fas fa-edit"></i> Solicitar Edição</div>`;
     }
 
+    let adminHtml = '';
+    if (window.isAdmin && map) {
+        const statusText = map.manualSignature ? 'Ativada (Toque/Mouse)' : 'Desativada (Texto)';
+        adminHtml = `<div class="ctx-item" onclick="window.toggleManualSignature('${id}')"><i class="fas fa-signature"></i> Assinatura Manual: ${statusText}</div>`;
+    }
+
     m.innerHTML = `
         <div class="ctx-item" onclick="window.loadMap('${id}')"><i class="fas fa-eye"></i> Visualizar Mapa</div>
         ${requestEditHtml}
+        ${adminHtml}
         <div class="ctx-item" style="color:red" onclick="window.deleteMapCego('${id}')"><i class="fas fa-trash"></i> Excluir Mapa</div>
     `;
     let posX = x;
@@ -275,8 +288,31 @@ window.loadMap = function(id) {
         btnMapHistory.style.display = (m.changeHistory && m.changeHistory.length > 0) ? 'inline-block' : 'none';
     }
     
-    document.getElementById('sigReceb').textContent = m.signatures?.receb || ''; 
-    document.getElementById('sigConf').textContent = m.signatures?.conf || '';
+    const sigRecebEl = document.getElementById('sigReceb');
+    if (sigRecebEl) {
+        if (m.signatures?.receb) {
+            if (m.signatures.receb.startsWith('data:image/')) {
+                sigRecebEl.innerHTML = `<img src="${m.signatures.receb}" style="max-height: 50px; max-width: 150px; background: white; border-radius: 4px; padding: 2px; display: block; border: 1px solid #cbd5e1;" />`;
+            } else {
+                sigRecebEl.textContent = m.signatures.receb;
+            }
+        } else {
+            sigRecebEl.innerHTML = '';
+        }
+    }
+
+    const sigConfEl = document.getElementById('sigConf');
+    if (sigConfEl) {
+        if (m.signatures?.conf) {
+            if (m.signatures.conf.startsWith('data:image/')) {
+                sigConfEl.innerHTML = `<img src="${m.signatures.conf}" style="max-height: 50px; max-width: 150px; background: white; border-radius: 4px; padding: 2px; display: block; border: 1px solid #cbd5e1;" />`;
+            } else {
+                sigConfEl.textContent = m.signatures.conf;
+            }
+        } else {
+            sigConfEl.innerHTML = '';
+        }
+    }
     
     window.renderRows(m); 
     window.renderMapList(); 
@@ -355,6 +391,11 @@ window.signMap = function(role) {
     const m = window.mapData.find(x => x.id === window.currentMapId);
     if (!m) return;
     if (m.launched && !m.forceUnlock) return alert("Mapa lançado e bloqueado.");
+
+    if (m.manualSignature) {
+        window.openMapSignatureCanvasModal(role);
+        return;
+    }
 
     const name = (typeof loggedUser !== 'undefined') ? loggedUser.username : 'USUÁRIO';
     
@@ -650,4 +691,134 @@ window.showMapChangeHistory = function() {
     
     const modal = document.getElementById('modalMapHistory');
     if (modal) modal.style.display = 'flex';
+};
+
+// =========================================================
+// ASSINATURA MANUAL (CANVAS) PARA MAPAS CEGOS
+// =========================================================
+
+window.toggleManualSignature = function(id) {
+    const map = window.mapData.find(x => x.id === id);
+    if (!map) return;
+    if (!window.isAdmin) return alert("Apenas administradores podem alterar esta configuração.");
+    
+    map.manualSignature = !map.manualSignature;
+    
+    window.saveAll();
+    window.renderMapList();
+    if (window.currentMapId === id) {
+        window.loadMap(id);
+    }
+    window.closeContextMenu();
+    alert(`Assinatura manual para o mapa #${id} foi ${map.manualSignature ? 'ATIVADA' : 'DESATIVADA'}.`);
+};
+
+let mapIsDrawing = false;
+let mapSigCanvas = null;
+let mapSigCtx = null;
+
+window.initMapSignatureCanvas = function() {
+    mapSigCanvas = document.getElementById('mapSignatureCanvas');
+    if (!mapSigCanvas) return;
+    
+    mapSigCtx = mapSigCanvas.getContext('2d');
+    
+    window.clearMapSignatureCanvas();
+
+    if (mapSigCanvas._eventsInitialized) return;
+    mapSigCanvas._eventsInitialized = true;
+
+    mapSigCanvas.addEventListener('pointerdown', (e) => {
+        mapIsDrawing = true;
+        mapSigCtx.beginPath();
+        const rect = mapSigCanvas.getBoundingClientRect();
+        mapSigCtx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    });
+
+    mapSigCanvas.addEventListener('pointermove', (e) => {
+        if (!mapIsDrawing) return;
+        const rect = mapSigCanvas.getBoundingClientRect();
+        mapSigCtx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        mapSigCtx.stroke();
+    });
+
+    mapSigCanvas.addEventListener('pointerup', () => {
+        mapIsDrawing = false;
+    });
+
+    mapSigCanvas.addEventListener('pointerleave', () => {
+        mapIsDrawing = false;
+    });
+};
+
+window.clearMapSignatureCanvas = function() {
+    if (!mapSigCanvas || !mapSigCtx) return;
+    mapSigCtx.fillStyle = '#ffffff';
+    mapSigCtx.fillRect(0, 0, mapSigCanvas.width, mapSigCanvas.height);
+    
+    mapSigCtx.strokeStyle = '#cccccc';
+    mapSigCtx.lineWidth = 1;
+    mapSigCtx.setLineDash([5, 5]);
+    mapSigCtx.beginPath();
+    mapSigCtx.moveTo(20, mapSigCanvas.height - 25);
+    mapSigCtx.lineTo(mapSigCanvas.width - 20, mapSigCanvas.height - 25);
+    mapSigCtx.stroke();
+    
+    mapSigCtx.fillStyle = '#888888';
+    mapSigCtx.font = '10px Arial';
+    const role = document.getElementById('mapSignatureRole')?.value || 'receb';
+    const labelText = role === 'receb' ? 'ASSINATURA MANUAL DO RECEBIMENTO' : 'ASSINATURA MANUAL DO CONFERENTE';
+    mapSigCtx.fillText(labelText, mapSigCanvas.width / 2 - 95, mapSigCanvas.height - 10);
+    
+    mapSigCtx.strokeStyle = '#1e3a8a';
+    mapSigCtx.lineWidth = 2.5;
+    mapSigCtx.setLineDash([]);
+};
+
+window.openMapSignatureCanvasModal = function(role) {
+    const modal = document.getElementById('modalMapSignatureCanvas');
+    if (!modal) return;
+    
+    if (role === 'receb') {
+        if (!window.isRecebimento) return alert("Apenas o Recebimento pode assinar aqui.");
+    } else {
+        if (!window.isConferente && !window.isAdmin) return alert("Apenas conferentes podem assinar aqui.");
+    }
+
+    document.getElementById('mapSignatureRole').value = role;
+    document.getElementById('mapSignatureRoleName').textContent = role === 'receb' ? 'Recebimento' : 'Conferência';
+    
+    modal.style.display = 'flex';
+    
+    setTimeout(() => {
+        window.initMapSignatureCanvas();
+    }, 100);
+};
+
+window.closeMapSignatureCanvasModal = function() {
+    const modal = document.getElementById('modalMapSignatureCanvas');
+    if (modal) modal.style.display = 'none';
+};
+
+window.confirmMapSignature = function() {
+    const role = document.getElementById('mapSignatureRole').value;
+    const m = window.mapData.find(x => x.id === window.currentMapId);
+    if (!m) return;
+
+    if (!mapSigCanvas || !mapSigCtx) return;
+
+    const signatureData = mapSigCanvas.toDataURL();
+    
+    if (!m.signatures) m.signatures = {};
+    
+    if (role === 'receb') {
+        m.signatures.receb = signatureData;
+    } else {
+        m.signatures.conf = signatureData;
+        m.conferenteSignature = signatureData;
+    }
+
+    window.saveAll();
+    window.loadMap(m.id);
+    window.closeMapSignatureCanvasModal();
 };

@@ -13,6 +13,20 @@ window.getBrazilTime = function() {
     return now.toISOString();
 };
 
+window.formatDuration = function(ms) {
+    if (isNaN(ms) || ms < 0) return '---';
+    const totalSecs = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+    
+    let parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+    parts.push(`${seconds}s`);
+    return parts.join(' ');
+};
+
 window.Validators = {
     cleanName: (txt) => {
         if (!txt) return '';
