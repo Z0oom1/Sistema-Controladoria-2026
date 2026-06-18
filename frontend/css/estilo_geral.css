@@ -4102,6 +4102,7 @@ body.dark-mode .matrix-table tr:hover td {
    ========================================================================== */
 .main-sidebar.collapsed {
     width: 80px;
+    overflow: visible;
 }
 
 .content-area.collapsed {
@@ -4123,6 +4124,7 @@ body.dark-mode .matrix-table tr:hover td {
     flex-direction: column;
     gap: 15px; /* Maior distância para visual de Dock */
     align-items: center;
+    overflow: visible;
 }
 
 .main-sidebar.collapsed .menu-item {
@@ -4183,12 +4185,12 @@ body.dark-mode .matrix-table tr:hover td {
 /* Estilos do Botão Redondo de Toggle */
 .sidebar-toggle-btn {
     position: absolute;
-    top: 23px;
-    right: -12px;
-    width: 24px;
-    height: 24px;
+    top: 21px;
+    right: -14px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: var(--primary);
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
     color: white;
     display: flex;
     align-items: center;
@@ -4196,20 +4198,21 @@ body.dark-mode .matrix-table tr:hover td {
     border: 2px solid var(--bg-body);
     cursor: pointer;
     z-index: 4000;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     padding: 0;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
 }
 
 .sidebar-toggle-btn:hover {
-    transform: scale(1.2);
-    background: var(--primary-hover);
-    box-shadow: 0 6px 12px rgba(185, 28, 28, 0.45);
+    transform: scale(1.15);
+    background: linear-gradient(135deg, var(--primary-hover), #7f1d1d);
+    box-shadow: 0 6px 16px rgba(185, 28, 28, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1);
+    color: #fff;
 }
 
 .main-sidebar.collapsed .sidebar-toggle-btn {
-    right: -12px;
+    right: -14px;
 }
 
 /* Tooltip customizado no modo retrátil */
@@ -4229,7 +4232,7 @@ body.dark-mode .matrix-table tr:hover td {
     transition: opacity 0.2s ease, transform 0.2s ease;
     transform: translateX(-8px);
     box-shadow: var(--shadow-lg);
-    z-index: 100;
+    z-index: 5000;
     border: 1px solid var(--border-color);
 }
 
