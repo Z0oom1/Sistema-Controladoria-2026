@@ -166,7 +166,7 @@ body.web .app-title {
     position: fixed;
     top: var(--titlebar-height);
     left: 0;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .logo-area {
@@ -4132,4 +4132,118 @@ body.dark-mode .matrix-table tr:hover td {
     background: var(--primary);
     color: white;
     border-color: var(--primary);
+}
+
+/* ==========================================================================
+   SIDEBAR RETRÁTIL E EFEITO MACBOOK DOCK
+   ========================================================================== */
+.main-sidebar.collapsed {
+    width: 80px;
+}
+
+.content-area.collapsed {
+    margin-left: 80px;
+}
+
+.main-sidebar.collapsed .logo-area {
+    justify-content: center;
+    padding: 0;
+}
+
+.main-sidebar.collapsed .logo-area span {
+    display: none;
+}
+
+.main-sidebar.collapsed .menu-items {
+    padding: 20px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Maior distância para visual de Dock */
+    align-items: center;
+}
+
+.main-sidebar.collapsed .menu-item {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    margin: 0 auto;
+    border-radius: 12px; /* Divs individuais quadradas de cantos arredondados */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+/* Efeito MacBook Dock no Hover */
+.main-sidebar.collapsed .menu-item:hover {
+    transform: scale(1.22);
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 8px 20px rgba(185, 28, 28, 0.45);
+    z-index: 10;
+}
+
+.main-sidebar.collapsed .menu-item span {
+    display: none;
+}
+
+.main-sidebar.collapsed .menu-item i {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.main-sidebar.collapsed .menu-item .notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    margin-left: 0;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border: 2px solid var(--secondary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.main-sidebar.collapsed .user-footer {
+    justify-content: center;
+    padding: 15px 0;
+}
+
+.main-sidebar.collapsed .user-footer > div:not(#sidebarUserAvatar) {
+    display: none;
+}
+
+/* Estilos do Botão Redondo de Toggle */
+.sidebar-toggle-btn {
+    position: absolute;
+    top: 23px;
+    right: -12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    z-index: 4000;
+    box-shadow: var(--shadow-md);
+    transition: all 0.2s ease;
+    padding: 0;
+    font-size: 0.75rem;
+}
+
+.sidebar-toggle-btn:hover {
+    transform: scale(1.15);
+    background: var(--primary-hover);
+}
+
+.main-sidebar.collapsed .sidebar-toggle-btn {
+    right: -12px;
 }

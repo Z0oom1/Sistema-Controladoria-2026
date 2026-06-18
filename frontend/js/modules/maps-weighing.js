@@ -170,10 +170,16 @@ window.openMapContextMenu = function(x, y, id) {
         adminHtml = `<div class="ctx-item" onclick="window.toggleManualSignature('${id}')"><i class="fas fa-signature"></i> Assinatura Manual: ${statusText}</div>`;
     }
 
+    let unlockHtml = '';
+    if (window.isAdmin && map && map.launched) {
+        unlockHtml = `<div class="ctx-item" style="color:#2563eb;" onclick="window.unlockMapCego('${id}')"><i class="fas fa-lock-open"></i> Desbloquear Mapa</div>`;
+    }
+
     m.innerHTML = `
         <div class="ctx-item" onclick="window.loadMap('${id}')"><i class="fas fa-eye"></i> Visualizar Mapa</div>
         ${requestEditHtml}
         ${adminHtml}
+        ${unlockHtml}
         <div class="ctx-item" style="color:red" onclick="window.deleteMapCego('${id}')"><i class="fas fa-trash"></i> Excluir Mapa</div>
     `;
     let posX = x;
@@ -821,4 +827,22 @@ window.confirmMapSignature = function() {
     window.saveAll();
     window.loadMap(m.id);
     window.closeMapSignatureCanvasModal();
+};
+
+window.unlockMapCego = function(id) {
+    const map = window.mapData.find(x => x.id === id);
+    if (!map) return;
+    if (!window.isAdmin) return alert("Apenas administradores podem desbloquear mapas.");
+    
+    map.launched = false;
+    map.forceUnlock = false;
+    map.authorizedEditor = null;
+    
+    window.saveAll();
+    window.renderMapList();
+    if (window.currentMapId === id) {
+        window.loadMap(id);
+    }
+    window.closeContextMenu();
+    alert(`O mapa #${id} foi desbloqueado com sucesso.`);
 };

@@ -134,7 +134,45 @@ window.renderPatio = function() {
             else if (c.status === 'ENTROU') btn = `<button onclick="window.changeStatus('${c.id}','SAIU')" class="btn btn-edit" style="width:100%; margin-top:5px;">SAÍDA</button>`;
         }
 
+        let alertHtml = '';
+        if (c.status === 'FILA' || c.status === 'LIBERADO') {
+            const chegadaTime = c.chegada ? new Date(c.chegada) : null;
+            if (chegadaTime) {
+                const now = new Date(window.getBrazilTime());
+                const diffMs = now - chegadaTime;
+                const diffHours = diffMs / (1000 * 60 * 60);
+                
+                const todayStr = window.getBrazilTime().split('T')[0];
+                const chegadaDay = (c.chegada || '').split('T')[0];
+                const isAnotherDay = (chegadaDay !== todayStr);
+                
+                if (isAnotherDay) {
+                    const dateParts = chegadaDay.split('-');
+                    const dayStr = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                    const hourStr = c.chegada.slice(11, 16);
+                    const alertReason = `Chegou no dia ${dayStr} às ${hourStr}`;
+                    alertHtml = `<div class="queue-alert-badge" style="position: absolute; top: 10px; right: 10px; z-index: 10;" title="${alertReason}">
+                        <i class="fas fa-exclamation-triangle" style="color: #eab308; font-size: 1.1rem;" title="${alertReason}"></i>
+                    </div>`;
+                } else if (diffHours >= 8) {
+                    const alertReason = `Caminhão está há 8h esperando descarga`;
+                    alertHtml = `<div class="queue-alert-badge" style="position: absolute; top: 10px; right: 10px; z-index: 10;" title="${alertReason}">
+                        <i class="fas fa-exclamation-triangle" style="color: #eab308; font-size: 1.1rem;" title="${alertReason}"></i>
+                    </div>`;
+                } else if (diffHours >= 2) {
+                    const hrs = Math.floor(diffHours);
+                    const mins = Math.floor((diffHours - hrs) * 60);
+                    const timeStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+                    const alertReason = `Caminhão está há ${timeStr} esperando atendimento`;
+                    alertHtml = `<div class="queue-alert-badge" style="position: absolute; top: 10px; right: 10px; z-index: 10;" title="${alertReason}">
+                        <i class="fas fa-exclamation-triangle" style="color: #eab308; font-size: 1.1rem;" title="${alertReason}"></i>
+                    </div>`;
+                }
+            }
+        }
+
         card.innerHTML = `
+            ${alertHtml}
             <div class="card-basic">
                 <div>
                     <div class="card-company">${displayName} <span style="font-weight:normal; font-size:0.8em; color:#666;">#${c.sequencia || ''}</span> ${c.isProvisory ? '<span style="font-size:0.6rem; background:orange; color:white; padding:2px">REQ</span>' : ''}</div>

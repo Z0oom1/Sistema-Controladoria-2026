@@ -35,6 +35,18 @@ window.initRoleBasedUI = function() {
         const tg = domCache.get('darkModeToggle');
         if (tg) tg.checked = true;
     }
+
+    // Aplicar estado do menu lateral colapsado
+    if (localStorage.getItem('sidebar_collapsed') === 'true') {
+        const sidebar = document.querySelector('.main-sidebar');
+        const content = document.querySelector('.content-area');
+        const toggleIcon = document.getElementById('sidebarToggleIcon');
+        if (sidebar && content) {
+            sidebar.classList.add('collapsed');
+            content.classList.add('collapsed');
+            if (toggleIcon) toggleIcon.className = 'fas fa-chevron-right';
+        }
+    }
     
     if (localStorage.getItem('aw_fast_mode') === 'true') {
         document.body.classList.add('fast-mode');
@@ -376,3 +388,23 @@ document.addEventListener('click', (e) => {
         window.closeContextMenu();
     }
 }, { passive: true });
+
+window.toggleSidebar = function() {
+    const sidebar = document.querySelector('.main-sidebar');
+    const content = document.querySelector('.content-area');
+    const toggleIcon = document.getElementById('sidebarToggleIcon');
+    if (!sidebar || !content) return;
+    
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    content.classList.toggle('collapsed', isCollapsed);
+    
+    localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    
+    if (toggleIcon) {
+        if (isCollapsed) {
+            toggleIcon.className = 'fas fa-chevron-right';
+        } else {
+            toggleIcon.className = 'fas fa-chevron-left';
+        }
+    }
+};
