@@ -277,7 +277,7 @@ server.listen(PORT, () => {
     console.log(`🚀 Servidor Wilson rodando em http://localhost:${PORT}`);
 });
 
-// Graceful shutdown
+// Encerramento limpo do servidor
 process.on('SIGTERM', () => {
     console.log('SIGTERM recebido, encerrando...');
     server.close(() => {

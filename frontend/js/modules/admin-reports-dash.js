@@ -223,6 +223,7 @@ window.renderProfileArea = function() {
                                     renderPermissionItem('Editar Caminhão', p.canEditTruck),
                                     renderPermissionItem('Excluir Caminhão', p.canDeleteTruck),
                                     renderPermissionItem('Mover Fila', p.canMoveTruck),
+                                    renderPermissionItem('Liberar Caminhão (Status)', p.canReleaseTruck),
                                     renderPermissionItem('Cadastros Gerais', p.canManageCatalogs),
                                     renderPermissionItem('Ver Notificações', p.canViewNotifications),
                                     renderPermissionItem('Relatórios & Dashboard', p.canViewReports)
@@ -1551,6 +1552,7 @@ window.renderAdminDashboard = function() {
         { key: 'canEditTruck', label: 'Editar Caminhão', desc: 'Editar pátio, MP e carregamento' },
         { key: 'canDeleteTruck', label: 'Excluir Caminhão', desc: 'Remover pátio, MP e carregamento' },
         { key: 'canMoveTruck', label: 'Mover Caminhão na Fila', desc: 'Reordenar e movimentar cards de setor' },
+        { key: 'canReleaseTruck', label: 'Liberar/Chamar Caminhão', desc: 'Chamar, dar entrada ou dar saída nos veículos' },
         { key: 'canManageCatalogs', label: 'Gerenciar Cadastros', desc: 'Inserir/editar/deletar catalogos gerais' },
         { key: 'canViewNotifications', label: 'Ver Notificações', desc: 'Acessar tela de notificações e badges' },
         { key: 'canViewReports', label: 'Visualizar Relatórios', desc: 'Visualizar relatórios e dashboard' },
@@ -1933,6 +1935,7 @@ window.renderPermissionsMatrix = function() {
         { label: 'Editar Veículo', key: 'canEditTruck' },
         { label: 'Excluir Veículo', key: 'canDeleteTruck' },
         { label: 'Mover Fila', key: 'canMoveTruck' },
+        { label: 'Liberar Veículo', key: 'canReleaseTruck' },
         { label: 'Cadastros', key: 'canManageCatalogs' },
         { label: 'Notificações', key: 'canViewNotifications' },
         { label: 'Relatórios', key: 'canViewReports' },

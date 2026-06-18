@@ -14,9 +14,9 @@ window.calculateUnreadCounts = function() {
 
     const messages = window.chatMessagesData || [];
     messages.forEach(m => {
-        if (m.sender === loggedInUser) return; // ignore own messages
+        if (m.sender === loggedInUser) return; // ignora mensagens enviadas pelo próprio usuário
         
-        // Skip messages that the user deleted for themselves
+        // Ignora mensagens que o usuário apagou para si mesmo
         if (m.deletedFor && Array.isArray(m.deletedFor) && m.deletedFor.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
             return;
         }
@@ -39,8 +39,7 @@ window.calculateUnreadCounts = function() {
         }
         
         if (!isForMe) return;
-        
-        // We only count it as unread if readBy exists AND does NOT contain the current user
+        // Só considera não lida se o usuário logado não estiver na lista de quem já leu
         if (m.readBy && Array.isArray(m.readBy)) {
             if (!m.readBy.some(u => u.toLowerCase() === loggedInUser.toLowerCase())) {
                 window.chatUnreadCounts[chatKey] = (window.chatUnreadCounts[chatKey] || 0) + 1;

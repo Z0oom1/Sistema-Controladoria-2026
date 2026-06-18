@@ -2,10 +2,7 @@
 // MÓDULO DE ESTADO GLOBAL - REFATORADO COM PADRÃO LOCAL
 // =========================================================
 
-/**
- * StateManager: Padrão centralizado para gerenciar estado
- * Reduz variáveis globais e melhora performance
- */
+// StateManager para centralizar e gerenciar o estado da aplicação
 class StateManager {
     constructor() {
         this.state = {
@@ -337,10 +334,7 @@ window.closeContextMenu = function() {
     document.querySelectorAll('.context-menu').forEach(x => x.style.display = 'none');
 };
 
-/**
- * Dynamic User Permissions Resolver
- * Resolves permissions using inheritance from groups, user overrides, or role defaults.
- */
+// Resolve as permissões do usuário com base no grupo, overrides ou cargo padrão
 window.resolveUserPermissions = function() {
     const user = window.loggedUser;
     if (!user) return;
@@ -348,13 +342,14 @@ window.resolveUserPermissions = function() {
     const usernameLower = (user.username || '').toLowerCase();
     const isAdm = usernameLower === 'admin' || (user.role || '').toLowerCase().includes('admin') || (user.role || '').toLowerCase().includes('administrador');
 
-    // 1. Admin gets all privileges
+    // Admin tem acesso total ao sistema
     if (isAdm) {
         window.userPermissions = {
             canSignMap: true,
             canEditTruck: true,
             canDeleteTruck: true,
             canMoveTruck: true,
+            canReleaseTruck: true,
             canManageCatalogs: true,
             canViewNotifications: true,
             canViewReports: true,
@@ -373,7 +368,7 @@ window.resolveUserPermissions = function() {
         return;
     }
 
-    // Determine default legacy/fallback values based on user's current sector/role
+    // Define os valores padrão de fallback com base no setor e cargo do usuário
     const sector = (user.sector || '').toLowerCase();
     const role = (user.role || '').toLowerCase();
     const isConf = sector === 'conferente';
@@ -384,6 +379,7 @@ window.resolveUserPermissions = function() {
     const defCanEditTruck = isRec;
     const defCanDeleteTruck = isRec;
     const defCanMoveTruck = isRec;
+    const defCanReleaseTruck = isRec;
     const defCanManageCatalogs = isRec;
     const defCanViewNotifications = isRec;
     const defCanViewReports = isEnc;
@@ -399,7 +395,7 @@ window.resolveUserPermissions = function() {
     const defShowMenuNotif = defCanViewNotifications;
     const defShowMenuChat = true;
 
-    // 2. Resolve based on Database Users and Groups
+    // Busca as informações no banco de dados de usuários e grupos
     const users = window.usersData || [];
     const groups = window.groupsData || [];
 
@@ -414,11 +410,11 @@ window.resolveUserPermissions = function() {
 
     let resolvedPerms = {};
     if (groupObj) {
-        // Inherit group permissions
+        // Herda as permissões configuradas no grupo
         if (groupObj.permissions) {
             resolvedPerms = { ...groupObj.permissions };
         } else {
-            // Legacy group sector/role fallbacks
+            // Fallback de permissões baseado no setor/cargo do grupo
             const gSector = (groupObj.sector || '').toLowerCase();
             const gRole = (groupObj.role || '').toLowerCase();
             const gIsConf = gSector === 'conferente';
@@ -429,21 +425,23 @@ window.resolveUserPermissions = function() {
             resolvedPerms.canEditTruck = gIsRec;
             resolvedPerms.canDeleteTruck = gIsRec;
             resolvedPerms.canMoveTruck = gIsRec;
+            resolvedPerms.canReleaseTruck = gIsRec;
             resolvedPerms.canManageCatalogs = gIsRec;
             resolvedPerms.canViewNotifications = gIsRec;
             resolvedPerms.canViewReports = gIsEnc;
         }
     } else if (dbUser && dbUser.permissions) {
-        // Individual override permissions
+        // Permissões individuais específicas do usuário
         resolvedPerms = { ...dbUser.permissions };
     }
 
-    // Merge/Fallback resolved permissions with dynamic defaults
+    // Mescla as permissões resolvidas com os padrões de fallback
     window.userPermissions = {
         canSignMap: resolvedPerms.canSignMap !== undefined ? resolvedPerms.canSignMap : defCanSignMap,
         canEditTruck: resolvedPerms.canEditTruck !== undefined ? resolvedPerms.canEditTruck : defCanEditTruck,
         canDeleteTruck: resolvedPerms.canDeleteTruck !== undefined ? resolvedPerms.canDeleteTruck : defCanDeleteTruck,
         canMoveTruck: resolvedPerms.canMoveTruck !== undefined ? resolvedPerms.canMoveTruck : defCanMoveTruck,
+        canReleaseTruck: resolvedPerms.canReleaseTruck !== undefined ? resolvedPerms.canReleaseTruck : defCanReleaseTruck,
         canManageCatalogs: resolvedPerms.canManageCatalogs !== undefined ? resolvedPerms.canManageCatalogs : defCanManageCatalogs,
         canViewNotifications: resolvedPerms.canViewNotifications !== undefined ? resolvedPerms.canViewNotifications : defCanViewNotifications,
         canViewReports: resolvedPerms.canViewReports !== undefined ? resolvedPerms.canViewReports : defCanViewReports,

@@ -149,9 +149,9 @@ window.renderPatio = function() {
  * Altera o status de um veículo e registra os horários correspondentes.
  */
 window.changeStatus = function(id, st) {
-    const p = window.userPermissions || { canMoveTruck: window.isRecebimento || window.isAdmin };
-    if (!p.canMoveTruck) {
-        return alert("Acesso negado: Você não tem permissão para mover/alterar status de veículos.");
+    const p = window.userPermissions || { canReleaseTruck: window.isRecebimento || window.isAdmin };
+    if (!p.canReleaseTruck) {
+        return alert("Acesso negado: Você não tem permissão para alterar o status/liberar veículos.");
     }
     const i = window.patioData.findIndex(c => c.id === id); 
     if (i > -1) {

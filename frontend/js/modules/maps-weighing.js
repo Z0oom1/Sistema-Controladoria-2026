@@ -470,7 +470,7 @@ window.renderMateriaPrima = function() {
 
         const diffFormatted = Number(m.difKg).toFixed(2);
         
-        // Indicator for auditor warning when difference exceeds 1% of cargo NF weight
+        // Alerta para auditoria caso a diferença exceda 1% tolerada
         const exceedsTolerance = Math.abs(m.difPerc) > 1.0;
         const alertBadge = exceedsTolerance 
             ? `<span style="background:rgba(239,68,68,0.12); color:#ef4444; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold; margin-left:6px; display:inline-flex; align-items:center; gap:2px;" title="Divergência excede 1% tolerância"><i class="fas fa-exclamation-triangle"></i> AUDITORIA</span>` 
