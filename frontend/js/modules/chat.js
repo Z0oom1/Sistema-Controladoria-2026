@@ -588,7 +588,8 @@ window.markActiveChatAsRead = function() {
                     if (!isForMe) return;
 
                     // Easter Egg Present Check
-                    const textClean = m.text ? m.text.trim() : '';
+                    const eggValue = m.easterEgg || (m.text ? m.text.trim() : '');
+                    const textClean = typeof eggValue === 'string' ? eggValue.trim() : '';
                     const easterEggs = {
                         '--gueguel--': 'meme',
                         '--bulldog--': 'dog',
@@ -1391,11 +1392,33 @@ window.sendChatMessage = function() {
     
     const loggedInUser = window.loggedUser?.username || '';
     
+    let isEgg = false;
+    let textToSend = text;
+    let eggCode = null;
+
+    const textClean = text.trim();
+    const nativeEggs = ['--gueguel--', '--bulldog--', '--converseiro--'];
+    if (nativeEggs.includes(textClean)) {
+        isEgg = true;
+        eggCode = textClean;
+        textToSend = '(código secreto enviado)';
+    } else if (textClean.startsWith('--') && textClean.endsWith('--') && textClean.length > 4) {
+        const codeName = textClean.slice(2, -2).trim().toLowerCase();
+        const customEggs = window.customEasterEggs || [];
+        const matchedEgg = customEggs.find(x => x.code.toLowerCase() === codeName);
+        if (matchedEgg) {
+            isEgg = true;
+            eggCode = textClean;
+            textToSend = '(código secreto enviado)';
+        }
+    }
+
     if (window.editingMessageId) {
         // MODO EDIÇÃO
         const msg = window.chatMessagesData.find(x => x.id === window.editingMessageId);
         if (msg) {
-            msg.text = text;
+            msg.text = textToSend;
+            if (isEgg) msg.easterEgg = eggCode;
             msg.edited = true;
             msg.editedAt = new Date().toISOString();
         }
@@ -1406,7 +1429,7 @@ window.sendChatMessage = function() {
             id: "msg_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
             sender: loggedInUser,
             recipient: window.activeChatId,
-            text: text,
+            text: textToSend,
             timestamp: new Date().toISOString(),
             edited: false,
             editedAt: null,
@@ -1415,6 +1438,9 @@ window.sendChatMessage = function() {
             readBy: [loggedInUser],
             deletedFor: []
         };
+        if (isEgg) {
+            newMsgObj.easterEgg = eggCode;
+        }
         window.chatMessagesData.push(newMsgObj);
         if (typeof window.playSentSound === 'function') {
             window.playSentSound();
