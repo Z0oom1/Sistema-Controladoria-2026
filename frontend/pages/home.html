@@ -1022,6 +1022,35 @@
         </div>
     </div>
 
+    <div id="modalMoveSector" class="modal-overlay" style="z-index: 7000; display: none;">
+        <div class="modal-box" style="width: 400px;">
+            <div class="modal-header-styled">
+                <h3><i class="fas fa-route"></i> Mover para Setor</h3>
+                <button class="btn btn-edit btn-small"
+                    onclick="document.getElementById('modalMoveSector').style.display='none'"
+                    style="border:none; padding: 5px 10px;"><i class="fas fa-times"></i></button>
+            </div>
+            <input type="hidden" id="moveSectorTruckId">
+            <div class="form-group" style="margin-top: 15px; margin-bottom: 20px;">
+                <label class="form-label" style="font-weight: bold; display: block; margin-bottom: 8px;">Selecione o Setor:</label>
+                <select id="moveSectorSelect" class="form-input-styled" style="width: 100%;">
+                    <option value="MANUTENÇÃO">MANUTENÇÃO</option>
+                    <option value="INFRAESTRUTURA">INFRAESTRUTURA</option>
+                    <option value="SALA DE PESAGEM">SALA DE PESAGEM</option>
+                    <option value="LABORATÓRIO">LABORATÓRIO</option>
+                    <option value="SST">SST</option>
+                    <option value="CD">CD</option>
+                    <option value="COMPRAS">COMPRAS</option>
+                    <option value="OUTROS">OUTROS</option>
+                </select>
+            </div>
+            <div style="text-align: right;">
+                <button class="btn btn-edit" onclick="document.getElementById('modalMoveSector').style.display='none'">Cancelar</button>
+                <button class="btn btn-save" onclick="window.confirmMoveSector()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalFirstAccess" class="modal-overlay" style="display:none;">
         <div class="modal-box">
             <h3>Criar Nova Senha</h3>
