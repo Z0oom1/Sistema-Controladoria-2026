@@ -30,11 +30,11 @@ window.openEasterEggMeme = function() {
     if (imgEl) {
         const type = window.activeEasterEggType || 'meme';
         if (type === 'dog') {
-            imgEl.src = '../Imgs/dog.jpeg';
+            imgEl.src = '/Imgs/dog.jpeg';
         } else if (type === 'converceiro') {
-            imgEl.src = '../Imgs/converceiro.jpeg';
+            imgEl.src = '/Imgs/converceiro.jpeg';
         } else {
-            imgEl.src = '../Imgs/meme.jpeg';
+            imgEl.src = '/Imgs/meme.jpeg';
         }
     }
     
