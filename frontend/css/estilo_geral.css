@@ -170,6 +170,18 @@ body.web .app-title {
     transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.main-sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 280px;
+    background: radial-gradient(circle at 50% 0%, rgba(185, 28, 28, 0.12), transparent 75%);
+    pointer-events: none;
+    z-index: -1;
+}
+
 .logo-area {
     height: var(--header-height);
     padding: 0 20px;
@@ -196,11 +208,12 @@ body.web .app-title {
 
 .logo-area span {
     font-family: 'Inter', sans-serif;
-    letter-spacing: 1.5px;
-    font-weight: 700;
-    background: linear-gradient(90deg, #ffffff 0%, #d1d5db 100%);
+    letter-spacing: 2px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #ffffff 0%, #cbd5e1 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
 }
 
 .menu-items {
@@ -232,7 +245,8 @@ body.web .app-title {
 
 .menu-item {
     position: relative;
-    padding: 12px 16px;
+    margin: 3px 10px;
+    padding: 11px 16px;
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -257,8 +271,14 @@ body.web .app-title {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
     color: white;
     font-weight: 600;
-    box-shadow: 0 4px 15px rgba(185, 28, 28, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(185, 28, 28, 0.4);
+    box-shadow: 0 4px 20px rgba(185, 28, 28, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-item.active:hover {
+    background: linear-gradient(135deg, var(--primary-hover) 0%, #7f1d1d 100%);
+    box-shadow: 0 6px 24px rgba(185, 28, 28, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateX(6px);
 }
 
 .main-sidebar:not(.collapsed) .menu-item.active::before {
@@ -280,8 +300,14 @@ body.web .app-title {
     transition: transform 0.2s ease, color 0.2s ease;
 }
 
+@keyframes floatIcon {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+    100% { transform: translateY(0); }
+}
+
 .menu-item:hover i {
-    transform: scale(1.1);
+    animation: floatIcon 1.2s ease-in-out infinite;
     color: #ffffff;
 }
 
@@ -301,25 +327,31 @@ body.web .app-title {
 }
 
 .user-footer {
-    padding: 16px 20px;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.35) 100%);
+    margin: 15px 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0.03) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     gap: 12px;
     cursor: pointer;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    transition: all 0.25s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .user-footer:hover {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%);
-    border-top-color: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.07) 100%);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
 .user-footer.active {
-    background: linear-gradient(180deg, rgba(185, 28, 28, 0.08) 0%, rgba(185, 28, 28, 0.15) 100%);
-    border-top-color: rgba(185, 28, 28, 0.25);
-    box-shadow: inset 4px 0 0 0 var(--primary);
+    background: linear-gradient(180deg, rgba(185, 28, 28, 0.12) 0%, rgba(185, 28, 28, 0.04) 100%);
+    border-color: rgba(185, 28, 28, 0.3);
+    box-shadow: 0 4px 15px rgba(185, 28, 28, 0.15), inset 4px 0 0 0 var(--primary);
 }
 
 #sidebarUserAvatar {
@@ -4263,7 +4295,9 @@ body.dark-mode .matrix-table tr:hover td {
 
 .main-sidebar.collapsed .user-footer {
     justify-content: center;
-    padding: 15px 0;
+    margin: 15px 10px;
+    padding: 12px 0;
+    border-radius: 10px;
 }
 
 .main-sidebar.collapsed .user-footer > div:not(#sidebarUserAvatar) {
