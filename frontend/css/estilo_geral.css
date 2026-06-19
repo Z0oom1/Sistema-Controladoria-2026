@@ -1787,18 +1787,27 @@ input:checked+.slider:before {
     /* Menu Lateral - Efeito Gaveta */
     .main-sidebar {
         position: fixed;
-        top: 38px;
+        top: calc(var(--titlebar-height) + 60px);
         left: -280px;
-        height: calc(100% - 38px);
+        height: calc(100vh - var(--titlebar-height) - 60px);
         width: 280px;
         z-index: 3000;
-        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: none;
     }
 
+    .main-sidebar.collapsed {
+        left: -80px;
+        width: 80px;
+    }
+
     .main-sidebar.show-mobile {
-        left: 0;
+        left: 0 !important;
         box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .main-sidebar:not(.show-mobile) .sidebar-toggle-btn {
+        display: none;
     }
 
     /* Ajuste de Conteúdo */
